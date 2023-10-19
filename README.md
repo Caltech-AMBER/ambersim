@@ -45,7 +45,7 @@ Development on this code will be controlled via code review. To facilitate this,
 Python dependencies are specified using a `pyproject.toml` file. Non-python dependencies are specified using the `environment.yml` file, which can create a compliant `conda` environment.
 
 Major versioning decisions:
-* `python=3.11.4`. `torch`, `jax`, and `mujoco` all support it and there are major reported speed improvements over `python` 3.10.
+* `python=3.11.5`. `torch`, `jax`, and `mujoco` all support it and there are major reported speed improvements over `python` 3.10.
 * `cuda==11.8`. Currently, stable `torch` supports `11.8` though there is a nightly build that supports `12.1`.
 
 ### Tooling
