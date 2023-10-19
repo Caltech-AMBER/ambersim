@@ -60,6 +60,8 @@ We use various tools to ensure code quality.
 | Tests         | [pytest](https://docs.pytest.org/en/stable/)      |
 | Type Checking | [pyright](https://microsoft.github.io/pyright/#/) |
 
+We follow [Google code style conventions](https://google.github.io/styleguide/pyguide.html) (in particular, for docstrings).
+
 ### Dev Contact
 In alphabetical order, the members of the lab working on this are:
 * Adrian (aghansah@caltech.edu)
