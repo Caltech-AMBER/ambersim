@@ -8,7 +8,7 @@ version = "0.0.1"
 description = "In-house tools built on GPU-accelerated simulation"
 readme = "README.md"
 license = {text="MIT"}
-requires-python = ">=3.10.0"
+requires-python = ">=3.8.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python",
@@ -35,6 +35,16 @@ dev = [
     "pyright>=1.1.332",
     "pytest>=7.4.2",
 ]
+
+# Test-specific packages for verification
+test = [
+    "cvxpy>=1.4.1",
+    "drake>=1.21.0",
+    "pin>=2.6.20",
+]
+
+# All packages
+all = ["ambersim[dev, test]"]
 
 [options]
 # to download torch compatible with Cuda 11.8 and newest jax releases
@@ -65,5 +75,5 @@ reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 pythonPlatform = "Linux"
