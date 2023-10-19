@@ -33,7 +33,7 @@ pre-commit autoupdate
 pre-commit install
 ```
 
-## Development
+## Development Details
 
 ### Abridged Dev Guidelines
 Development on this code will be controlled via code review. To facilitate this, please follow these guidelines:
@@ -41,16 +41,19 @@ Development on this code will be controlled via code review. To facilitate this,
 * write tests as you go (and if you are reviewing, suggest missing tests),
 * write docstrings for public classes and methods, even if it's just a one-liner.
 
-### Dependency Management
-Dependencies are managed using `conda`. 
+### Dependencies
+Python dependencies are specified using a `pyproject.toml` file. Non-python dependencies are specified using the `environment.yml` file, which can create a compliant `conda` environment.
 
-### Code Cleanliness
-Code will be automatically checked using `pre-commit`. We use the following tools to enforce code cleanliness:
-* Code style: `flake8`
-* Code formatter: `black`
-* Imports: `isort`
-* Tests: `pytest`
-* Type checking: `pyright`
+### Tooling
+We use various tools to ensure code quality.
+
+| Tooling       | Support                                           |
+| ------------- | ------------------------------------------------- |
+| Style         | [flake8](https://flake8.pycqa.org/en/latest/)     |
+| Formatting    | [black](https://black.readthedocs.io/en/stable/)  |
+| Imports       | [isort](https://pycqa.github.io/isort/)           |
+| Tests         | [pytest](https://docs.pytest.org/en/stable/)      |
+| Type Checking | [pyright](https://microsoft.github.io/pyright/#/) |
 
 ### Dev Contact
 In alphabetical order, the members of the lab working on this are:
