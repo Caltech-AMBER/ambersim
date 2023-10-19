@@ -39,7 +39,8 @@ pre-commit install
 Development on this code will be controlled via code review. To facilitate this, please follow these guidelines:
 * keep your pull requests small so that it's practical to human review them,
 * write tests as you go (and if you are reviewing, suggest missing tests),
-* write docstrings for public classes and methods, even if it's just a one-liner.
+* write docstrings for public classes and methods, even if it's just a one-liner,
+* before committing, make sure you locally pass all tests by running `pytest` in the repo root.
 
 ### Dependencies
 Python dependencies are specified using a `pyproject.toml` file. Non-python dependencies are specified using the `environment.yml` file, which can create a compliant `conda` environment.
