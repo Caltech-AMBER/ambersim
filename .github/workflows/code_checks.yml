@@ -28,7 +28,7 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
       - name: Run Black
         run: black --check .
-      - name: flake8
+      - name: Run flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
