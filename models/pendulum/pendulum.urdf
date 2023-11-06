@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<robot name="pendulum">
+  <!-- dummy fixed base link rigidly attached to the world -->
+  <link name="base"/>
+  <joint name="fixed_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="world"/>
+    <child link="base"/>
+  </joint>
+
+  <!-- pendulum link -->
+  <link name="pendulum_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1"/>
+      <origin rpy="0 0 0" xyz="0 0 -0.5"/>
+      <inertia ixx="0.083433" ixy="0" ixz="0" iyy="0.083433" iyz="0" izz="0.0002"/>
+    </inertial>
+  </link>
+
+  <!-- pendulum joint -->
+  <joint name="pendulum_joint" type="revolute">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base"/>
+    <child link="pendulum_link"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="2.0" velocity="8.0" lower="-3.1416" upper="3.1416"/>
+  </joint>
+</robot>

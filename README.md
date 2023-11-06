@@ -14,7 +14,7 @@ conda activate <env_name>
 ```
 To locally install this package, clone the repository and in the repo root, run
 ```
-pip install . --default-timeout=100 future
+pip install . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
 ```
 
 ### Developers
@@ -25,7 +25,7 @@ conda activate <env_name>
 ```
 Install the project with the editable flag and development dependencies:
 ```
-pip install -e .[all] --default-timeout=100 future
+pip install -e .[all] --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
 ```
 Then, install pre-commit hooks by running the following in the repo root:
 ```
