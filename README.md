@@ -47,7 +47,7 @@ Python dependencies are specified using a `pyproject.toml` file. Non-python depe
 
 Major versioning decisions:
 * `python=3.11.5`. `torch`, `jax`, and `mujoco` all support it and there are major reported speed improvements over `python` 3.10.
-* `cuda==11.8`. Currently, stable `torch` supports `11.8` though there is a nightly build that supports `12.1`.
+* `cuda==11.8`. Both `torch` and `jax` support `cuda12`; however, they annoyingly support different minor versions which makes them incompatible in the same environment [https://github.com/google/jax/issues/18032](#18032). Once this is resolved, we will upgrade to `cuda-12.2` or later. It seems most likely that `torch` will support `cuda-12.3` once they do upgrade, since that is the most recent release.
 
 ### Tooling
 We use various tools to ensure code quality.
