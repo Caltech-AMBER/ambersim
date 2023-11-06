@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
-    "jax>=0.4.1",
+    "jax[cuda11_local]>=0.4.1",
     "jaxlib>=0.4.1",
     "matplotlib>=3.5.2",
     "mujoco>=3.0.0",
@@ -45,13 +45,6 @@ test = [
 
 # All packages
 all = ["ambersim[dev, test]"]
-
-[options]
-# to download torch compatible with Cuda 11.8 and newest jax releases
-dependency_links = [
-    "https://download.pytorch.org/whl/cu118",
-    "https://storage.googleapis.com/jax-releases/jax_releases.html",
-]
 
 [tool.setuptools.packages.find]
 include = ["ambersim"]
