@@ -4,10 +4,14 @@ import mujoco as mj
 from mujoco import mjx
 
 from ambersim import ROOT
-from ambersim.utils import load_mjx_model_from_file
+from ambersim.utils import load_mjx_model_from_file, save_model_xml
 
 
 def _rmtree(f: Path):
+    """Recursively deletes a directory using pathlib.
+
+    See: https://stackoverflow.com/a/66552066
+    """
     if f.is_file():
         f.unlink()
     else:
@@ -37,3 +41,11 @@ def test_load_model():
     assert load_mjx_model_from_file(Path(local_path))
     assert load_mjx_model_from_file(Path(repo_path))
     _rmtree(local_dir)
+
+
+def test_save_xml():
+    """Tests saving a URDF as an XML."""
+    # saving a URDF as XML + verifying it loads into mjx
+    save_model_xml(ROOT + "/models/pendulum/pendulum.urdf")
+    assert load_mjx_model_from_file("pendulum.xml")
+    Path.unlink("pendulum.xml")  # deleting test file
