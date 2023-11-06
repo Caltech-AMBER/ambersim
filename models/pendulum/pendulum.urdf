@@ -2,6 +2,7 @@
 
 <robot name="pendulum">
   <!-- dummy fixed base link rigidly attached to the world -->
+  <link name="world"/>
   <link name="base"/>
   <joint name="fixed_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
