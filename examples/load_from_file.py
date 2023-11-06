@@ -4,7 +4,7 @@ from mujoco import mjx
 from ambersim import ROOT
 from ambersim.utils import load_mjx_model_from_file
 
-"""This example demonstrates how to load robots from URDFs into mujoco/mjx.
+"""This example demonstrates how to load robots from URDFs/XMLs into mujoco/mjx.
 
 All of the following work:
 (1) a global path (ROOT specifies the repository root globally)
