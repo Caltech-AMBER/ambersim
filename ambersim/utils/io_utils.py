@@ -108,13 +108,20 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
         )
 
 
-def convex_decomposition_file(meshfile: Union[str, Path], quiet: bool = True, **kwargs) -> List[trimesh.Trimesh]:
+def convex_decomposition_file(
+    meshfile: Union[str, Path],
+    quiet: bool = False,
+    savedir: Optional[Union[str, Path]] = None,
+    **kwargs,
+) -> List[trimesh.Trimesh]:
     """Performs a convex decomposition on a mesh using coacd.
 
     For a description of all the kwargs you can pass, see https://github.com/SarahWeiii/CoACD/blob/main/python/package/bin/coacd
 
     Args:
         meshfile: A path to a URDF or MJCF file. This can be global, local, or with respect to the repository root.
+        quiet: Whether to suppress coacd output.
+        savedir: If supplied, where to save the output meshes.
 
     Returns:
         decomposed_meshes: A list of Trimesh objects forming the convex decomposition.
@@ -132,9 +139,16 @@ def convex_decomposition_file(meshfile: Union[str, Path], quiet: bool = True, **
     # executing the convex decomposition
     meshfile = _check_filepath(meshfile)
     _mesh = trimesh.load(meshfile, force="mesh")
-    mesh = coacd.Mesh(_mesh.vertices, _mesh.faces)
-    parts = coacd.run_coacd(mesh, **kwargs)  # list of (vert, face) tuples
+    full_mesh = coacd.Mesh(_mesh.vertices, _mesh.faces)
+    parts = coacd.run_coacd(full_mesh, **kwargs)  # list of (vert, face) tuples
     decomposed_meshes = [trimesh.Trimesh(vertices=verts, faces=faces) for (verts, faces) in parts]
+
+    # saving decomposed meshes
+    if savedir is not None:
+        name = str(meshfile).split("/")[-1].split(".")[0]
+        for i, mesh in enumerate(decomposed_meshes):
+            mesh.export(Path(savedir) / Path(name + f"_col_{i}.obj"))
+
     return decomposed_meshes
 
 
@@ -143,13 +157,14 @@ def convex_decomposition_dir(
     recursive: bool = False,
     quiet: bool = False,
     savedir: Optional[Union[str, Path]] = None,
+    **kwargs,
 ) -> List[List[trimesh.Trimesh]]:
     """Performs convex decompositions on all meshes in a specified directory.
 
     Args:
         meshdir: A path to dir containing meshes. This can be global, local, or with respect to the repository root.
         recursive: Whether to recursively search for mesh files.
-        quiet: Whether coacd output should be suppressed.
+        quiet: Whether to suppress coacd output.
         savedir: If supplied, where to save the output meshes.
 
     Returns:
@@ -164,10 +179,6 @@ def convex_decomposition_dir(
 
     # coacd only works on .obj files, so we only search for those (recursively) in meshdir
     for meshfile in glob_func("*.obj"):
-        decomposed_meshes = convex_decomposition_file(meshfile, quiet=quiet)
-        if savedir is not None:
-            name = str(meshfile).split("/")[-1].split(".")[0]
-            for i, mesh in enumerate(decomposed_meshes):
-                mesh.export(Path(savedir) / Path(name + f"_col_{i}.obj"))
+        decomposed_meshes = convex_decomposition_file(meshfile, quiet=quiet, savedir=savedir, **kwargs)
         all_decomposed_meshes.append(decomposed_meshes)
     return all_decomposed_meshes

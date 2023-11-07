@@ -6,7 +6,12 @@ from mujoco import mjx
 
 from ambersim import ROOT
 from ambersim.utils.introspection_utils import get_joint_names
-from ambersim.utils.io_utils import _modify_robot_float_base, load_mjx_model_from_file, save_model_xml
+from ambersim.utils.io_utils import (
+    _modify_robot_float_base,
+    convex_decomposition_file,
+    load_mjx_model_from_file,
+    save_model_xml,
+)
 
 
 def _rmtree(f: Path):
@@ -85,3 +90,15 @@ def test_force_float():
     Path.unlink("_temp.xml")
     combined2 = "\t".join(get_joint_names(model2))
     assert "freejoint" in combined2
+
+
+def test_convex_decomposition():
+    """Tests the convex decomposition util."""
+    meshfile = "models/barrett_hand/meshes/finger.obj"
+    savedir = Path("_test_dir")
+    savedir.mkdir(parents=True, exist_ok=False)
+
+    decomposed_meshes = convex_decomposition_file(meshfile, quiet=True, savedir=savedir)
+    assert len(decomposed_meshes) > 0  # tests that there are meshes returned
+    assert len(list(Path(savedir).glob("*.obj"))) > 0  # tests that the saving feature works
+    _rmtree(savedir)
