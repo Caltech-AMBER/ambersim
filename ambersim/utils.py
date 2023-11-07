@@ -106,7 +106,8 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
     except ValueError as e:
         print(e)
         print(
-            "If you're getting errors about mesh filepaths, make sure to add a mujoco tag to the URDF to specify the meshdir!"
+            "If you're getting errors about mesh filepaths, "
+            + "make sure to add a mujoco tag to the URDF to specify the meshdir!"
         )
 
 
