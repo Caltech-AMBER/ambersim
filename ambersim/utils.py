@@ -34,6 +34,7 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
     robot = mjcf.from_file(filepath)
 
     # only add free joint if the first body after worldbody has no joints
+    assert robot.worldbody is not None
     if len(robot.worldbody.body[0].joint) == 0:
         arena = mjcf.RootElement(model=robot.model)
         attachment_frame = arena.attach(robot)
