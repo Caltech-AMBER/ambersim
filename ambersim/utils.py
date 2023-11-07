@@ -101,11 +101,11 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
     print(f"XML file saved to {output_path}!")
 
 
-def get_geom_names(model: Union[mj.MjModel, mjx.Model]) -> List[str]:
+def get_geom_names(model: mj.MjModel) -> List[str]:
     """Returns a list of all geom names in a mujoco model."""
     return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, i) for i in range(model.ngeom)]
 
 
-def get_joint_names(model: Union[mj.MjModel, mjx.Model]) -> List[str]:
+def get_joint_names(model: mj.MjModel) -> List[str]:
     """Returns a list of all joint names in a mujoco model."""
     return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)]
