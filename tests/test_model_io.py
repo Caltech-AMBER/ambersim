@@ -8,23 +8,11 @@ from ambersim import ROOT
 from ambersim.utils.introspection_utils import get_joint_names
 from ambersim.utils.io_utils import (
     _modify_robot_float_base,
+    _rmtree,
     convex_decomposition_file,
     load_mjx_model_from_file,
     save_model_xml,
 )
-
-
-def _rmtree(f: Path):
-    """Recursively deletes a directory using pathlib.
-
-    See: https://stackoverflow.com/a/66552066
-    """
-    if f.is_file():
-        f.unlink()
-    else:
-        for child in f.iterdir():
-            _rmtree(child)
-        f.rmdir()
 
 
 def test_load_model():
