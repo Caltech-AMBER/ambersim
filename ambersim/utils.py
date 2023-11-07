@@ -82,24 +82,32 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
 def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None) -> None:
     """Loads a model and saves it to a mujoco-compliant XML.
 
-    Will save the file to the directory where this util is called.
+    Will save the file to the directory where this util is called. Note that you should add a mujoco tag to URDF files
+    to specify things like the mesh directory relative to the URDF. See the below link for details:
+    https://mujoco.readthedocs.io/en/latest/modeling.html?highlight=urdf#urdf-extensions
 
     Args:
         filepath: A path to a URDF or MJCF file. This can be global, local, or with respect to the repository root.
         output_name: The output name of the model.
     """
-    # loading model and saving XML
-    filepath = _filepath_check_util(filepath)
-    _model = mj.MjModel.from_xml_path(filepath)
-    if output_name is None:
-        output_name = filepath.split("/")[-1].split(".")[0]
-    else:
-        output_name = output_name.split(".")[0]  # strip any extensions
-    mj.mj_saveLastXML(f"{output_name}.xml", _model)
+    try:
+        # loading model and saving XML
+        filepath = _filepath_check_util(filepath)
+        _model = mj.MjModel.from_xml_path(filepath)
+        if output_name is None:
+            output_name = filepath.split("/")[-1].split(".")[0]
+        else:
+            output_name = output_name.split(".")[0]  # strip any extensions
+        mj.mj_saveLastXML(f"{output_name}.xml", _model)
 
-    # reporting save path for clarity
-    output_path = Path.cwd() / Path(str(output_name) + ".xml")
-    print(f"XML file saved to {output_path}!")
+        # reporting save path for clarity
+        output_path = Path.cwd() / Path(str(output_name) + ".xml")
+        print(f"XML file saved to {output_path}!")
+    except ValueError as e:
+        print(e)
+        print(
+            "If you're getting errors about mesh filepaths, make sure to add a mujoco tag to the URDF to specify the meshdir!"
+        )
 
 
 def get_geom_names(model: mj.MjModel) -> List[str]:
