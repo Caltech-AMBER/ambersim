@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+import coacd
 import mujoco as mj
+import trimesh
 from dm_control import mjcf
 from mujoco import mjx
 
@@ -12,7 +14,7 @@ from ambersim import ROOT
 # ############## #
 
 
-def _filepath_check_util(filepath: Union[str, Path]) -> str:
+def _check_filepath(filepath: Union[str, Path]) -> str:
     """Checks validity of a filepath for model loading."""
     assert isinstance(filepath, (str, Path))
 
@@ -44,9 +46,9 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
     return model
 
 
-# ############ #
-# PUBLIC UTILS #
-# ############ #
+# ############# #
+# MODEL LOADING #
+# ############# #
 
 
 def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = False) -> Tuple[mjx.Model, mjx.Data]:
@@ -60,7 +62,7 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
         mjx_model: A mjx Model.
         mjx_data: A mjx Data struct.
     """
-    filepath = _filepath_check_util(filepath)
+    filepath = _check_filepath(filepath)
 
     # loading the model and data. check whether freejoint is added forcibly
     if force_float:
@@ -89,6 +91,11 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
     return mjx_model, mjx_data
 
 
+# ################ #
+# MODEL CONVERSION #
+# ################ #
+
+
 def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None) -> None:
     """Loads a model and saves it to a mujoco-compliant XML.
 
@@ -102,7 +109,7 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
     """
     try:
         # loading model and saving XML
-        filepath = _filepath_check_util(filepath)
+        filepath = _check_filepath(filepath)
         _model = mj.MjModel.from_xml_path(filepath)
         if output_name is None:
             output_name = filepath.split("/")[-1].split(".")[0]
@@ -121,11 +128,76 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
         )
 
 
+def convex_decomposition_file(meshfile: Union[str, Path], quiet: bool = True, **kwargs) -> List[trimesh.Trimesh]:
+    """Performs a convex decomposition on a mesh using coacd.
+
+    For a description of all the kwargs you can pass, see https://github.com/SarahWeiii/CoACD/blob/main/python/package/bin/coacd
+
+    Args:
+        meshfile: A path to a URDF or MJCF file. This can be global, local, or with respect to the repository root.
+
+    Returns:
+        decomposed_meshes: A list of Trimesh objects forming the convex decomposition.
+    """
+    # checking defaults for keyword args
+    if "max_convex_hull" not in kwargs:
+        kwargs["max_convex_hull"] = 16
+    if "threshold" not in kwargs:
+        kwargs["threshold"] = 0.1
+
+    # turn off verbose outputs
+    if quiet:
+        coacd.set_log_level("error")
+
+    # executing the convex decomposition
+    meshfile = _check_filepath(meshfile)
+    _mesh = trimesh.load(meshfile, force="mesh")
+    mesh = coacd.Mesh(_mesh.vertices, _mesh.faces)
+    parts = coacd.run_coacd(mesh, **kwargs)  # list of (vert, face) tuples
+    decomposed_meshes = [trimesh.Trimesh(vertices=verts, faces=faces) for (verts, faces) in parts]
+    return decomposed_meshes
+
+
+def convex_decomposition_dir(
+    meshdir: Union[str, Path],
+    quiet: bool = False,
+    savedir: Optional[Union[str, Path]] = None,
+) -> List[List[trimesh.Trimesh]]:
+    """Performs convex decompositions on all meshes (recursively) in a specified directory.
+
+    Args:
+        meshdir: A path to dir containing meshes. This can be global, local, or with respect to the repository root.
+        quiet: Whether coacd output should be suppressed.
+        savedir: If supplied, where to save the output meshes.
+
+    Returns:
+        all_decomposed_meshes: A list of lists of Trimesh objects representing the convex decompositions.
+    """
+    meshdir = _check_filepath(meshdir)
+    all_decomposed_meshes = []
+
+    # coacd only works on .obj files, so we only search for those (recursively) in meshdir
+    for meshfile in Path(meshdir).rglob("*.obj"):
+        decomposed_meshes = convex_decomposition_file(meshfile, quiet=quiet)
+        if savedir is not None:
+            name = str(meshfile).split("/")[-1].split(".")[0]
+            for i, mesh in enumerate(decomposed_meshes):
+                (Path(savedir) / Path(name)).mkdir(parents=True, exist_ok=True)  # make subdir for each decomposed mesh
+                mesh.export(Path(savedir) / Path(name + f"/col_{i}.obj"))
+        all_decomposed_meshes.append(decomposed_meshes)
+    return all_decomposed_meshes
+
+
+# ############# #
+# INTROSPECTION #
+# ############# #
+
+
 def get_geom_names(model: mj.MjModel) -> List[str]:
-    """Returns a list of all geom names in a mujoco model."""
+    """Returns a list of all geom names in a mujoco (NOT mjx) model."""
     return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, i) for i in range(model.ngeom)]
 
 
 def get_joint_names(model: mj.MjModel) -> List[str]:
-    """Returns a list of all joint names in a mujoco model."""
+    """Returns a list of all joint names in a mujoco (NOT mjx) model."""
     return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)]

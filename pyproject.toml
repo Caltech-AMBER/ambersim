@@ -14,6 +14,7 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
+    "coacd>=1.0.0",
     "dm_control>=1.0.0",
     "jax[cuda11_local]>=0.4.1",
     "jaxlib>=0.4.1",
