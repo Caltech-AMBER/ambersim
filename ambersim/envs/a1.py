@@ -7,6 +7,6 @@ class A1Config:
     pass
 
 
-class A1(MjxEnv):
+class A1Env(MjxEnv):
     def __init__(self, **kwargs):
         raise NotImplementedError
