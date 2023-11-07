@@ -33,6 +33,9 @@ pre-commit autoupdate
 pre-commit install
 ```
 
+### Mujoco Menagerie
+DeepMind curates the [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie), a nice collection of MuJoCo models that match robots we have in the lab (e.g., A1, Allegro Hand). We use this as a submodule in this repo. The first time you attempt to load an `Env` that uses a Menagerie model, the submodule will be cloned. You can also update the models (to pull down new changes) anytime by running `git submodule update --init --recursive`.
+
 ## Development Details
 
 ### Abridged Dev Guidelines
