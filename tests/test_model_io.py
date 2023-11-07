@@ -5,7 +5,8 @@ from dm_control import mjcf
 from mujoco import mjx
 
 from ambersim import ROOT
-from ambersim.utils import _modify_robot_float_base, get_joint_names, load_mjx_model_from_file, save_model_xml
+from ambersim.utils.introspection_utils import get_joint_names
+from ambersim.utils.io_utils import _modify_robot_float_base, load_mjx_model_from_file, save_model_xml
 
 
 def _rmtree(f: Path):

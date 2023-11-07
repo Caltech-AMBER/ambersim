@@ -7,26 +7,11 @@ import trimesh
 from dm_control import mjcf
 from mujoco import mjx
 
-from ambersim import ROOT
+from ambersim.utils._internal_utils import _check_filepath
 
-# ############## #
-# INTERNAL UTILS #
-# ############## #
-
-
-def _check_filepath(filepath: Union[str, Path]) -> str:
-    """Checks validity of a filepath for model loading."""
-    assert isinstance(filepath, (str, Path))
-
-    # checking whether file exists
-    if isinstance(filepath, str):
-        filepath = Path(filepath)  # global/local
-    if not filepath.exists():
-        filepath = ROOT / filepath  # repo root
-        if not filepath.exists():
-            raise ValueError("The model file doesn't exist at the specified path!")
-    filepath = str(filepath)
-    return filepath
+# ############# #
+# MODEL LOADING #
+# ############# #
 
 
 def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
@@ -44,11 +29,6 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
         robot = arena
     model = mj.MjModel.from_xml_string(robot.to_xml_string())
     return model
-
-
-# ############# #
-# MODEL LOADING #
-# ############# #
 
 
 def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = False) -> Tuple[mjx.Model, mjx.Data]:
@@ -191,18 +171,3 @@ def convex_decomposition_dir(
                 mesh.export(Path(savedir) / Path(name + f"_col_{i}.obj"))
         all_decomposed_meshes.append(decomposed_meshes)
     return all_decomposed_meshes
-
-
-# ############# #
-# INTROSPECTION #
-# ############# #
-
-
-def get_geom_names(model: mj.MjModel) -> List[str]:
-    """Returns a list of all geom names in a mujoco (NOT mjx) model."""
-    return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, i) for i in range(model.ngeom)]
-
-
-def get_joint_names(model: mj.MjModel) -> List[str]:
-    """Returns a list of all joint names in a mujoco (NOT mjx) model."""
-    return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)]
