@@ -43,6 +43,7 @@ test = [
     "cvxpy>=1.4.1",
     "drake>=1.21.0",
     "pin>=2.6.20",
+    "PyYAML>=6.0.1"
 ]
 
 # All packages

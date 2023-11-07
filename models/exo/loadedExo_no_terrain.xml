@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco model="Amy_Li_loadedExo">
+  <compiler angle="radian" autolimits="true" meshdir="STL"/>
+  <size nconmax="100" njmax="500"/>
+  <default>
+      <joint limited="false"/>
+      <equality solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"/>
+      <!-- <geom conaffinity="0" condim="1" contype="0" material="geom" margin="0.001"/> -->
+   </default>
+  <option gravity="0 0 -9.81" integrator="RK4" iterations="50" solver="Newton"
+           timestep="0.001"/>
+
+   <visual>
+      <headlight ambient="0.5         0.5         0.5"/>
+      <map force="0.005"/>
+      <rgba contactforce="0.7 0.9 0.9 0.5"/>
+   </visual>
+   
+   <asset>
+      <mesh file="PelvisLink.STL" name="PelvisLink"/>
+      <mesh file="LeftFrontalHipLink.STL" name="LeftFrontalHipLink"/>
+      <mesh file="LeftTransverseHipLink.STL" name="LeftTransverseHipLink"/>
+      <mesh file="LeftSagittalHipLink.STL" name="LeftSagittalHipLink"/>
+      <mesh file="LeftSagittalKneeLink.STL" name="LeftSagittalKneeLink"/>
+      <mesh file="LeftSagittalAnkleLink.STL" name="LeftSagittalAnkleLink"/>
+      <mesh file="LeftHenkeAnkleLink.STL" name="LeftHenkeAnkleLink"/>
+      <mesh file="RightFrontalHipLink.STL" name="RightFrontalHipLink"/>
+      <mesh file="RightTransverseHipLink.STL" name="RightTransverseHipLink"/>
+      <mesh file="RightSagittalHipLink.STL" name="RightSagittalHipLink"/>
+      <mesh file="RightSagittalKneeLink.STL" name="RightSagittalKneeLink"/>
+      <mesh file="RightSagittalAnkleLink.STL" name="RightSagittalAnkleLink"/>
+      <mesh file="RightHenkeAnkleLink.STL" name="RightHenkeAnkleLink"/>
+      <material name="mat1" specular="0.3" shininess="1"/>
+      <texture builtin="checker" height="512" name="plane" rgb1="0.9 0.9 0.9"
+               rgb2="0.7 0.7 0.7"
+               type="2d"
+               width="512"/>
+                
+      <!-- <texture builtin="gradient" height="100" rgb1="1 1 1" rgb2="0 0 0" type="skybox" width="100"/>-->
+      <texture builtin="flat" height="1278" mark="cross" markrgb="1 1 1" name="texgeom" random="0.01" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" type="cube" width="127"/>
+      <texture builtin="checker" height="100" name="texplane" rgb1="0 0 0" rgb2="0.8 0.8 0.8" type="2d" width="100"/>
+      <material name="plane" reflectance="0.5" shininess="1" specular="1" texrepeat="60 60" texture="texplane"/>
+      <!-- <material name="geom" texture="texgeom" texuniform="true"/> -->
+      <!-- <mesh name='terrain' file = '../../terrain/random_terrain.obj'/> -->
+   </asset>
+  
+   <worldbody>
+      <body name="torso" pos="0 0 1">
+         <inertial diaginertia="8.0012      8.2603     0.55024" mass="51.1774"
+                   pos="-0.058503 -3.5387e-05     0.28026"/>
+         <geom conaffinity="0" contype="0" density="0" group="1" mesh="PelvisLink" type="mesh"/>
+         <freejoint name="root"/>
+         <site group="3" name="pelvis_imu" pos="-0.16445   -0.014625     0.19109"
+               quat="0.5        -0.5        -0.5         0.5"
+               size=".01"/>
+         <site group="3" name="thorax_imu" pos="-0.14           0         0.5"
+               quat="0.70711           0     0.70711           0"
+               size=".01"/>
+         <body name="LeftFrontalHipLink" pos="0 0.089 0">
+            <inertial diaginertia="0.036612 0.0349177 0.00740632" mass="3.6752"
+                      pos="-0.18696 0.095567 0.018365"
+                      quat="0.453895 0.291805 -0.721185 0.43442"/>
+            <joint axis="1 0 0" name="LeftFrontalHipJoint" pos="0 0 0" range="-0.2 0.3"/>
+            <geom conaffinity="0" contype="0" density="0" group="1" mesh="LeftFrontalHipLink"
+                  type="mesh"/>
+            <body name="LeftTransverseHipLink" pos="-0.135 0.169 0">
+               <inertial diaginertia="0.0259937 0.0259386 0.00622165" mass="4.4176"
+                         pos="0.069171 -0.008671 0.004224"
+                         quat="-0.114265 0.696606 -0.205723 0.677762"/>
+               <joint axis="0 0 1" name="LeftTransverseHipJoint" pos="0 0 0" range="-0.2 0.3"/>
+               <geom conaffinity="0" contype="0" density="0" group="1" mesh="LeftTransverseHipLink"
+                     type="mesh"/>
+               <body name="LeftSagittalHipLink" pos="0.135 0 0">
+                  <inertial diaginertia="0.409772 0.397989 0.0563415" mass="14.0668"
+                            pos="0.014492 -0.011478 -0.18231"
+                            quat="0.544811 -0.0185674 0.0146821 0.838225"/>
+                  <joint axis="0 1 0" name="LeftSagittalHipJoint" pos="0 0 0" range="-2 0.3"/>
+                  <geom conaffinity="0" contype="0" density="0" group="1" mesh="LeftSagittalHipLink"
+                        type="mesh"/>
+                  <body name="LeftSagittalKneeLink" pos="0 0.0049114 -0.38">
+                     <inertial diaginertia="0.429747 0.388534 0.104179" mass="13.3561"
+                               pos="-0.051952 -0.090967 -0.20236"
+                               quat="0.942179 -0.149291 0.11288 -0.277974"/>
+                     <joint axis="0 1 0" name="LeftSagittalKneeJoint" pos="0 0 0" range="0 1.9"/>
+                     <geom conaffinity="0" contype="0" density="0" group="1" mesh="LeftSagittalKneeLink"
+                           type="mesh"/>
+            
+                     <site group="3" name="left_tibia_imu" pos="-0.14067   -0.074092    -0.39348"
+                           quat="2.3108e-07 -2.3108e-07     0.70711    -0.70711"
+                           size=".01"/>
+                     <body name="LeftSagittalAnkleLink" pos="0 -0.16942 -0.408"
+                           quat="0.997564 0 0 0.0697583">
+                        <inertial diaginertia="0.00498533 0.00498533 0.00498533" mass="1.6764"
+                                  pos="-0.043917 0.056353 -0.038953"
+                                  quat="0.390876 0.856905 0.0797629 -0.326448"/>
+                        <joint axis="0 1 0" name="LeftSagittalAnkleJoint" pos="0 0 0" range="-0.3 0.2"/>
+                        <geom conaffinity="0" contype="0" density="0" group="1" mesh="LeftSagittalAnkleLink"
+                              type="mesh"/>
+                        <body name="LeftHenkeAnkleLink" pos="0 0 0">
+                           <inertial diaginertia="0.0874752 0.0731099 0.0168659" mass="3.9663"
+                                     pos="-0.020021 1.6256e-06 -0.095894"
+                                     quat="0.350735 0.50826 0.290766 0.73083"/>
+                           <joint axis="0.788011 0 0.615661" name="LeftHenkeAnkleJoint" pos="0 0 0"
+                                  range="-0.3 0.3"/>
+                           <geom conaffinity="0" contype="0" density="0" group="1" mesh="LeftHenkeAnkleLink"
+                                 quat="0.945518 0 -0.32557 0"
+                                 type="mesh"/>
+                           <geom condim="3" friction="1 0.1 0.001" name="left_sole" pos="0.06 -3.3e-05 -0.15975"
+                                 contype="1"
+                                 solimp="0.9 0.95 0.001 0.4 2" 
+                                 solref="0.02 1"
+                                 quat="0.707105 0 -0.707108 0"
+                                 rgba="1 0 0 1"
+                                 size="0.0049535 0.059645 0.1375"
+                                 type="box"/>
+                           <geom condim="3" friction="1" name="left_toe" pos="0.2195 0 -0.1537"
+                                 contype="1"
+                                 quat="0.6018 0 -0.7986 0"
+                                 rgba="1 0 0 1"
+                                 size="0.0049535 0.059645 0.022"
+                                 type="box"/>
+                           <geom condim="3" friction="1" name="left_heel" pos="-0.0940 0 -0.1566"
+                                 contype="1"
+                                 quat="0.7716 0 -0.6361 0"
+                                 rgba="1 0 0 1"
+                                 size="0.0049535 0.059645 0.0165"
+                                 type="box"/>
+                           <site name="left_foot_imu" pos="-0.036966       0.015    -0.13705"
+                                 quat="-1.6377e-07    -0.94552  -5.639e-08     0.32557"
+                                 size=".01"/>
+                           <site group="2" name="opto1" pos="0.17825      0.0285     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                           <site group="2" name="opto2" pos="0.17825     -0.0285     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                           <site group="2" name="opto3" pos="-0.063753     0.02625     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                           <site group="2" name="opto4" pos="-0.063753    -0.02625     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                        </body>
+                     </body>
+                  </body>
+               </body>
+            </body>
+         </body>
+         <body name="RightFrontalHipLink" pos="0 -0.089 0">
+            <inertial diaginertia="0.0365973 0.0349128 0.00740791" mass="3.6752"
+                      pos="-0.18696 -0.095567 0.01843"
+                      quat="0.292578 0.454629 -0.434128 0.720585"/>
+            <joint axis="1 0 0" name="RightFrontalHipJoint" pos="0 0 0" range="-0.3 0.2"/>
+            <geom conaffinity="0" contype="0" density="0" group="1" mesh="RightFrontalHipLink"
+                  type="mesh"/>
+            <body name="RightTransverseHipLink" pos="-0.135 -0.169 0">
+               <inertial diaginertia="0.0259901 0.0259386 0.00622121" mass="4.4176"
+                         pos="0.069166 0.008663 0.004212"
+                         quat="0.111328 0.697511 0.202883 0.678177"/>
+               <joint axis="0 0 1" name="RightTransverseHipJoint" pos="0 0 0" range="-0.3 0.2"/>
+               <geom conaffinity="0" contype="0" density="0" group="1" mesh="RightTransverseHipLink"
+                     type="mesh"/>
+               <body name="RightSagittalHipLink" pos="0.135 0 0">
+                  <inertial diaginertia="0.409772 0.397989 0.0563415" mass="14.0668"
+                            pos="0.014492 0.011478 -0.18231"
+                            quat="0.838225 0.0146821 -0.0185674 0.544811"/>
+                  <joint axis="0 1 0" name="RightSagittalHipJoint" pos="0 0 0" range="-2 0.3"/>
+                  <geom conaffinity="0" contype="0" density="0" group="1" mesh="RightSagittalHipLink"
+                        type="mesh"/>
+                  <body name="RightSagittalKneeLink" pos="0 -0.0049114 -0.38">
+                     <inertial diaginertia="0.429747 0.388534 0.104179" mass="13.3561"
+                               pos="-0.051952 0.090967 -0.20236"
+                               quat="0.942179 0.149291 0.11288 0.277974"/>
+                     <joint axis="0 1 0" name="RightSagittalKneeJoint" pos="0 0 0" range="0 1.9"/>
+                     <geom conaffinity="0" contype="0" density="0" group="1" mesh="RightSagittalKneeLink"
+                           type="mesh"/>
+            
+                     <site group="3" name="right_tibia_imu" pos="-0.11573    0.074342    -0.39348"
+                           quat="0.70711    -0.70711           0           0"
+                           size=".01"/>
+                     <body name="RightSagittalAnkleLink" pos="0 0.16942 -0.408"
+                           quat="0.997564 0 0 -0.0697583">
+                        <inertial diaginertia="0.00498533 0.00498533 0.00498533" mass="1.6764"
+                                  pos="-0.043917 -0.056352 -0.038953"
+                                  quat="0.856905 0.390876 0.326448 -0.0797629"/>
+                        <joint axis="0 1 0" name="RightSagittalAnkleJoint" pos="0 0 0" range="-0.3 0.2"/>
+                        <geom conaffinity="0" contype="0" density="0" group="1" mesh="RightSagittalAnkleLink"
+                              type="mesh"/>
+                        <body name="RightHenkeAnkleLink" pos="0 0 0">
+                           <inertial diaginertia="0.0874752 0.0731099 0.0168659" mass="3.9663"
+                                     pos="-0.020021 -1.6256e-06 -0.095894"
+                                     quat="0.73083 0.290766 0.50826 0.350735"/>
+                           <joint axis="0.788011 0 0.615661" name="RightHenkeAnkleJoint" pos="0 0 0"
+                                  range="-0.3 0.3"/>
+                           <geom conaffinity="0" contype="0" density="0" group="1" mesh="RightHenkeAnkleLink"
+                                 quat="0.945518 0 -0.32557 0"
+                                 type="mesh"/>
+                           <geom condim="3" friction="1 0.1 0.001" name="right_sole" pos="0.06 -3.3e-05 -0.15975"
+                                 contype="1"  
+                                 solimp="0.9 0.95 0.001 0.4 2" 
+                                 solref="0.02 1"
+                                 quat="0.707105 0 -0.707108 0"
+                                 rgba="1 0 0 1"
+                                 size="0.0049535 0.059645 0.1375"
+                                 type="box"/>
+                           <geom condim="3" friction="1" name="right_toe" pos="0.2195 0 -0.1537"
+                                 contype="1"
+                                 quat="0.6018 0 -0.7986 0"
+                                 rgba="1 0 0 1"
+                                 size="0.0049535 0.059645 0.022"
+                                 type="box"/>
+                           <geom condim="3" friction="1" name="right_heel" pos="-0.0940 0 -0.1566"
+                                 contype="1"
+                                 quat="0.7716 0 -0.6361 0"
+                                 rgba="1 0 0 1"
+                                 size="0.0049535 0.059645 0.0165"
+                                 type="box"/>
+                           <site name="right_foot_imu" pos="-0.036966       0.015    -0.13705"
+                                 quat="-1.6377e-07    -0.94552  -5.639e-08     0.32557"
+                                 size=".01"/>
+                           <site group="2" name="opto5" pos="0.17825      0.0285     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                           <site group="2" name="opto6" pos="0.17825     -0.0285     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                           <site group="2" name="opto7" pos="-0.063753     0.02625     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                           <site group="2" name="opto8" pos="-0.063753    -0.02625     -0.1598" quat="1 0 0 1"
+                                 size="0.05"/>
+                        </body>
+                     </body>
+                  </body>
+               </body>
+            </body>
+         </body>
+      </body>
+   </worldbody>
+   <contact>
+      <!-- <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="left_sole" geom2="terrain_mesh"
+           />
+      <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="right_sole" geom2="terrain_mesh"
+            />
+      <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="left_toe" geom2="terrain_mesh"
+            />
+      <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="right_toe" geom2="terrain_mesh"
+            />
+      <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="left_heel" geom2="terrain_mesh"
+            />
+      <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="right_heel" geom2="terrain_mesh" -->
+            />
+   </contact>
+   <actuator>
+      <motor ctrllimited="true" ctrlrange="-350  350" joint="LeftFrontalHipJoint"
+             name="LeftFrontalHipLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-180  180" joint="LeftTransverseHipJoint"
+             name="LeftTransverseHipLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-219  219" joint="LeftSagittalHipJoint"
+             name="LeftSagittalHipLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-219  219" joint="LeftSagittalKneeJoint"
+             name="LeftSagittalKneeLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-184  184" joint="LeftSagittalAnkleJoint"
+             name="LeftSagittalAnkleLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-82  82" joint="LeftHenkeAnkleJoint"
+             name="LeftHenkeAnkleLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-350  350" joint="RightFrontalHipJoint"
+             name="RightFrontalHipLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-180  180" joint="RightTransverseHipJoint"
+             name="RightTransverseHipLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-219  219" joint="RightSagittalHipJoint"
+             name="RightSagittalHipLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-219  219" joint="RightSagittalKneeJoint"
+             name="RightSagittalKneeLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-184  184" joint="RightSagittalAnkleJoint"
+             name="RightSagittalAnkleLink_actuator"/>
+      <motor ctrllimited="true" ctrlrange="-82  82" joint="RightHenkeAnkleJoint"
+             name="RightHenkeAnkleLink_actuator"/>
+   </actuator>
+   <sensor>
+      <touch name="opto1" site="opto1"/>
+      <touch name="opto2" site="opto2"/>
+      <touch name="opto3" site="opto3"/>
+      <touch name="opto4" site="opto4"/>
+      <touch name="opto5" site="opto5"/>
+      <touch name="opto6" site="opto6"/>
+      <touch name="opto7" site="opto7"/>
+      <touch name="opto8" site="opto8"/>
+      <framequat name="pelvis-orientation" objname="pelvis_imu" objtype="site"/>
+      <gyro name="pelvis-angular-velocity" noise="5e-4" site="pelvis_imu"/>
+      <accelerometer name="pelvis-linear-acceleration" noise="1e-2" site="pelvis_imu"/>
+      <framequat name="thorax-orientation" objname="thorax_imu" objtype="site"/>
+      <gyro name="thorax-angular-velocity" noise="5e-4" site="thorax_imu"/>
+      <accelerometer name="thorax-linear-acceleration" noise="1e-2" site="thorax_imu"/>
+      <framequat name="left_tibia-orientation" objname="left_tibia_imu" objtype="site"/>
+      <gyro name="left_tibia-angular-velocity" noise="5e-4" site="left_tibia_imu"/>
+      <accelerometer name="left_tibia-linear-acceleration" noise="1e-2" site="left_tibia_imu"/>
+      <framequat name="right_tibia-orientation" objname="right_tibia_imu" objtype="site"/>
+      <gyro name="right_tibia-angular-velocity" noise="5e-4" site="right_tibia_imu"/>
+      <accelerometer name="right_tibia-linear-acceleration" noise="1e-2" site="right_tibia_imu"/>
+      <framequat name="left_foot-orientation" objname="left_foot_imu" objtype="site"/>
+      <gyro name="left_foot-angular-velocity" noise="5e-4" site="left_foot_imu"/>
+      <accelerometer name="left_foot-linear-acceleration" noise="1e-2" site="left_foot_imu"/>
+      <framequat name="right_foot-orientation" objname="right_foot_imu" objtype="site"/>
+      <gyro name="right_foot-angular-velocity" noise="5e-4" site="right_foot_imu"/>
+      <accelerometer name="right_foot-linear-acceleration" noise="1e-2" site="right_foot_imu"/>
+   </sensor>
+</mujoco>
