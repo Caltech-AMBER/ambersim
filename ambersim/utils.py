@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import mujoco as mj
 from dm_control import mjcf
@@ -26,6 +26,7 @@ def _filepath_check_util(filepath: Union[str, Path]) -> str:
     filepath = str(filepath)
     return filepath
 
+
 def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
     """Modifies a robot to have a floating base if it doesn't already."""
     # loading current robot
@@ -35,12 +36,12 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
     # only add free joint if the first body after worldbody has no joints
     if len(robot.worldbody.body[0].joint) == 0:
         arena = mjcf.RootElement(model=robot.model)
-        breakpoint()
         attachment_frame = arena.attach(robot)
         attachment_frame.add("freejoint", name="freejoint")
         robot = arena
     model = mj.MjModel.from_xml_string(robot.to_xml_string())
     return model
+
 
 # ############ #
 # PUBLIC UTILS #
@@ -59,7 +60,7 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
         mjx_data: A mjx Data struct.
     """
     filepath = _filepath_check_util(filepath)
-    
+
     # loading the model and data. check whether freejoint is added forcibly
     if force_float:
         # check that the file is an XML. if not, save as xml temporarily
@@ -98,3 +99,13 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
     # reporting save path for clarity
     output_path = Path.cwd() / Path(str(output_name) + ".xml")
     print(f"XML file saved to {output_path}!")
+
+
+def get_geom_names(model: Union[mj.MjModel, mjx.Model]) -> List[str]:
+    """Returns a list of all geom names in a mujoco model."""
+    return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, i) for i in range(model.ngeom)]
+
+
+def get_joint_names(model: Union[mj.MjModel, mjx.Model]) -> List[str]:
+    """Returns a list of all joint names in a mujoco model."""
+    return [mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)]
