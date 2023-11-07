@@ -39,6 +39,7 @@ dev = [
 
 # Test-specific packages for verification
 test = [
+    "brax>=0.9.0",
     "cvxpy>=1.4.1",
     "drake>=1.21.0",
     "pin>=2.6.20",
