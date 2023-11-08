@@ -69,16 +69,15 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
     return model
 
 
-def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = False) -> Tuple[mjx.Model, mjx.Data]:
-    """Loads a mjx model/data pair from a filepath.
+def load_mj_model_from_file(filepath: Union[str, Path], force_float: bool = False) -> mj.MjModel:
+    """Loads a mujoco model from a filepath.
 
     Args:
         filepath: A path to a URDF or MJCF file. This can be global, local, or with respect to the repository root.
         force_float: Whether to forcibly float the base of the robot.
 
     Returns:
-        mjx_model: A mjx Model.
-        mjx_data: A mjx Data struct.
+        mj_model: A mujoco model.
     """
     filepath = _check_filepath(filepath)
 
@@ -88,16 +87,21 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
         if str(filepath).split(".")[-1] != "xml":
             output_name = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
             save_model_xml(filepath, output_name=output_name)
-            _model = _modify_robot_float_base(output_name)
+            mj_model = _modify_robot_float_base(output_name)
             Path.unlink(output_name)
         else:
-            _model = _modify_robot_float_base(filepath)
+            mj_model = _modify_robot_float_base(filepath)
     else:
-        _model = mj.MjModel.from_xml_path(filepath)
+        mj_model = mj.MjModel.from_xml_path(filepath)
+    return mj_model
 
+
+def mj_to_mjx_model(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
+    """Converts a mujoco model to an mjx (model, data) pair."""
     try:
-        mjx_model = mjx.device_put(_model)
-        mjx_data = mjx.make_data(_model)
+        mjx_model = mjx.device_put(mj_model)
+        mjx_data = mjx.make_data(mj_model)
+        return mjx_model, mjx_data
     except NotImplementedError as e:
         print()
         print("There are some URDF convex primitives that aren't compatible with mjx's convex collision checking.")
@@ -107,7 +111,10 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
         print()
         raise e
 
-    return mjx_model, mjx_data
+
+def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = False) -> Tuple[mjx.Model, mjx.Data]:
+    """Convenience function for loading an mjx (model, data) pair from a filepath."""
+    return mj_to_mjx_model(load_mj_model_from_file(filepath, force_float=force_float))
 
 
 # ################ #

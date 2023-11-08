@@ -1,8 +1,11 @@
 from pathlib import Path
 
 import mujoco as mj
+import numpy as np
+import trimesh
 from dm_control import mjcf
 from mujoco import mjx
+from mujoco.mjx._src.mesh import _merge_coplanar
 
 from ambersim import ROOT
 from ambersim.utils.introspection_utils import get_joint_names
@@ -95,7 +98,9 @@ def test_convex_decomposition():
     savedir = Path("_test_dir")
     savedir.mkdir(parents=True, exist_ok=False)
 
+    # tests that meshes are generated and saved correctly
     decomposed_meshes = convex_decomposition_file(meshfile, quiet=True, savedir=savedir)
-    assert len(decomposed_meshes) > 0  # tests that there are meshes returned
-    assert len(list(Path(savedir).glob("*.obj"))) > 0  # tests that the saving feature works
+    assert len(decomposed_meshes) > 0
+    assert len(list(Path(savedir).glob("*.obj"))) > 0
+
     _rmtree(savedir)
