@@ -105,12 +105,18 @@ def mj_to_mjx_model(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
         mjx_data = mjx.make_data(mj_model)
         return mjx_model, mjx_data
     except NotImplementedError as e:
-        print()
-        print("There are some URDF convex primitives that aren't compatible with mjx's convex collision checking.")
-        print(
-            "See: https://github.com/google-deepmind/mujoco/blob/57e6940f579484adf34eebedc51279a818909f34/mjx/mujoco/mjx/_src/collision_driver.py#L47-L62"
-        )
-        print()
+        extended_msg = """
+        If you are seeing this, there are many potential errors.
+
+        (1) There are some URDF convex primitives that aren't compatible with mjx's convex collision checking.
+
+            See: https://github.com/google-deepmind/mujoco/blob/57e6940f579484adf34eebedc51279a818909f34/mjx/mujoco/mjx/_src/collision_driver.py#L47-L62.
+
+        (2) You are specifying an elliptic instead of pyramidal friction cone.
+
+        (3) You are attempting to port over any number of development or unsupported features, listed here: https://mujoco.readthedocs.io/en/latest/mjx.html#feature-parity.\n
+        """
+        print(extended_msg)
         raise e
 
 
