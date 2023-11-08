@@ -1,5 +1,4 @@
 from ambersim.base import MjxEnv, State
-from dataclasses import dataclass
 from typing import Tuple, Dict, Any
 
 import jax
@@ -10,9 +9,10 @@ from ambersim import ROOT
 from ambersim.utils.asset_utils import load_mjx_model_from_file
 
 from brax.base import Base, Motion, Transform
+from flax import struct
 
 
-@dataclass
+@struct.dataclass
 class A1RewardConfig:
     """
     Weightings for the reward function.
@@ -22,38 +22,49 @@ class A1RewardConfig:
     # sigma can be a hyperparameters to tune.
     # Track the base x-y velocity (no z-velocity tracking.)
     tracking_lin_vel: float = 1.5
+
     # Track the angular velocity along z-axis, i.e. yaw rate.
     tracking_ang_vel: float = 0.8
+
     # Below are regularization terms, we roughly divide the
     # terms to base state regularizations, joint
     # regularizations, and other behavior regularizations.
     # Penalize the base velocity in z direction, L2 penalty.
     lin_vel_z: float = -2.0
+
     # Penalize the base roll and pitch rate. L2 penalty.
     ang_vel_xy: float = -0.05
+
     # Penalize non-zero roll and pitch angles. L2 penalty.
     orientation: float = -5.0
+
     # L2 regularization of joint torques, |tau|^2.
     # torques=-0.0002,
     torques: float = -0.002
+
     # Penalize the change in the action and encourage smooth
     # actions. L2 regularization |action - last_action|^2
     action_rate: float = -0.1
+
     # Encourage long swing steps.  However, it does not
     # encourage high clearances.
     feet_air_time: float = 0.2
+
     # Encourage no motion at zero command, L2 regularization
     # |q - q_default|^2.
     stand_still: float = -0.5
+
     # Early termination penalty.
     termination: float = -1.0
+
     # Penalizing foot slipping on the ground.
-    foot_slip: float = (-0.1,)
+    foot_slip: float = -0.1
+
     # Tracking reward = exp(-error^2/sigma).
     tracking_sigma: float = 0.25
 
 
-@dataclass
+@struct.dataclass
 class A1CommandConfig:
     """Hyperparameters for random commands for A1."""
 
@@ -62,7 +73,7 @@ class A1CommandConfig:
     ang_vel_yaw: tuple[float] = (-0.7, 0.7)  # min max [rad/s]
 
 
-@dataclass
+@struct.dataclass
 class A1Config:
     reward: A1RewardConfig = A1RewardConfig()
     command: A1CommandConfig = A1CommandConfig()
@@ -73,11 +84,13 @@ class A1Config:
     # Max episode length.
     reset_horizon: int = 500
     # Lower joint limits.
-    joint_lowers: jp.ndarray = jp.array([-0.802851, -1.0472, -2.69653] * 4)
+    joint_lowers: jp.ndarray = struct.field(default_factory=lambda: jp.array([-0.802851, -1.0472, -2.69653] * 4))
     # Upper joint limits.
-    joint_uppers: jp.ndarray = jp.array([0.802851, 4.18879, -0.916298] * 4)
+    joint_uppers: jp.ndarray = struct.field(default_factory=lambda: jp.array([0.802851, 4.18879, -0.916298] * 4))
     # Default joint positions for standing.
-    standing_config: jp.ndarray = jp.array([0, 0, 0.27, 1, 0, 0, 0] + [0, 0.9, -1.8] * 4)
+    standing_config: jp.ndarray = struct.field(
+        default_factory=lambda: jp.array([0, 0, 0.27, 1, 0, 0, 0] + [0, 0.9, -1.8] * 4)
+    )
     # Model path
     model_path: Path = Path(ROOT) / "models" / "cursed_a1" / "a1.xml"
     # Number of env steps per command.
@@ -85,7 +98,7 @@ class A1Config:
     # Body index of torso.
     torso_index: int = 1
     # Body indices of the feet.
-    feet_indices: Tuple[int] = (3, 6, 9, 12)
+    feet_indices: jp.ndarray = struct.field(default_factory=lambda: jp.array([3, 6, 9, 12]))
 
 
 class A1Env(MjxEnv):
@@ -93,14 +106,14 @@ class A1Env(MjxEnv):
         self.config = config
 
         # Load model.
-        model, _ = load_mjx_model_from_file(config.model_path)
+        model = load_mjx_model_from_file(config.model_path)
         super().__init__(
-            mj_model=model,
-            physics_steps_per_control_step=config.physics_steps_per_control_step,
+            model,
+            config.physics_steps_per_control_step,
         )
 
-        self._init_q = self.model.keyframe("standing").qpos
-        self._default_ap_pose = self.model.keyframe("standing").qpos[7:]
+        self._init_q = self.model.keyframe("home").qpos
+        self._default_ap_pose = self.model.keyframe("home").qpos[7:]
 
     def sample_command(self, rng: jax.Array):
         _, key1, key2, key3 = jax.random.split(rng, 4)
@@ -172,7 +185,7 @@ class A1Env(MjxEnv):
         # observation data
         x, xd = self._pos_vel(data)
         obs = self._get_obs(data.qpos, x, xd, state.info)
-        obs_noise = self._obs_noise * jax.random.uniform(rng_noise, obs.shape, minval=-1, maxval=1)
+        obs_noise = self.config.obs_noise * jax.random.uniform(rng_noise, obs.shape, minval=-1, maxval=1)
         qpos, qvel = data.qpos, data.qvel
         joint_angles = qpos[7:]
         joint_vel = qvel[6:]
@@ -340,8 +353,8 @@ class A1Env(MjxEnv):
         return jp.sum(jp.abs(joint_angles - default_angles)) * (math.normalize(commands[:2])[1] < 0.1)
 
     def _get_feet_pos_vel(self, x: Transform, xd: Motion) -> Tuple[jax.Array, jax.Array]:
-        pos = x.take(self.config.foot_indices).vmap().pos
-        vel = xd.take(self.config.foot_indices).vmap().vel
+        pos = x.take(self.config.feet_indices).vmap().pos
+        vel = xd.take(self.config.feet_indices).vmap().vel
         return pos, vel
 
     def _reward_foot_slip(self, x: Transform, xd: Motion, contact_filt: jax.Array) -> jax.Array:

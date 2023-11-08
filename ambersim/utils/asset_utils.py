@@ -97,19 +97,21 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
     else:
         _model = mj.MjModel.from_xml_path(filepath)
 
-    try:
-        mjx_model = mjx.device_put(_model)
-        mjx_data = mjx.make_data(_model)
-    except NotImplementedError as e:
-        print()
-        print("There are some URDF convex primitives that aren't compatible with mjx's convex collision checking.")
-        print(
-            "See: https://github.com/google-deepmind/mujoco/blob/57e6940f579484adf34eebedc51279a818909f34/mjx/mujoco/mjx/_src/collision_driver.py#L47-L62"
-        )
-        print()
-        raise e
+    return _model
 
-    return mjx_model, mjx_data
+    # try:
+    #     mjx_model = mjx.device_put(_model)
+    #     mjx_data = mjx.make_data(_model)
+    # except NotImplementedError as e:
+    #     print()
+    #     print("There are some URDF convex primitives that aren't compatible with mjx's convex collision checking.")
+    #     print(
+    #         "See: https://github.com/google-deepmind/mujoco/blob/57e6940f579484adf34eebedc51279a818909f34/mjx/mujoco/mjx/_src/collision_driver.py#L47-L62"
+    #     )
+    #     print()
+    #     raise e
+
+    # return mjx_model, mjx_data
 
 
 def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None) -> None:
