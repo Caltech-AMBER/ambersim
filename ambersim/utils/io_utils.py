@@ -109,7 +109,6 @@ def mj_to_mjx_model(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
         If you are seeing this, there are many potential errors.
 
         (1) There are some URDF convex primitives that aren't compatible with mjx's convex collision checking.
-
             See: https://github.com/google-deepmind/mujoco/blob/57e6940f579484adf34eebedc51279a818909f34/mjx/mujoco/mjx/_src/collision_driver.py#L47-L62.
 
         (2) You are specifying an elliptic instead of pyramidal friction cone.
