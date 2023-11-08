@@ -44,6 +44,13 @@ def test_load_model():
     _rmtree(local_dir)
 
 
+def test_all_models():
+    """Tests the loading of all models in the repo."""
+    filepaths = (p.resolve() for p in Path(ROOT + "/models").glob("**/*") if p.suffix in {".urdf", ".xml"})
+    for filepath in filepaths:
+        assert load_mjx_model_from_file(filepath)
+
+
 def test_save_xml():
     """Tests saving a URDF as an XML."""
     # saving a URDF as XML + verifying it loads into mjx
