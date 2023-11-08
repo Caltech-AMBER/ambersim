@@ -60,11 +60,13 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
         robot = arena
 
         # ensuring that the base link has inertial attributes
+        assert robot.worldbody is not None  # pyright typechecking
         if robot.worldbody.body[0].inertial is None:
             robot.worldbody.body[0].add("inertial", mass=1e-6, diaginertia=1e-6 * np.ones(3), pos=np.zeros(3))
 
     # extracts the mujoco model from the dm_mujoco Physics object
     physics = mjcf.Physics.from_mjcf_model(robot)
+    assert physics is not None  # pyright typechecking
     model = physics.model.ptr
     return model
 
