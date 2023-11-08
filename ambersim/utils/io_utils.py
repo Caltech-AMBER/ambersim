@@ -102,7 +102,7 @@ def mj_to_mjx_model(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
     """Converts a mujoco model to an mjx (model, data) pair."""
     try:
         mjx_model = mjx.device_put(mj_model)
-        mjx_data = mjx.make_data(mj_model)
+        mjx_data = mjx.make_data(mjx_model)
         return mjx_model, mjx_data
     except NotImplementedError as e:
         extended_msg = """
