@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple, Union
 
 import coacd
 import mujoco as mj
+import numpy as np
 import trimesh
 from dm_control import mjcf
 from mujoco import mjx
@@ -47,16 +48,24 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
     """Modifies a robot to have a floating base if it doesn't already."""
     # loading current robot
     assert str(filepath).split(".")[-1] == "xml"
-    robot = mjcf.from_file(filepath)
+    robot = mjcf.from_file(filepath, model_dir="/".join(filepath.split("/")[:-1]))
 
-    # only add free joint if the first body after worldbody has no joints
+    # only add free joint if the first body after worldbody has no freejoints
     assert robot.worldbody is not None
-    if len(robot.worldbody.body[0].joint) == 0:
+    if robot.worldbody.body[0].freejoint is None:
+        # creates a new robot object and attaches the current robot to it freely
         arena = mjcf.RootElement(model=robot.model)
         attachment_frame = arena.attach(robot)
         attachment_frame.add("freejoint", name="freejoint")
         robot = arena
-    model = mj.MjModel.from_xml_string(robot.to_xml_string())
+
+        # ensuring that the base link has inertial attributes
+        if robot.worldbody.body[0].inertial is None:
+            robot.worldbody.body[0].add("inertial", mass=1e-6, diaginertia=1e-6 * np.ones(3), pos=np.zeros(3))
+
+    # extracts the mujoco model from the dm_mujoco Physics object
+    physics = mjcf.Physics.from_mjcf_model(robot)
+    model = physics.model.ptr
     return model
 
 
@@ -77,9 +86,10 @@ def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = Fal
     if force_float:
         # check that the file is an XML. if not, save as xml temporarily
         if str(filepath).split(".")[-1] != "xml":
-            save_model_xml(filepath, output_name="_temp_xml_model")
-            _model = _modify_robot_float_base("_temp_xml_model.xml")
-            Path.unlink("_temp_xml_model.xml")
+            output_name = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
+            save_model_xml(filepath, output_name=output_name)
+            _model = _modify_robot_float_base(output_name)
+            Path.unlink(output_name)
         else:
             _model = _modify_robot_float_base(filepath)
     else:

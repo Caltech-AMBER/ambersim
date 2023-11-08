@@ -1047,14 +1047,4 @@
     <mimic joint="bh_j22_joint" multiplier="0.3442622950819672"/>
     <limit effort="30.0" lower="0.0" upper="0.84" velocity="2.0"/>
   </joint>
-  <!-- adding frame for heuristic IK sampling -->
-  <!-- 79.5mm from base to palm: https://web.barrett.com/support/BarrettHand_Documentation/BH8-280_Datasheet.pdf -->
-  <joint name="dummy_sampling_joint" type="fixed">
-    <child link="bh_palm_FROGGERSAMPLE"/>
-    <parent link="bh_palm"/>
-    <origin rpy="-1.57079632679 -1.57079632679 0" xyz="0 0 0.0795"/>
-  </joint>
-  <link name="bh_palm_FROGGERSAMPLE">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-  </link>
 </robot>

@@ -51,11 +51,11 @@ def test_save_xml():
 
 def test_force_float():
     """Tests the functionality of forcing models to have a floating base."""
-    # case 1: model's first body has a joint already, so don't add a freejoint
+    # case 1: model's first body has a joint, add a freejoint with dummy body
     pend_path = ROOT + "/models/pendulum/pendulum.xml"
     model1 = _modify_robot_float_base(pend_path)
     combined1 = "\t".join(get_joint_names(model1))
-    assert "freejoint" not in combined1
+    assert "freejoint" in combined1
 
     # case 2: model's first body has no joints, so add a freejoint
     dummy_xml_string = """
@@ -78,6 +78,15 @@ def test_force_float():
     Path.unlink("_temp.xml")
     combined2 = "\t".join(get_joint_names(model2))
     assert "freejoint" in combined2
+
+    # case 3: add a freejoint to a URDF model with assets (much trickier b/c of file paths)
+    from ambersim.utils.io_utils import load_mjx_model_from_file
+
+    _, data_unfree = load_mjx_model_from_file("models/barrett_hand/bh280.urdf", force_float=False)
+    assert len(data_unfree.qpos) == 8  # 8 DOFs for the joints
+
+    _, data_free = load_mjx_model_from_file("models/barrett_hand/bh280.urdf", force_float=True)
+    assert len(data_free.qpos) == 15  # additional 7 quat states
 
 
 def test_convex_decomposition():
