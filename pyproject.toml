@@ -44,6 +44,7 @@ test = [
     "cvxpy>=1.4.1",
     "drake>=1.21.0",
     "pin>=2.6.20",
+    "libigl>=2.4.0",
 ]
 
 # All packages

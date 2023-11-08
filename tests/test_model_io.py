@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import igl
 import mujoco as mj
 import numpy as np
 import trimesh
@@ -102,5 +103,25 @@ def test_convex_decomposition():
     decomposed_meshes = convex_decomposition_file(meshfile, quiet=True, savedir=savedir)
     assert len(decomposed_meshes) > 0
     assert len(list(Path(savedir).glob("*.obj"))) > 0
+
+    # tests that the decomposed meshes don't change compared to those in the mjx backend
+    # in particular, checks that both trimesh and our decompositions have very close distance queries
+    # see: https://github.com/google-deepmind/mujoco/blob/57e6940f579484adf34eebedc51279a818909f34/mjx/mujoco/mjx/_src/mesh.py#L195-L208
+    for mesh in decomposed_meshes:
+        # decomposed
+        dverts = mesh.vertices
+        dfaces = mesh.faces
+
+        # trimesh convex hull
+        tm = trimesh.Trimesh(vertices=dverts, faces=dfaces)
+        tm_convex = trimesh.convex.convex_hull(tm)
+        tverts = tm_convex.vertices
+        tfaces = tm_convex.faces
+
+        # checking that signed distance queries are functionally the same
+        coords = np.random.randn(100, 3)
+        signed_dist_d = igl.signed_distance(coords, dverts, dfaces)[0]
+        signed_dist_t = igl.signed_distance(coords, tverts, tfaces)[0]
+        assert np.allclose(signed_dist_d, signed_dist_t)
 
     _rmtree(savedir)
