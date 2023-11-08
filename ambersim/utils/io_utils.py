@@ -98,7 +98,7 @@ def load_mj_model_from_file(filepath: Union[str, Path], force_float: bool = Fals
     return mj_model
 
 
-def mj_to_mjx_model(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
+def mj_to_mjx_model_and_data(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
     """Converts a mujoco model to an mjx (model, data) pair."""
     try:
         mjx_model = mjx.device_put(mj_model)
@@ -113,15 +113,18 @@ def mj_to_mjx_model(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
 
         (2) You are specifying an elliptic instead of pyramidal friction cone.
 
-        (3) You are attempting to port over any number of development or unsupported features, listed here: https://mujoco.readthedocs.io/en/latest/mjx.html#feature-parity.\n
+        (3) You are attempting to port over any number of development or unsupported features, listed here:
+            https://mujoco.readthedocs.io/en/latest/mjx.html#feature-parity.\n
         """
         print(extended_msg)
         raise e
 
 
-def load_mjx_model_from_file(filepath: Union[str, Path], force_float: bool = False) -> Tuple[mjx.Model, mjx.Data]:
+def load_mjx_model_and_data_from_file(
+    filepath: Union[str, Path], force_float: bool = False
+) -> Tuple[mjx.Model, mjx.Data]:
     """Convenience function for loading an mjx (model, data) pair from a filepath."""
-    return mj_to_mjx_model(load_mj_model_from_file(filepath, force_float=force_float))
+    return mj_to_mjx_model_and_data(load_mj_model_from_file(filepath, force_float=force_float))
 
 
 # ################ #

@@ -13,7 +13,7 @@ from ambersim.utils.io_utils import (
     _modify_robot_float_base,
     _rmtree,
     convex_decomposition_file,
-    load_mjx_model_from_file,
+    load_mjx_model_and_data_from_file,
     save_model_xml,
 )
 
@@ -31,14 +31,14 @@ def test_load_model():
         f.write(Path(global_path).read_text())
 
     # string paths
-    assert load_mjx_model_from_file(global_path)
-    assert load_mjx_model_from_file(local_path)
-    assert load_mjx_model_from_file(repo_path)
+    assert load_mjx_model_and_data_from_file(global_path)
+    assert load_mjx_model_and_data_from_file(local_path)
+    assert load_mjx_model_and_data_from_file(repo_path)
 
     # Path paths
-    assert load_mjx_model_from_file(Path(global_path))
-    assert load_mjx_model_from_file(Path(local_path))
-    assert load_mjx_model_from_file(Path(repo_path))
+    assert load_mjx_model_and_data_from_file(Path(global_path))
+    assert load_mjx_model_and_data_from_file(Path(local_path))
+    assert load_mjx_model_and_data_from_file(Path(repo_path))
 
     # remove temp local dir
     _rmtree(local_dir)
@@ -48,14 +48,14 @@ def test_all_models():
     """Tests the loading of all models in the repo."""
     filepaths = (p.resolve() for p in Path(ROOT + "/models").glob("**/*") if p.suffix in {".urdf", ".xml"})
     for filepath in filepaths:
-        assert load_mjx_model_from_file(filepath)
+        assert load_mjx_model_and_data_from_file(filepath)
 
 
 def test_save_xml():
     """Tests saving a URDF as an XML."""
     # saving a URDF as XML + verifying it loads into mjx
     save_model_xml(ROOT + "/models/pendulum/pendulum.urdf")
-    assert load_mjx_model_from_file("pendulum.xml")
+    assert load_mjx_model_and_data_from_file("pendulum.xml")
     Path.unlink("pendulum.xml")  # deleting test file
 
 
@@ -90,10 +90,10 @@ def test_force_float():
     assert "freejoint" in combined2
 
     # case 3: add a freejoint to a URDF model with assets (much trickier b/c of file paths)
-    _, data_unfree = load_mjx_model_from_file("models/barrett_hand/bh280.urdf", force_float=False)
+    _, data_unfree = load_mjx_model_and_data_from_file("models/barrett_hand/bh280.urdf", force_float=False)
     assert len(data_unfree.qpos) == 8  # 8 DOFs for the joints
 
-    _, data_free = load_mjx_model_from_file("models/barrett_hand/bh280.urdf", force_float=True)
+    _, data_free = load_mjx_model_and_data_from_file("models/barrett_hand/bh280.urdf", force_float=True)
     assert len(data_free.qpos) == 15  # additional 7 quat states
 
 

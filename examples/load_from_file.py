@@ -2,7 +2,7 @@ import mujoco as mj
 from mujoco import mjx
 
 from ambersim import ROOT
-from ambersim.utils.io_utils import load_mjx_model_from_file
+from ambersim.utils.io_utils import load_mjx_model_and_data_from_file
 
 """This example demonstrates how to load robots from URDFs/XMLs into mujoco/mjx.
 
@@ -14,5 +14,5 @@ All of the following work:
 Additionally, the paths can be passed as strings or Path objects.
 """
 
-mjx_model1, mjx_data1 = load_mjx_model_from_file(ROOT + "/models/pendulum/pendulum.urdf")  # (1)
-mjx_model3, mjx_data3 = load_mjx_model_from_file("models/pendulum/pendulum.urdf")  # (3)
+mjx_model1, mjx_data1 = load_mjx_model_and_data_from_file(ROOT + "/models/pendulum/pendulum.urdf")  # (1)
+mjx_model3, mjx_data3 = load_mjx_model_and_data_from_file("models/pendulum/pendulum.urdf")  # (3)
