@@ -6,7 +6,6 @@ import numpy as np
 import trimesh
 from dm_control import mjcf
 from mujoco import mjx
-from mujoco.mjx._src.mesh import _merge_coplanar
 
 from ambersim import ROOT
 from ambersim.utils.introspection_utils import get_joint_names
@@ -84,8 +83,6 @@ def test_force_float():
     assert "freejoint" in combined2
 
     # case 3: add a freejoint to a URDF model with assets (much trickier b/c of file paths)
-    from ambersim.utils.io_utils import load_mjx_model_from_file
-
     _, data_unfree = load_mjx_model_from_file("models/barrett_hand/bh280.urdf", force_float=False)
     assert len(data_unfree.qpos) == 8  # 8 DOFs for the joints
 
