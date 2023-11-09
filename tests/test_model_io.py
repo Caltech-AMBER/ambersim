@@ -8,14 +8,10 @@ from dm_control import mjcf
 from mujoco import mjx
 
 from ambersim import ROOT
+from ambersim.utils._internal_utils import _rmtree
+from ambersim.utils.conversion_utils import convex_decomposition_file, save_model_xml
 from ambersim.utils.introspection_utils import get_joint_names
-from ambersim.utils.io_utils import (
-    _modify_robot_float_base,
-    _rmtree,
-    convex_decomposition_file,
-    load_mjx_model_and_data_from_file,
-    save_model_xml,
-)
+from ambersim.utils.io_utils import _modify_robot_float_base, load_mjx_model_and_data_from_file
 
 
 def test_load_model():

@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from ambersim import ROOT
-from ambersim.utils.io_utils import _rmtree, convex_decomposition_dir, convex_decomposition_file
+from ambersim.utils._internal_utils import _rmtree
+from ambersim.utils.conversion_utils import convex_decomposition_dir, convex_decomposition_file
 
 """This example demonstrates how to perform convex decompositions of nonconvex meshes.
 
