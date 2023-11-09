@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="bhand">
   <mujoco>
-    <compiler meshdir="meshes/" balanceinertia="true" discardvisual="false"/>
+    <compiler fusestatic="false" meshdir="meshes/" balanceinertia="true" discardvisual="false"/>
   </mujoco>
 
   <!-- HAND BASE (RED) -->

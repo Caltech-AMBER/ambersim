@@ -1,24 +1,28 @@
 <?xml version="1.0"?>
 
 <robot name="pendulum">
-  <!-- dummy fixed base link rigidly attached to the world -->
-  <link name="world"/>
-  <link name="base"/>
-  <joint name="fixed_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <parent link="world"/>
-    <child link="base"/>
-  </joint>
+  <mujoco>
+    <compiler fusestatic="false" balanceinertia="true" discardvisual="false"/>
+  </mujoco>
+
+  <!-- nontrivial base link -->
+  <link name="base">
+    <inertial>
+      <mass value="2"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0"/>
+    </inertial>
+  </link>
 
   <!-- pendulum link -->
   <link name="pendulum_link">
-    <visual>
+    <visual name="pendulum_link_visual">
       <origin rpy="0 0 0" xyz="0 0 -0.5"/>
       <geometry>
         <cylinder length="1.0" radius="0.02"/>
       </geometry>
     </visual>
-    <collision>
+    <collision name="pendulum_link_collision">
       <origin rpy="0 0 0" xyz="0 0 -0.5"/>
       <geometry>
         <cylinder length="1.0" radius="0.02"/>
