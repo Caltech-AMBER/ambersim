@@ -16,6 +16,7 @@ classifiers = [
 dependencies = [
     "brax>=0.9.3",
     "dm_control>=1.0.0",
+    "flax>=0.7.5",
     "jax[cuda11_local]>=0.4.1",
     "jaxlib>=0.4.1",
     "matplotlib>=3.5.2",
