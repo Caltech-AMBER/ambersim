@@ -37,12 +37,10 @@ pre-commit install
 
 ### Abridged Dev Guidelines
 Development on this code will be controlled via code review. To facilitate this, please follow these guidelines:
-* keep your pull requests small so that it's practical to human review them;
-* write tests as you go (and if you are reviewing, suggest missing tests);
-* write docstrings for public classes and methods, even if it's just a one-liner;
-* before committing, make sure you locally pass all tests by running `pytest` in the repo root;
-* pass static type checking by running `pyright` in the repo root before committing;
-* when typing, use conventions compatible with `python3.8`, e.g., instead of typing with `tuple[obj1, obj2]`, use `from typing import Tuple; ... Tuple[obj1, obj2]` and so on.
+* keep your pull requests small so that it's practical to human review them,
+* write tests as you go (and if you are reviewing, suggest missing tests),
+* write docstrings for public classes and methods, even if it's just a one-liner,
+* before committing, make sure you locally pass all tests by running `pytest` in the repo root.
 
 ### Dependencies
 Python dependencies are specified using a `pyproject.toml` file. Non-python dependencies are specified using the `environment.yml` file, which can create a compliant `conda` environment.

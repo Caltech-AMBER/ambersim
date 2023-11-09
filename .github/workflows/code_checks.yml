@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install dependencies
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .[all] --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+          pip install --upgrade --upgrade-strategy eager -e .[all]
       - name: Run black
         run: black --check .
       - name: Run flake8
