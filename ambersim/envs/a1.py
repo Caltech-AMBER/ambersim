@@ -7,6 +7,7 @@ from brax import math
 from pathlib import Path
 from ambersim import ROOT
 from ambersim.utils.asset_utils import load_mjx_model_from_file
+import mujoco
 
 from brax.base import Base, Motion, Transform
 from flax import struct
@@ -92,13 +93,24 @@ class A1Config:
         default_factory=lambda: jp.array([0, 0, 0.27, 1, 0, 0, 0] + [0, 0.9, -1.8] * 4)
     )
     # Model path
-    model_path: Path = Path(ROOT) / "models" / "cursed_a1" / "a1.xml"
+    model_path: Path = Path(ROOT) / "models" / "cursed_a1" / "scene.xml"
     # Number of env steps per command.
     physics_steps_per_control_step: int = 10
     # Body index of torso.
     torso_index: int = 1
     # Body indices of the feet.
     feet_indices: jp.ndarray = struct.field(default_factory=lambda: jp.array([3, 6, 9, 12]))
+    # Positions of feet relative to last links.
+    feet_pos: jp.ndarray = struct.field(
+        default_factory=lambda: jp.array(
+            [
+                [0.0, 0.0, -0.2],
+                [0.0, 0.0, -0.2],
+                [0.0, 0.0, -0.2],
+                [0.0, 0.0, -0.2],
+            ]
+        )
+    )
 
 
 class A1Env(MjxEnv):
@@ -106,9 +118,15 @@ class A1Env(MjxEnv):
         self.config = config
 
         # Load model.
-        model = load_mjx_model_from_file(config.model_path)
+        mj_model = load_mjx_model_from_file(config.model_path)
+
+        # Force CG solver for compatibility with MJX.
+        mj_model.opt.solver = mujoco.mjtSolver.mjSOL_CG
+        mj_model.opt.iterations = 3
+        mj_model.opt.ls_iterations = 4
+
         super().__init__(
-            model,
+            mj_model,
             config.physics_steps_per_control_step,
         )
 
@@ -204,7 +222,7 @@ class A1Env(MjxEnv):
                 self._reward_tracking_lin_vel(state.info["command"], x, xd) * self.config.reward.tracking_lin_vel
             ),
             "tracking_ang_vel": (
-                self._reward_tracking_ang_vel(state.info["command"], x, xd) * self.rconfig.reward.tracking_ang_vel
+                self._reward_tracking_ang_vel(state.info["command"], x, xd) * self.config.reward.tracking_ang_vel
             ),
             "lin_vel_z": (self._reward_lin_vel_z(xd) * self.config.reward.lin_vel_z),
             "ang_vel_xy": (self._reward_ang_vel_xy(xd) * self.config.reward.ang_vel_xy),
@@ -246,31 +264,36 @@ class A1Env(MjxEnv):
         up = jp.array([0.0, 0.0, 1.0])
         done = jp.where(jp.dot(math.rotate(up, x.rot[0]), up) < 0, 1.0, done)
         done = jp.where(
-            jp.logical_or(jp.any(joint_angles < 0.98 * self.lowers), jp.any(joint_angles > 0.98 * self.uppers)),
+            jp.logical_or(
+                jp.any(joint_angles < 0.98 * self.config.joint_lowers),
+                jp.any(joint_angles > 0.98 * self.config.joint_uppers),
+            ),
             1.0,
             done,
         )
-        done = jp.where(x.pos[self.torso_idx, 2] < 0.18, 1.0, done)
+        done = jp.where(x.pos[self.config.torso_index, 2] < 0.18, 1.0, done)
 
         # termination reward
         reward += jp.where(
-            (done == 1.0) & (state.info["step"] < self._reset_horizon),
-            self.reward_config.rewards.scales.termination,
+            (done == 1.0) & (state.info["step"] < self.config.reset_horizon),
+            self.config.reward.termination,
             0.0,
         )
 
-        # when done, sample new command if more than _reset_horizon timesteps
+        # when done, sample new command if more than reset_horizon timesteps
         # achieved
         state.info["command"] = jp.where(
-            (done == 1.0) & (state.info["step"] > self._reset_horizon),
+            (done == 1.0) & (state.info["step"] > self.config.reset_horizon),
             self.sample_command(cmd_rng),
             state.info["command"],
         )
         # reset the step counter when done
-        state.info["step"] = jp.where((done == 1.0) | (state.info["step"] > self._reset_horizon), 0, state.info["step"])
+        state.info["step"] = jp.where(
+            (done == 1.0) | (state.info["step"] > self.config.reset_horizon), 0, state.info["step"]
+        )
 
         # log total displacement as a proxy metric
-        state.metrics["total_dist"] = math.normalize(x.pos[self.torso_idx])[1]
+        state.metrics["total_dist"] = math.normalize(x.pos[self.config.torso_index])[1]
         for k in state.info["reward_tuple"].keys():
             state.metrics[k] = state.info["reward_tuple"][k]
 
@@ -353,8 +376,9 @@ class A1Env(MjxEnv):
         return jp.sum(jp.abs(joint_angles - default_angles)) * (math.normalize(commands[:2])[1] < 0.1)
 
     def _get_feet_pos_vel(self, x: Transform, xd: Motion) -> Tuple[jax.Array, jax.Array]:
-        pos = x.take(self.config.feet_indices).vmap().pos
-        vel = xd.take(self.config.feet_indices).vmap().vel
+        offset = Transform.create(pos=self.config.feet_pos)
+        pos = x.take(self.config.feet_indices).vmap().do(offset).pos
+        vel = offset.vmap().do(xd.take(self.config.feet_indices)).vel
         return pos, vel
 
     def _reward_foot_slip(self, x: Transform, xd: Motion, contact_filt: jax.Array) -> jax.Array:

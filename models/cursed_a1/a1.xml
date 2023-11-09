@@ -1,24 +1,35 @@
 <mujoco model="a1">
   <compiler angle="radian" meshdir="assets" texturedir="assets" autolimits="true"/>
+  <option timestep="0.002" iterations="1" ls_iterations="4">
+    <flag eulerdamp="disable"/>
+  </option>
 
-  <option cone="pyramidal" impratio="100"/>
+  <!-- <option cone="pyramidal" impratio="100"/> -->
 
   <default>
     <default class="a1">
       <geom friction="0.6" margin="0.001"/>
       <joint axis="0 1 0" damping="2" armature="0.01" frictionloss="0.2"/>
-      <position kp="100" forcerange="-33.5 33.5"/>
+      <!-- <position kp="100" forcerange="-33.5 33.5"/> -->
       <default class="abduction">
         <joint axis="1 0 0" damping="1" range="-0.802851 0.802851"/>
-        <position ctrlrange="-0.802851 0.802851"/>
+        <!-- <position ctrlrange="-0.802851 0.802851"/> -->
       </default>
       <default class="hip">
         <joint range="-1.0472 4.18879"/>
-        <position ctrlrange="-1.0472 4.18879"/>
+        <!-- <position ctrlrange="-1.0472 4.18879"/> -->
       </default>
       <default class="knee">
         <joint range="-2.69653 -0.916298"/>
-        <position ctrlrange="-2.69653 -0.916298"/>
+      </default>
+      <default class="abduction_actuator">
+        <general biastype="affine" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 -50 -0.65 0 0 0 0 0 0 0" ctrlrange="-0.802851 0.802851" />
+      </default>
+      <default class="hip_actuator">
+        <general biastype="affine" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 -50 -0.65 0 0 0 0 0 0 0" ctrlrange="-1.0472 4.18879"/>
+      </default>
+      <default class="knee_actuator">
+        <general biastype="affine" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 -50 -0.65 0 0 0 0 0 0 0" ctrlrange="-2.69653 -0.916298" />
       </default>
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2" material="dark"/>
@@ -26,10 +37,10 @@
       <default class="collision">
         <geom group="3" type="capsule"/>
         <default class="hip_left">
-          <geom size="0.04 0.04 0.04" quat="1 1 0 0" type="box" pos="0 0.055 0"/>
+          <geom size="0.03 0.03 0.03" quat="1 1 0 0" type="box" pos="0 0.055 0"/>
         </default>
         <default class="hip_right">
-          <geom size="0.04 0.04 0.04" quat="1 1 0 0" type="box" pos="0 -0.055 0"/>
+          <geom size="0.03 0.03 0.03" quat="1 1 0 0" type="box" pos="0 -0.055 0"/>
         </default>
         <default class="thigh1">
           <geom size="0.015" fromto="-0.02 0 0 -0.02 0 -0.16"/>
@@ -47,8 +58,9 @@
           <geom size="0.01" fromto="0.02 0 -0.13 0 0 -0.2"/>
         </default>
         <default class="foot">
-          <geom type="sphere" size="0.02" pos="0 0 -0.2" priority="1" solimp="0.015 1 0.031" condim="3"
-            friction="0.8 0.02 0.01"/>
+          <geom type="sphere" size="0.02" pos="0 0 -0.2" priority="1" /> 
+          <!-- solimp="0.015 1 0.031" condim="3" -->
+            <!-- friction="0.8 0.02 0.01"/> -->
         </default>
       </default>
     </default>
@@ -69,13 +81,14 @@
   <worldbody>
     <light name="spotlight" mode="targetbodycom" target="trunk" pos="0 -1 2"/>
     <body name="trunk" pos="0 0 0.43" childclass="a1">
+      <camera name="track" pos="0.846 -1.465 0.916" xyaxes="0.866 0.500 0.000 -0.171 0.296 0.940" mode="trackcom"/>
       <freejoint/>
       <inertial mass="4.713" pos="0 0.0041 -0.0005"
         fullinertia="0.0158533 0.0377999 0.0456542 -3.66e-05 -6.11e-05 -2.75e-05"/>
       <geom class="visual" mesh="trunk" material="carbonfibre"/>
       <geom class="collision" size="0.125 0.04 0.057" type="box"/>
-      <geom class="collision" quat="1 0 1 0" pos="0 -0.04 0" size="0.058 0.58 0.125" type="box"/>
-      <geom class="collision" quat="1 0 1 0" pos="0 +0.04 0" size="0.058 0.58 0.125" type="box"/>
+      <geom class="collision" quat="1 0 1 0" pos="0 -0.04 0" size="0.04 0.4 0.125" type="box"/>
+      <geom class="collision" quat="1 0 1 0" pos="0 +0.04 0" size="0.04 0.4 0.125" type="box"/>
       <geom class="collision" pos="0.25 0 0" size="0.005 0.06 0.05" type="box"/>
       <geom class="collision" pos="0.25 0.06 -0.01" size="0.009 0.035"/>
       <geom class="collision" pos="0.25 -0.06 -0.01" size="0.009 0.035"/>
@@ -185,7 +198,7 @@
     </body>
   </worldbody>
 
-  <actuator>
+  <!-- <actuator>
     <position class="abduction" name="FR_hip" joint="FR_hip_joint"/>
     <position class="hip" name="FR_thigh" joint="FR_thigh_joint"/>
     <position class="knee" name="FR_calf" joint="FR_calf_joint"/>
@@ -198,6 +211,21 @@
     <position class="abduction" name="RL_hip" joint="RL_hip_joint"/>
     <position class="hip" name="RL_thigh" joint="RL_thigh_joint"/>
     <position class="knee" name="RL_calf" joint="RL_calf_joint"/>
+  </actuator> -->
+
+  <actuator>
+    <general class="abduction_actuator" name="FR_hip" joint="FR_hip_joint"/>
+    <general class="hip_actuator" name="FR_thigh" joint="FR_thigh_joint"/>
+    <general class="knee_actuator"name="FR_calf"  joint="FR_calf_joint"/>
+    <general class="abduction_actuator" name="FL_hip" joint="FL_hip_joint"/>
+    <general class="hip_actuator" name="FL_thigh" joint="FL_thigh_joint"/>
+    <general class="knee_actuator"name="FL_calf"  joint="FL_calf_joint"/>
+    <general class="abduction_actuator" name="RL_hip" joint="RL_hip_joint"/>
+    <general class="hip_actuator" name="RL_thigh" joint="RL_thigh_joint"/>
+    <general class="knee_actuator"name="RL_calf"  joint="RL_calf_joint"/>
+    <general class="abduction_actuator" name="RR_hip" joint="RR_hip_joint"/>
+    <general class="hip_actuator" name="RR_thigh" joint="RR_thigh_joint"/>
+    <general class="knee_actuator"name="RR_calf"  joint="RR_calf_joint"/>
   </actuator>
 
   <keyframe>
