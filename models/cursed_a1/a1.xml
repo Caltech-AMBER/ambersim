@@ -37,13 +37,13 @@
       <default class="collision">
         <geom group="3" type="capsule"/>
         <default class="hip_left">
-          <geom size="0.03 0.03 0.03" quat="1 1 0 0" type="box" pos="0 0.055 0"/>
+          <geom size="0.03 0.03 0.03" quat="1 1 0 0" type="box" pos="0 0.055 0" contype="0" conaffinity="0"/>
         </default>
         <default class="hip_right">
-          <geom size="0.03 0.03 0.03" quat="1 1 0 0" type="box" pos="0 -0.055 0"/>
+          <geom size="0.03 0.03 0.03" quat="1 1 0 0" type="box" pos="0 -0.055 0" contype="0" conaffinity="0"/>
         </default>
         <default class="thigh1">
-          <geom size="0.015" fromto="-0.02 0 0 -0.02 0 -0.16"/>
+          <geom size="0.015" fromto="-0.02 0 0 -0.02 0 -0.16" />
         </default>
         <default class="thigh2">
           <geom size="0.015" fromto="0 0 0 -0.02 0 -0.1"/>
@@ -86,14 +86,14 @@
       <inertial mass="4.713" pos="0 0.0041 -0.0005"
         fullinertia="0.0158533 0.0377999 0.0456542 -3.66e-05 -6.11e-05 -2.75e-05"/>
       <geom class="visual" mesh="trunk" material="carbonfibre"/>
-      <geom class="collision" size="0.125 0.04 0.057" type="box"/>
-      <geom class="collision" quat="1 0 1 0" pos="0 -0.04 0" size="0.04 0.4 0.125" type="box"/>
-      <geom class="collision" quat="1 0 1 0" pos="0 +0.04 0" size="0.04 0.4 0.125" type="box"/>
+      <geom class="collision" size="0.125 0.04 0.057" type="box" contype="0" conaffinity="0"/>
+      <geom class="collision" quat="1 0 1 0" pos="0 -0.04 0" size="0.04 0.4 0.125" type="box" contype="0" conaffinity="0"/>
+      <geom class="collision" quat="1 0 1 0" pos="0 +0.04 0" size="0.04 0.4 0.125" type="box" contype="0" conaffinity="0"/>
       <geom class="collision" pos="0.25 0 0" size="0.005 0.06 0.05" type="box"/>
-      <geom class="collision" pos="0.25 0.06 -0.01" size="0.009 0.035"/>
-      <geom class="collision" pos="0.25 -0.06 -0.01" size="0.009 0.035"/>
-      <geom class="collision" pos="0.25 0 -0.05" size="0.005 0.06" quat="1 1 0 0"/>
-      <geom class="collision" pos="0.255 0 0.0355" size="0.021 0.052" quat="1 1 0 0"/>
+      <geom class="collision" pos="0.25 0.06 -0.01" size="0.009 0.035" contype="0" conaffinity="0"/>
+      <geom class="collision" pos="0.25 -0.06 -0.01" size="0.009 0.035" contype="0" conaffinity="0"/>
+      <geom class="collision" pos="0.25 0 -0.05" size="0.005 0.06" quat="1 1 0 0" contype="0" conaffinity="0"/>
+      <geom class="collision" pos="0.255 0 0.0355" size="0.021 0.052" quat="1 1 0 0" contype="0" conaffinity="0"/>
       <body name="FR_hip" pos="0.183 -0.047 0">
         <inertial mass="0.696" pos="-0.003311 -0.000635 3.1e-05" quat="0.507528 0.506268 0.491507 0.494499"
           diaginertia="0.000807752 0.00055293 0.000468983"/>
