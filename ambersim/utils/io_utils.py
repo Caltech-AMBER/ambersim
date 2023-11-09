@@ -21,13 +21,8 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
 
     # only add free joint if the first body after worldbody has no freejoints
     assert robot.worldbody is not None
-    if robot.worldbody.body[0].freejoint is None:
-        # creates a new robot object and attaches the current robot to it freely
-        arena = mjcf.RootElement(model=robot.model)
-        attachment_frame = arena.attach(robot)
-        attachment_frame.add("freejoint", name="freejoint")
-        robot = arena
-        assert robot.worldbody is not None  # pyright typechecking
+    if len(robot.worldbody.body[0].joint) == 0:
+        robot.worldbody.body[0].add("freejoint", name="freejoint")
         assert robot.worldbody.body[0].inertial is not None  # checking for non-physical parsing errors
 
     # extracts the mujoco model from the dm_mujoco Physics object

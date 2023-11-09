@@ -22,7 +22,7 @@ def test_load_model():
 
     # creating temporary local file to test local paths
     local_dir = Path("_test_local")
-    local_dir.mkdir(parents=True, exist_ok=False)
+    local_dir.mkdir(parents=True, exist_ok=True)
     with Path(local_path).open("w", encoding="utf-8") as f:
         f.write(Path(global_path).read_text())
 
@@ -45,6 +45,7 @@ def test_all_models():
     filepaths = (p.resolve() for p in Path(ROOT + "/models").glob("**/*") if p.suffix in {".urdf", ".xml"})
     for filepath in filepaths:
         assert load_mjx_model_and_data_from_file(filepath)
+        assert load_mjx_model_and_data_from_file(filepath, force_float=True)
 
 
 def test_save_xml():
@@ -68,9 +69,10 @@ def test_force_float():
     <mujoco model="parent">
       <worldbody>
         <body>
+          <inertial pos="0 0 0" mass="1" diaginertia="1 1 1"/>
           <geom name="foo" type="box" pos="-0.2 0 0.3" size="0.5 0.3 0.1"/>
-          <site name="attachment_site" pos="1. 2. 3." quat="1. 0. 0. 1."/>
           <body name="child" pos="1. 2. 3." quat="1. 0. 0. 1.">
+            <inertial pos="0 0 0" mass="2" diaginertia="1 1 1"/>
             <geom name="my_box" type="box" pos="0.5 0.25 1." size="0.1 0.2 0.3"/>
           </body>
         </body>
@@ -97,7 +99,7 @@ def test_convex_decomposition():
     """Tests the convex decomposition util."""
     meshfile = "models/barrett_hand/meshes/finger.obj"
     savedir = Path("_test_dir")
-    savedir.mkdir(parents=True, exist_ok=False)
+    savedir.mkdir(parents=True, exist_ok=True)
 
     # tests that meshes are generated and saved correctly
     decomposed_meshes = convex_decomposition_file(meshfile, quiet=True, savedir=savedir)
