@@ -23,7 +23,7 @@ jobs:
           auto-activate-base: true
           activate-environment: ambersim
           python-version: 3.11
-          environment-file: ${{ github.workspace }}/environment.yml
+          environment-file: ${{ github.workspace }}/../environment.yml
       - uses: actions/checkout@v4
       - uses: actions/cache@v3
         with:
@@ -32,7 +32,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Install dependencies
-        working-directory: ${{ github.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           sudo apt-get update -y
           sudo apt-get install -y \
