@@ -60,10 +60,10 @@ jobs:
           # Store the package as an artifact
           # the below path is known from the mujoco installation script
           whl_path=$(find $PWD/../mujoco/python/dist -name "mujoco-*.whl")
-          echo "::set-output name=file_path::$whl_path"
+          echo "file_path={$whl_path}" >> $GITHUB_ENV
         id: package
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ steps.package.outputs.file_path }}
-          path: ${{ steps.package.outputs.file_path }}
+          name: mujoco_wheel
+          path: ${{ env.file_path }}

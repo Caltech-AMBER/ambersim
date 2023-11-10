@@ -71,7 +71,6 @@ cmake --install .
 cd "$mujoco_dir/python"
 ./make_sdist.sh
 tar_path=$(find "$mujoco_dir/python/dist" -name 'mujoco-*.tar.gz' 2>/dev/null)
-whl_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*.whl" 2>/dev/null)
 
 # Renaming the tar file to append the commit hash
 old_name=$(basename "$tar_path")
@@ -81,8 +80,11 @@ new_name="${new_prefix}.tar.gz"
 new_tar_path="$(dirname "$tar_path")/$new_name"
 mv "$tar_path" "$new_tar_path"  # renames the tar file to have the git hash in it
 
-# Installing mujoco and mjx from source
-MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin" pip wheel -w $(dirname "whl_path") "$tar_path"
+# manually building wheel so we can cache it
+MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin" pip wheel -w $(dirname "new_tar_path") "$new_tar_path"
+
+# installing mujoco from wheel and then finally mjx
+whl_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*.whl" 2>/dev/null)
 MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin" pip install --no-deps --force-reinstall "$whl_path"
 cd "$mujoco_dir/mjx"
 pip install --no-deps --force-reinstall .
