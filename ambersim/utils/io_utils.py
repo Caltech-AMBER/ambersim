@@ -124,21 +124,27 @@ def load_mj_model_from_file(
     is_urdf = str(filepath).split(".")[-1] == "urdf"
     is_xml = str(filepath).split(".")[-1] == "xml"
 
-    # loading the model and data. check whether to forcibly add a freejoint
-    if force_float:
-        # check file extension and process accordingly
-        if is_urdf:
-            output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
-            save_model_xml(filepath, output_path=output_path)
-            _add_actuators(filepath, output_path)
-            mj_model = _modify_robot_float_base(output_path)
-            Path.unlink(output_path)
-        elif is_xml:
-            mj_model = _modify_robot_float_base(filepath)
-        else:
-            raise NotImplementedError
+    # treating URDFs and XMLs differently
+    temp_output_path = False
+    if is_urdf:
+        output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
+        save_model_xml(filepath, output_path=output_path)
+        _add_actuators(filepath, output_path)
+        temp_output_path = True
+    elif is_xml:
+        output_path = filepath
     else:
-        mj_model = mj.MjModel.from_xml_path(filepath)
+        raise NotImplementedError
+
+    # checking whether to force float
+    if force_float:
+        mj_model = _modify_robot_float_base(output_path)
+    else:
+        mj_model = mj.MjModel.from_xml_path(output_path)
+
+    # deleting temp file
+    if temp_output_path:
+        Path.unlink(output_path)
 
     # setting solver options
     mj_model.opt.solver = solver

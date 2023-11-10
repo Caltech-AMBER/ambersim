@@ -5,6 +5,7 @@ import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
+from lxml import etree
 from mujoco import mjx
 
 from ambersim import ROOT
@@ -54,6 +55,19 @@ def test_save_xml():
     save_model_xml(ROOT + "/models/pendulum/pendulum.urdf")
     assert load_mjx_model_and_data_from_file("pendulum.xml")
     Path.unlink("pendulum.xml")  # deleting test file
+
+
+def test_actuators():
+    """Tests that actuators are added correctly when converting from URDF to XML."""
+    for urdf_filepath in Path(ROOT + "/models").rglob("*.urdf"):
+        # loading the URDF and checking the number of transmissions it has
+        with open(urdf_filepath, "r") as f:
+            urdf_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True, recover=True))
+        num_actuators = len(urdf_tree.findall("transmission"))
+
+        # checking that the same file loaded into mjx has the same number of actuators
+        mjx_model, _ = load_mjx_model_and_data_from_file(urdf_filepath)
+        assert mjx_model.nu == num_actuators
 
 
 def test_force_float():
