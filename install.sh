@@ -53,6 +53,7 @@ if [[ "$source" = true ]] ; then
     fi
 
     # Configure and build
+    export MAKEFLAGS="-j$(nproc)"  # allow the max number of processors when building
     cd "$mujoco_dir"
     cmake .
     cmake --build .
