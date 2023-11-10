@@ -6,11 +6,68 @@ import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
+from lxml import etree
 from mujoco import mjx
 
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _check_filepath
 from ambersim.utils.conversion_utils import save_model_xml
+
+
+def _add_actuators(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Path]) -> None:
+    """Takes a URDF and a corresponding XML derived from it and adds actuators to the XML.
+
+    This util is necessary because mujoco doesn't automatically add actuators. We assume that transmissions are defined
+    for all actuated DOFs in the URDF. The supplied xml is directly modified.
+
+    Args:
+        urdf_filepath: A path to a URDF file.
+        xml_filepath: A path to an XML file.
+    """
+    # parsing URDF
+    # the recover=True keyword parses even after encountering invalid namespaces
+    # this is useful when, e.g., we have drake:declare_convex, which is not a valid namespace
+    with open(urdf_filepath, "r") as f:
+        urdf_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True, recover=True))
+
+    # parsing XML
+    with open(xml_filepath, "r") as f:
+        xml_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True))
+
+    # checking whether the XML has an actuator section already
+    if xml_tree.find("actuator") is None:
+        actuator = etree.Element("actuator")
+        xml_tree.append(actuator)
+
+    # getting transmission info from URDF and loading it into the XML
+    actuators = xml_tree.find("actuator")
+    for transmission in urdf_tree.findall("transmission"):
+        joint_name = transmission.find("joint").get("name")
+        joint = urdf_tree.find(f"joint[@name='{joint_name}']")
+        limit = joint.find("limit").get("effort")
+
+        if actuators.find(f"motor[@joint='{joint_name}']") is None:
+            if limit is not None:
+                etree.SubElement(
+                    actuators,
+                    "motor",
+                    name=joint_name + "_actuator",
+                    ctrllimited="true",
+                    ctrlrange=f"-{limit} {limit}",
+                    joint=joint_name,
+                )
+            else:
+                etree.SubElement(
+                    actuators,
+                    "motor",
+                    name=joint_name + "_actuator",
+                    ctrllimited="false",
+                    joint=joint_name,
+                )
+
+    # resaving the XML
+    with open(xml_filepath, "wb") as f:
+        f.write(etree.tostring(xml_tree, pretty_print=True))
 
 
 def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
@@ -50,6 +107,9 @@ def load_mj_model_from_file(
 
     Returns:
         mj_model: A mujoco model.
+
+    Raises:
+        NotImplementedError: if the file extension is not in [".urdf", ".xml"]
     """
     # TODO(ahl): once we allow installing mujoco from source, update this to allow the Newton solver + update default
     if isinstance(solver, str):
@@ -61,17 +121,22 @@ def load_mj_model_from_file(
         assert solver in [mj.mjtSolver.mjSOL_CG]
 
     filepath = _check_filepath(filepath)
+    is_urdf = str(filepath).split(".")[-1] == "urdf"
+    is_xml = str(filepath).split(".")[-1] == "xml"
 
-    # loading the model and data. check whether freejoint is added forcibly
+    # loading the model and data. check whether to forcibly add a freejoint
     if force_float:
-        # check that the file is an XML. if not, save as xml temporarily
-        if str(filepath).split(".")[-1] != "xml":
-            output_name = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
-            save_model_xml(filepath, output_name=output_name)
-            mj_model = _modify_robot_float_base(output_name)
-            Path.unlink(output_name)
-        else:
+        # check file extension and process accordingly
+        if is_urdf:
+            output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
+            save_model_xml(filepath, output_path=output_path)
+            _add_actuators(filepath, output_path)
+            mj_model = _modify_robot_float_base(output_path)
+            Path.unlink(output_path)
+        elif is_xml:
             mj_model = _modify_robot_float_base(filepath)
+        else:
+            raise NotImplementedError
     else:
         mj_model = mj.MjModel.from_xml_path(filepath)
 
