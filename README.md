@@ -38,7 +38,12 @@ sudo apt-get install -y \
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```
-python -c "import mujoco"
+python -c "import mujoco; from mujoco import mjx"
+```
+Further, you can examine the latest minor version using `pip`:
+```
+pip show mujoco
+pip show mujoco-mjx
 ```
 
 ## Development Details
