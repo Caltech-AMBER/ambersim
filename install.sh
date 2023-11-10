@@ -66,5 +66,9 @@ if [[ "$source" = true ]] ; then
     cd "$mujoco_dir/python"
     ./make_sdist.sh
     tar_path=$(find "$mujoco_dir/python/dist" -name 'mujoco-*.tar.gz' 2>/dev/null)
+
+    # Installing mujoco and mjx from source
     MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin" pip install "$tar_path"
+    cd "$mujoco_dir/mjx"
+    pip install .
 fi
