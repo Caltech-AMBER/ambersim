@@ -37,7 +37,7 @@ jobs:
         shell: bash -l {0}
         run: |
           # Installs mujoco from source
-          run ./install_mj_source.sh
+          ./install_mj_source.sh
           
           # Store the package as an artifact
           # the below path is known from the mujoco installation script
