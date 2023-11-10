@@ -4,8 +4,8 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * shared interfaces for control architectures, and
 * massively-parallelized simulation.
 
-## Quickstart
-Create and activate a conda environment with Cuda 11.8 support:
+## Installation
+Clone this repository and run the following commands in the repository root to create and activate a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
@@ -36,7 +36,7 @@ sudo apt-get install -y \
 ./install.sh -s -d
 ```
 
-If the following line of code runs without error, then the installation was successful:
+If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```
 python -c "import mujoco"
 ```

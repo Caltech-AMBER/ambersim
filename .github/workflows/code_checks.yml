@@ -27,7 +27,17 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install dependencies
         working-directory: ${{ github.workspace }}
-        run: bash ./install.sh -d -s
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxi-dev \
+            ninja-build
+          python -m pip install --upgrade pip
+          bash ./install.sh -d -s
       - name: Run black
         run: black --check .
       - name: Run flake8
