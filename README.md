@@ -5,26 +5,24 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * massively-parallelized simulation.
 
 ## Quickstart
-Create a conda environment with Cuda 11.8 support:
+Create and activate a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
 ```
-Install the project. Note the two different options depending on whether you want to develop on the repo or not.
-```
-# OPTION 1: NON-DEVELOPERS
-pip install . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
 
-# OPTION 2: DEVELOPERS
-pip install -e .[all] --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+Installation of this package is done via a `bash` script. There are two flags for configuring the installation:
+* `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
+* `-s` controls whether to install the most recent `mujoco` installation from source. We recommend doing this, since the development version usually has important fixes.
+
+For non-developers:
 ```
-For developers, install pre-commit hooks by running the following in the repo root:
+./install.sh -s
 ```
-pre-commit autoupdate
-pre-commit install
+
+For developers:
 ```
-To install the latest and greatest version of `mujoco` from source, ensure that your system has the right build dependencies:
-```
+# important dependencies for building mujoco from source
 sudo apt-get update -y
 sudo apt-get install -y \
     libgl1-mesa-dev \
@@ -33,12 +31,11 @@ sudo apt-get install -y \
     libxrandr-dev \
     libxi-dev \
     ninja-build
+
+# install mujoco from source with development options
+./install.sh -s -d
 ```
-Then, run the installation `bash` script, which will update `mujoco` to the latest version built from source:
-```
-sudo chmod +x install.sh
-./install.sh
-```
+
 If the following line of code runs without error, then the installation was successful:
 ```
 python -c "import mujoco"
