@@ -15,10 +15,34 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.11.5
-        uses: actions/setup-python@v4
+      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
+        uses: jlumbroso/free-disk-space@main
         with:
-          python-version: '3.11.5'
+          # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: false
+
+          # All of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+      - name: Cache conda
+        uses: actions/cache@v3
+        env:
+          CACHE_NUMBER: 0
+        with:
+          path: ${{ env.CONDA }}/envs
+          key:
+            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+            hashFiles('environment.yml') }}
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          activate-environment: ambersim
+          use-mamba: true
+          environment-file: environment.yml
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
@@ -26,17 +50,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Install dependencies
+        working-directory: ${{ github.workspace }}
+        shell: bash -l {0}
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .[all] --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxi-dev \
+            ninja-build
+          python -m pip install --upgrade pip
+          bash ./install.sh -d -s
       - name: Run black
+        shell: bash -l {0}
         run: black --check .
       - name: Run flake8
+        shell: bash -l {0}
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Run pyright
+        shell: bash -l {0}
         run: |
           pyright
       - name: Test with pytest
+        shell: bash -l {0}
         run: |
           pytest

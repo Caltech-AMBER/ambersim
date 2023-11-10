@@ -4,27 +4,25 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * shared interfaces for control architectures, and
 * massively-parallelized simulation.
 
-## Quickstart
-Create a conda environment with Cuda 11.8 support:
+## Installation
+Clone this repository and run the following commands in the repository root to create and activate a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
 ```
-Install the project. Note the two different options depending on whether you want to develop on the repo or not.
-```
-# OPTION 1: NON-DEVELOPERS
-pip install . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
 
-# OPTION 2: DEVELOPERS
-pip install -e .[all] --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+Installation of this package is done via a `bash` script. There are two flags for configuring the installation:
+* `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
+* `-s` controls whether to install the most recent `mujoco` version from source. We recommend doing this, since the development version usually has important bugfixes.
+
+For non-developers:
 ```
-For developers, install pre-commit hooks by running the following in the repo root:
+./install.sh -s
 ```
-pre-commit autoupdate
-pre-commit install
+
+For developers:
 ```
-To install the latest and greatest version of `mujoco` from source, ensure that your system has the right build dependencies:
-```
+# important dependencies for building mujoco from source
 sudo apt-get update -y
 sudo apt-get install -y \
     libgl1-mesa-dev \
@@ -33,13 +31,12 @@ sudo apt-get install -y \
     libxrandr-dev \
     libxi-dev \
     ninja-build
+
+# install mujoco from source with development options
+./install.sh -s -d
 ```
-Then, run the installation `bash` script, which will update `mujoco` to the latest version built from source:
-```
-sudo chmod +x install.sh
-./install.sh
-```
-If the following line of code runs without error, then the installation was successful:
+
+If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```
 python -c "import mujoco"
 ```
@@ -60,7 +57,7 @@ Python dependencies are specified using a `pyproject.toml` file. Non-python depe
 
 Major versioning decisions:
 * `python=3.11.5`. `torch`, `jax`, and `mujoco` all support it and there are major reported speed improvements over `python` 3.10.
-* `cuda==11.8`. Both `torch` and `jax` support `cuda12`; however, they annoyingly support different minor versions which makes them incompatible in the same environment [https://github.com/google/jax/issues/18032](#18032). Once this is resolved, we will upgrade to `cuda-12.2` or later. It seems most likely that `torch` will support `cuda-12.3` once they do upgrade, since that is the most recent release.
+* `cuda==11.8`. Both `torch` and `jax` support `cuda12`; however, they annoyingly support different minor versions which makes them [incompatible in the same environment](https://github.com/google/jax/issues/18032). Once this is resolved, we will upgrade to `cuda-12.2` or later. It seems most likely that `torch` will support `cuda-12.3` once they do upgrade, since that is the most recent release.
 
 ### Tooling
 We use various tools to ensure code quality.
