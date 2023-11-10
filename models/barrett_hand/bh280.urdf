@@ -1,0 +1,1050 @@
+<?xml version="1.0"?>
+<robot name="bhand">
+  <mujoco>
+    <compiler fusestatic="false" meshdir="meshes/" balanceinertia="true" discardvisual="false"/>
+  </mujoco>
+
+  <!-- HAND BASE (RED) -->
+  <link name="bh_palm">
+    <inertial>
+      <mass value="1"/>
+      <origin rpy="0 0 0" xyz="0 -0.0039272 0.040712"/>
+      <inertia ixx="0.0010893" ixy="0" ixz="6.5953e-19" iyy="0.00097721" iyz="8.6359e-05" izz="0.0010579"/>
+    </inertial>
+    <visual name="bh_palm_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280.obj"/>
+      </geometry>
+        <color rgba="0.75 0.75 0.75 1.0"/>
+    </visual>
+    <collision name="bh_palm_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_3">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_3.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_4">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_4.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_5">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_5.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_6">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_6.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_7">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_7.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_8">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_8.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_9">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_9.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_10">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_10.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_11">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_11.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_12">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_12.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_13">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_13.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_palm_collision_14">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/palm_280_col_14.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- finger 3 -->
+  <!-- finger 32 link -->
+  <link name="bh_finger_32">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.030745 0.0019837 0.00068129"/>
+      <inertia ixx="7.3832e-06" ixy="2.5967e-06" ixz="-2.9222e-07" iyy="5.9343e-05" iyz="2.4133e-09" izz="6.0411e-05"/>
+    </inertial>
+    <visual name="bh_finger_32_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_32_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_32_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_32_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_finger_31 and BH_finger_32 -->
+  <joint name="bh_j32_joint" type="revolute">
+    <parent link="bh_palm"/>
+    <child link="bh_finger_32"/>
+    <origin rpy="1.5708 0 1.5708" xyz="0 -0.05 0.0754"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="30.0" lower="0.0" upper="2.44" velocity="2.0"/>
+  </joint>
+  <transmission name="bh_j32_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="bh_j32_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="bh_j32">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+      <motorTorqueConstant>1</motorTorqueConstant>
+    </actuator>
+  </transmission>
+  <!-- finger 33 link -->
+  <link name="bh_finger_33">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.016427 0.015348 0.00063234"/>
+      <inertia ixx="1.9434e-05" ixy="1.4715e-05" ixz="-1.3785e-09" iyy="2.2457e-05" iyz="9.4538e-10" izz="3.4232e-05"/>
+    </inertial>
+    <visual name="bh_finger_33_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_33_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_3">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_3.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_4">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_4.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_5">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_5.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_6">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_6.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_7">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_7.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_8">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_8.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_9">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_9.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_10">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_10.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_11">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_11.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_33_collision_12">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_12.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_finger_32 and BH_finger_33 -->
+  <joint name="bh_j33_joint" type="revolute">
+    <parent link="bh_finger_32"/>
+    <child link="bh_finger_33"/>
+    <origin rpy="0 0 0" xyz="-0.069936 0.003 0"/>
+    <axis xyz="0 0 -1"/>
+    <mimic joint="bh_j32_joint" multiplier="0.3442622950819672"/>
+    <limit effort="30.0" lower="0.0" upper="0.84" velocity="2.0"/>
+  </joint>
+  <!-- finger 1 -->
+  <!-- finger 11 link -->
+  <link name="bh_finger_11">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.033751 0 0.018292"/>
+      <inertia ixx="1.9875e-05" ixy="1.4791e-16" ixz="9.8185e-06" iyy="6.0239e-05" iyz="5.6681e-19" izz="5.0781e-05"/>
+    </inertial>
+    <visual name="bh_finger_11_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_11_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_3">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_3.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_4">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_4.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_5">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_5.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_6">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_6.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_7">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_7.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_8">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_8.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_9">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_9.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_10">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_10.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_11">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_11.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_11_collision_12">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_12.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_palm and BH_finger_11 -->
+  <joint name="bh_j11_joint" type="revolute">
+    <parent link="bh_palm"/>
+    <child link="bh_finger_11"/>
+    <origin rpy="0 0 -1.5708" xyz="0.025 0 0.0415"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="30.0" lower="0" upper="3.1416" velocity="2.0"/>
+  </joint>
+  <transmission name="bh_j11_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="bh_j11_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="bh_j11">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+      <motorTorqueConstant>1</motorTorqueConstant>
+    </actuator>
+  </transmission>
+  <!-- finger 12 link -->
+  <link name="bh_finger_12">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.030745 0.0019837 0.00068129"/>
+      <inertia ixx="7.3832e-06" ixy="2.5967e-06" ixz="-2.9222e-07" iyy="5.9343e-05" iyz="2.4133e-09" izz="6.0411e-05"/>
+    </inertial>
+    <visual name="bh_finger_12_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_12_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_12_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_12_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_finger_11 and BH_finger_12 -->
+  <joint name="bh_j12_joint" type="revolute">
+    <parent link="bh_finger_11"/>
+    <child link="bh_finger_12"/>
+    <origin rpy="1.5708 0 0" xyz="-0.05 0 0.0339"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="30.0" lower="0.0" upper="2.44" velocity="2.0"/>
+  </joint>
+  <transmission name="bh_j12_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="bh_j12_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="bh_j12">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+      <motorTorqueConstant>1</motorTorqueConstant>
+    </actuator>
+  </transmission>
+  <!-- finger 13 link -->
+  <link name="bh_finger_13">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.016427 0.015348 0.00063234"/>
+      <inertia ixx="1.9434e-05" ixy="1.4715e-05" ixz="-1.3785e-09" iyy="2.2457e-05" iyz="9.4538e-10" izz="3.4232e-05"/>
+    </inertial>
+    <visual name="bh_finger_13_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_13_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_3">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_3.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_4">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_4.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_5">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_5.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_6">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_6.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_7">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_7.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_8">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_8.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_9">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_9.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_10">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_10.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_11">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_11.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_13_collision_12">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_12.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_finger_12 and BH_finger_13 -->
+  <joint name="bh_j13_joint" type="revolute">
+    <parent link="bh_finger_12"/>
+    <child link="bh_finger_13"/>
+    <origin rpy="0 0 0" xyz="-0.069936 0.003 0"/>
+    <axis xyz="0 0 -1"/>
+    <mimic joint="bh_j12_joint" multiplier="0.3442622950819672"/>
+    <limit effort="30.0" lower="0.0" upper="0.84" velocity="2.0"/>
+  </joint>
+  <!-- finger 2 -->
+  <!-- finger 21 link -->
+  <link name="bh_finger_21">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.033751 0 0.018292"/>
+      <inertia ixx="1.9875e-05" ixy="1.4791e-16" ixz="9.8185e-06" iyy="6.0239e-05" iyz="5.6681e-19" izz="5.0781e-05"/>
+    </inertial>
+    <visual name="bh_finger_21_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_21_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_3">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_3.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_4">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_4.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_5">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_5.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_6">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_6.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_7">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_7.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_8">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_8.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_9">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_9.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_10">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_10.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_11">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_11.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_21_collision_12">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/knuckle_col_12.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_palm and BH_finger_21 -->
+  <joint name="bh_j21_joint" type="revolute">
+    <parent link="bh_palm"/>
+    <child link="bh_finger_21"/>
+    <origin rpy="0 0 -1.5708" xyz="-0.025 0 0.0415"/>
+    <axis xyz="0 0 1"/>
+    <mimic joint="bh_j11_joint" multiplier="1"/>
+    <limit effort="30.0" lower="0" upper="3.1416" velocity="2.0"/>
+  </joint>
+  <!-- finger 12 link -->
+  <link name="bh_finger_22">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.030745 0.0019837 0.00068129"/>
+      <inertia ixx="7.3832e-06" ixy="2.5967e-06" ixz="-2.9222e-07" iyy="5.9343e-05" iyz="2.4133e-09" izz="6.0411e-05"/>
+    </inertial>
+    <visual name="bh_finger_22_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_22_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_22_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_22_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_finger_21 and BH_finger_22 -->
+  <joint name="bh_j22_joint" type="revolute">
+    <parent link="bh_finger_21"/>
+    <child link="bh_finger_22"/>
+    <origin rpy="1.5708 -8.8281E-17 0" xyz="-0.05 0 0.0339"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="30.0" lower="0.0" upper="2.44" velocity="2.0"/>
+  </joint>
+  <transmission name="bh_j22_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="bh_j22_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="bh_j22">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+      <motorTorqueConstant>1</motorTorqueConstant>
+    </actuator>
+  </transmission>
+  <!-- finger 23 link -->
+  <link name="bh_finger_23">
+    <inertial>
+      <mass value="0.1"/>
+      <origin rpy="0 0 0" xyz="-0.016427 0.015348 0.00063234"/>
+      <inertia ixx="1.9434e-05" ixy="1.4715e-05" ixz="-1.3785e-09" iyy="2.2457e-05" iyz="9.4538e-10" izz="3.4232e-05"/>
+    </inertial>
+    <visual name="bh_finger_23_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip.obj"/>
+      </geometry>
+    </visual>
+    <collision name="bh_finger_23_collision_0">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_0.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_1">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_1.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_2">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_2.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_3">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_3.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_4">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_4.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_5">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_5.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_6">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_6.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_7">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_7.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_8">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_8.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_9">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_9.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_10">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_10.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_11">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_11.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+    <collision name="bh_finger_23_collision_12">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/finger_tip_col_12.obj">
+          <drake:declare_convex/>
+        </mesh>
+      </geometry>
+      <contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+    </collision>
+  </link>
+  <!-- joint between BH_finger_22 and BH_finger_23 -->
+  <joint name="bh_j23_joint" type="revolute">
+    <parent link="bh_finger_22"/>
+    <child link="bh_finger_23"/>
+    <origin rpy="0 0 0" xyz="-0.069936 0.003 0"/>
+    <axis xyz="0 0 -1"/>
+    <mimic joint="bh_j22_joint" multiplier="0.3442622950819672"/>
+    <limit effort="30.0" lower="0.0" upper="0.84" velocity="2.0"/>
+  </joint>
+</robot>

@@ -162,3 +162,5 @@ cython_debug/
 # vim
 *.swp
 
+# mujoco
+MUJOCO_LOG.TXT
