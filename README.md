@@ -5,32 +5,43 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * massively-parallelized simulation.
 
 ## Quickstart
-
-### Non-developers
 Create a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
 ```
-To locally install this package, clone the repository and in the repo root, run
+Install the project. Note the two different options depending on whether you want to develop on the repo or not.
 ```
+# OPTION 1: NON-DEVELOPERS
 pip install . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
-```
 
-### Developers
-Create a conda environment with Cuda 11.8 support:
-```
-conda env create -n <env_name> -f environment.yml
-conda activate <env_name>
-```
-Install the project with the editable flag and development dependencies:
-```
+# OPTION 2: DEVELOPERS
 pip install -e .[all] --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
 ```
-Then, install pre-commit hooks by running the following in the repo root:
+For developers, install pre-commit hooks by running the following in the repo root:
 ```
 pre-commit autoupdate
 pre-commit install
+```
+To install the latest and greatest version of `mujoco` from source, ensure that your system has the right build dependencies:
+```
+sudo apt-get update -y
+sudo apt-get install -y \
+    libgl1-mesa-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxrandr-dev \
+    libxi-dev \
+    ninja-build
+```
+Then, run the installation `bash` script, which will update `mujoco` to the latest version built from source:
+```
+sudo chmod +x install.sh
+./install.sh
+```
+If the following line of code runs without error, then the installation was successful:
+```
+python -c "import mujoco"
 ```
 
 ## Development Details
