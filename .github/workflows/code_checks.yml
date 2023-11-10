@@ -42,7 +42,6 @@ jobs:
           miniforge-version: latest
           activate-environment: ambersim
           use-mamba: true
-          python-version: 3.11
           environment-file: environment.yml
       - uses: actions/cache@v3
         with:
@@ -52,6 +51,7 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install dependencies
         working-directory: ${{ github.workspace }}
+        shell: bash -l {0}
         run: |
           sudo apt-get update -y
           sudo apt-get install -y \
@@ -64,14 +64,18 @@ jobs:
           python -m pip install --upgrade pip
           bash ./install.sh -d -s
       - name: Run black
+        shell: bash -l {0}
         run: black --check .
       - name: Run flake8
+        shell: bash -l {0}
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Run pyright
+        shell: bash -l {0}
         run: |
           pyright
       - name: Test with pytest
+        shell: bash -l {0}
         run: |
           pytest
