@@ -69,7 +69,7 @@ jobs:
           # Store the package as an artifact
           # the below path is known from the mujoco installation script
           mujoco_whl_path=$(find $PWD/../mujoco/python/dist -name "mujoco-*.whl")
-          mjx_whl_path=$(find $PWD/../mujoco/mjx -name "mujoco-*.whl")
+          mjx_whl_path=$(find $PWD/../mujoco/mjx -name "mujoco_mjx-*.whl")
           echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
           echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
         id: package
