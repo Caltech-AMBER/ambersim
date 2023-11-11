@@ -3,9 +3,6 @@ name: Build Nightly MuJoCo Release
 on:
   schedule:
     - cron: "0 5 * * *"  # runs at 5AM every day
-  pull_request:
-    branches: [main]
-    types: [ready_for_review]
 
 jobs:
   build-and-package:
@@ -17,14 +14,11 @@ jobs:
       - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
         uses: jlumbroso/free-disk-space@main
         with:
-          # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
-          tool-cache: false
-
-          # All of these default to true, but feel free to set to "false" if necessary for your workflow
+          tool-cache: false  # might have useful/necessary stuff
           android: true
           dotnet: true
           haskell: true
-          large-packages: true
+          large-packages: false  # doesn't save that much space relatively, takes long to run
           swap-storage: true
 
       # for caching the conda env
