@@ -63,7 +63,6 @@ jobs:
           echo "file_path=$whl_path" >> $GITHUB_ENV
         id: package
       - name: Upload artifact
-        shell: bash -l {0}
         uses: actions/upload-artifact@v3
         with:
           name: mujoco_wheel
