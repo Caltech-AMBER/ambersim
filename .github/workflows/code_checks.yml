@@ -1,10 +1,10 @@
 name: Code Checks
 
-# run on push to PRs to main
 on:
   push:
     branches: [main]
   pull_request:
+    types: [ready_for_review]
     branches: [main]
 
 permissions:
