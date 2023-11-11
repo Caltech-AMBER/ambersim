@@ -2,7 +2,7 @@ name: Build Nightly MuJoCo Release
 
 on:
   schedule:
-    - cron: "53 21 * * *"  # [DEBUG] runs at 1:53PMPST every day - avoid high load on the hour
+    - cron: "53 21 * * *"  # [DEBUG] runs at 1:53PM PST every day - avoid high load on the hour
   workflow_call:
   # pull_request:  # [DEBUG]
   #   branches: [main]
@@ -48,35 +48,6 @@ jobs:
         run:
           mamba env update -n ambersim -f environment.yml
         if: steps.cache.outputs.cache-hit != 'true'
-
-      # get the most recent run ID associated with mujoco nightly
-      # - name: Get Recent Run ID for mujoco_nightly.yml
-      #   id: get_run_id_workflow1
-      #   run: |
-      #     response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-      #       "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly.yml/runs")
-      #     echo "::set-output name=run_id_workflow1::$(echo "$response" | jq -r '.workflow_runs[0].id')"
-      #     echo "[DEBUG] Most recent run ID for mujoco_nightly.yml: ${{ steps.get_run_id_workflow1.outputs.run_id }}"
-
-      # - name: Get Recent Run ID for mujoco_nightly_and_code_checks.yml
-      #   id: get_run_id_workflow2
-      #   run: |
-      #     response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-      #       "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly_and_code_checks.yml/runs")
-      #     echo "::set-output name=run_id_workflow2::$(echo "$response" | jq -r '.workflow_runs[0].id')"
-      #     echo "[DEBUG] Most recent run ID for mujoco_nightly_and_code_checks.yml: ${{ steps.get_run_id_workflow2.outputs.run_id }}"
-
-      # - name: Compare Run IDs
-      #   run: |
-      #     run_id_workflow1="${{ steps.get_run_id_workflow1.outputs.run_id }}"
-      #     run_id_workflow2="${{ steps.get_run_id_workflow2.outputs.run_id }}"
-
-      #     if [ "$run_id_workflow1" -gt "$run_id_workflow2" ]; then
-      #       most_recent_run_id="$run_id_workflow1"
-      #     else
-      #       most_recent_run_id="$run_id_workflow2"
-      #     fi
-      #     echo "run_id=$most_recent_run_id" >> $GITHUB_ENV
 
       # download previously built mujoco and mjx artifacts
       - name: Download mujoco artifact

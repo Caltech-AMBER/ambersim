@@ -23,49 +23,46 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # get the most recent run ID associated with mujoco nightly
-      # - name: Get Recent Run ID
-      #   id: get_run_id
-      #   run: |
-      #     response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-      #       "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly.yml/runs")
-      #     echo "::set-output name=run_id::$(echo "$response" | jq -r '.workflow_runs[0].id')"
-      # - name: Print Recent Run ID
-      #   run: |
-      #     echo "[DEBUG] Most recent run ID: ${{ steps.get_run_id.outputs.run_id }}"
-
+      # download the cached artifacts
       - name: Download mujoco artifact
         id: download-artifact-mujoco
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          # run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
           name: "mujoco_wheel-*"
           path: ${{ github.workspace }}
           check_artifacts: true
           search_artifacts: true
+          if_no_artifact_found: warn
       - name: Download mjx artifact
         id: download-artifact-mjx
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          # run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
           name: "mjx_wheel-*"
           path: ${{ github.workspace }}
           check_artifacts: true
           search_artifacts: true
+          if_no_artifact_found: warn
       - name: Install dependencies
         working-directory: ${{ github.workspace }}
         shell: bash -l {0}
         run: |
           python -m pip install --upgrade pip
           bash ./install.sh -d
+
+          # upgrade mujoco to be installed from source
           mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
           mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
-          pip install --no-deps --force-reinstall $mujoco_whl_path
-          pip install --no-deps --force-reinstall $mjx_whl_path
+          if [ -n "$mujoco_whl_path" ]; then
+              pip install --no-deps --force-reinstall $mujoco_whl_path
+          fi
+          if [ -n "$mjx_whl_path" ]; then
+              pip install --no-deps --force-reinstall $mjx_whl_path
+          fi
+          
       - name: Run black
         shell: bash -l {0}
         run: black --check .
