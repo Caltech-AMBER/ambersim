@@ -111,8 +111,8 @@ jobs:
           # Checks the git hash of the cached files vs. the most recent one
           LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
 
-          mujoco_whl_path=$(find ${{ github.workspace }} -type f -name "mujoco_wheel-*.whl" -print -quit)
-          mjx_whl_path=$(find ${{ github.workspace }} -type f -name "mujoco_wheel-*.whl" -print -quit)
+          mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco_wheel-*.whl" -print -quit)
+          mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_wheel-*.whl" -print -quit)
           echo "[DEBUG] mujoco_whl_path: $mujoco_whl_path"
           echo "[DEBUG] mjx_whl_path: $mjx_whl_path"
 
