@@ -40,8 +40,6 @@ jobs:
         with:
           workflow: mujoco_nightly.yml
           run_id: ${{ steps.get_run_id.outputs.run_id }}"
-          check_artifacts: true
-          search_artifacts: true
           name_is_regexp: true
           name: "mujoco_wheel*"
           path: ${{ github.workspace }}
@@ -51,8 +49,6 @@ jobs:
         with:
           workflow: mujoco_nightly.yml
           run_id: ${{ steps.get_run_id.outputs.run_id }}"
-          check_artifacts: true
-          search_artifacts: true
           name_is_regexp: true
           name: "mjx_wheel*"
           path: ${{ github.workspace }}

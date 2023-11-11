@@ -16,11 +16,11 @@ jobs:
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false  # might have useful/necessary stuff
-          android: true
-          dotnet: true
-          haskell: true
+          android: true  # removes 14GB very quickly
+          dotnet: false  # removes a lot of space, but unnecessary here. skip to save time.
+          haskell: false  # removes a lot of space, but unnecessary here. skip to save time.
           large-packages: false  # doesn't save that much space relatively, takes long to run
-          swap-storage: true
+          swap-storage: false  # removes a lot of space, but unnecessary here. skip to save time.
 
       # for caching the conda env
       # see: https://github.com/conda-incubator/setup-miniconda#caching-environments
@@ -47,15 +47,31 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
 
       # get the most recent run ID associated with mujoco nightly
-      - name: Get Most Recent Run ID
-        id: get_run_id
+      - name: Get Recent Run ID for mujoco_nightly.yml
+        id: get_run_id_workflow1
         run: |
           response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly.yml/runs")
-          echo "::set-output name=run_id::$(echo "$response" | jq -r '.workflow_runs[0].id')"
-      - name: Print Recent Run ID
+          echo "::set-output name=run_id_workflow1::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+
+      - name: Get Recent Run ID for mujoco_nightly_and_code_checks.yml
+        id: get_run_id_workflow2
         run: |
-          echo "[DEBUG] Most recent run ID: ${{ steps.get_run_id.outputs.run_id }}"
+          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly_and_code_checks.yml/runs")
+          echo "::set-output name=run_id_workflow2::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+
+      - name: Compare Run IDs
+        run: |
+          run_id_workflow1="${{ steps.get_run_id_workflow1.outputs.run_id }}"
+          run_id_workflow2="${{ steps.get_run_id_workflow2.outputs.run_id }}"
+
+          if [ "$run_id_workflow1" -gt "$run_id_workflow2" ]; then
+            most_recent_run_id="$run_id_workflow1"
+          else
+            most_recent_run_id="$run_id_workflow2"
+          fi
+          echo "run_id=$most_recent_run_id" >> $GITHUB_ENV
 
       # download previously built mujoco and mjx artifacts
       - name: Download mujoco artifact
@@ -63,7 +79,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          run_id: ${{ steps.get_run_id.outputs.run_id }}"
+          run_id: ${{ env.run_id }}"
           check_artifacts: true
           search_artifacts: true
           name_is_regexp: true
@@ -75,7 +91,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          run_id: ${{ steps.get_run_id.outputs.run_id }}"
+          run_id: ${{ env.run_id }}"
           check_artifacts: true
           search_artifacts: true
           name_is_regexp: true
