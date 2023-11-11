@@ -27,6 +27,8 @@ jobs:
         with:
           workflow: mujoco_nightly.yml
           workflow_conclusion: success
+          check_artifacts: true
+          search_artifacts: true
           name: mujoco_wheel
           path: ${{ github.workspace }}
       - name: Download mjx artifact
@@ -35,6 +37,8 @@ jobs:
         with:
           workflow: mujoco_nightly.yml
           workflow_conclusion: success
+          check_artifacts: true
+          search_artifacts: true
           name: mjx_wheel
           path: ${{ github.workspace }}
       - name: Install dependencies
