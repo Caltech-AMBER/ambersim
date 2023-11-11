@@ -1,5 +1,6 @@
 name: Code Checks
 
+# run on push to PRs to main
 on:
   push:
     branches: [main]
