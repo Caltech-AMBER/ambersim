@@ -114,9 +114,14 @@ jobs:
           mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
           mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
 
-          if [ -n "$filename" ]; then
+          echo "[DEBUG] LATEST_GIT_HASH: $LATEST_GIT_HASH"
+          echo "[DEBUG] mujoco_whl_path: $mujoco_whl_path"
+          echo "[DEBUG] mjx_whl_path: $mjx_whl_path"
+
+          if [ -n "$mujoco_whl_path" ]; then
               # if the file name exists, extract the git hash and compare to upstream mujoco
-              CACHED_GIT_HASH=$(echo "$filename" | awk -F'mujoco_wheel-' '{print $2}' | awk -F'.' '{print $1}')
+              CACHED_GIT_HASH=$(echo "$mujoco_whl_path" | awk -F'mujoco-' '{print $2}' | awk -F'.' '{print NF>1?$NF:$(NF-1)}')
+              echo "[DEBUG] CACHED_GIT_HASH: $CACHED_GIT_HASH"
               if [ "$LATEST_GIT_HASH" = "$CACHED_GIT_HASH" ]; then
                 echo "Cached wheel matches most recent one - skipping build! Hash: $CACHED_GIT_HASH"
                 echo "skip_build=true" >> $GITHUB_ENV
