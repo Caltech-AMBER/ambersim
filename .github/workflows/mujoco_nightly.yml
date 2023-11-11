@@ -4,9 +4,9 @@ on:
   schedule:
     - cron: "53 12 * * *"  # runs at 4:53AM PST every day - avoid high load on the hour
   workflow_call:
-  pull_request:  # [DEBUG]
+  pull_request:
     branches: [main]
-    types: [ready_for_review]
+    types: [ready_for_review]  # also caches when a PR is ready for review
 
 jobs:
   build-and-package:
@@ -147,8 +147,3 @@ jobs:
           name: ${{ env.mjx_name }}
           path: ${{ env.mjx_path }}
           retention-days: 7
-
-  test_nightly:
-    name: Code Checks
-    needs: build-and-package
-    uses: ./.github/workflows/code_checks.yml
