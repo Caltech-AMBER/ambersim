@@ -43,7 +43,7 @@ jobs:
           check_artifacts: true
           search_artifacts: true
           name_is_regexp: true
-          name: "mujoco_wheel-*"
+          name: "mujoco_wheel*"
           path: ${{ github.workspace }}
       - name: Download mjx artifact
         id: download-artifact-mjx
@@ -54,7 +54,7 @@ jobs:
           check_artifacts: true
           search_artifacts: true
           name_is_regexp: true
-          name: "mjx_wheel-*"
+          name: "mjx_wheel*"
           path: ${{ github.workspace }}
       - name: Install dependencies
         working-directory: ${{ github.workspace }}
