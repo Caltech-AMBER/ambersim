@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [ready_for_review]
     branches: [main]
 
 permissions:
@@ -16,54 +15,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
-          tool-cache: false
-
-          # All of these default to true, but feel free to set to "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - name: Cache conda
-        uses: actions/cache@v3
-        env:
-          CACHE_NUMBER: 0
-        with:
-          path: ${{ env.CONDA }}/envs
-          key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('environment.yml') }}
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          activate-environment: ambersim
-          use-mamba: true
-          environment-file: environment.yml
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+      - name: Download Cached MuJoCo Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: mujoco_wheel
+          path: ${{ github.workspace }}
       - name: Install dependencies
         working-directory: ${{ github.workspace }}
         shell: bash -l {0}
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y \
-            libgl1-mesa-dev \
-            libxinerama-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxi-dev \
-            ninja-build
           python -m pip install --upgrade pip
-          bash ./install.sh -d -s
+          bash ./install.sh -d
+          pip install --no-deps --force-reinstall mujoco-*.whl
       - name: Run black
         shell: bash -l {0}
         run: black --check .
