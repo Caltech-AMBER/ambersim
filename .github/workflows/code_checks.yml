@@ -22,7 +22,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Download mujoco artifact
-        id: download-artifact
+        id: download-artifact-mujoco
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
@@ -30,7 +30,7 @@ jobs:
           name: mujoco_wheel
           path: ${{ github.workspace }}
       - name: Download mjx artifact
-        id: download-artifact
+        id: download-artifact-mjx
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
