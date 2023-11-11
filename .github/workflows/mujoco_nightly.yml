@@ -2,11 +2,11 @@ name: Build Nightly MuJoCo Release
 
 on:
   schedule:
-    - cron: "53 21 * * *"  # [DEBUG] runs at 1:53PM PST every day - avoid high load on the hour
+    - cron: "53 12 * * *"  # runs at 4:53AM PST every day - avoid high load on the hour
   workflow_call:
-  # pull_request:  # [DEBUG]
-  #   branches: [main]
-  #   types: [ready_for_review]
+  pull_request:  # [DEBUG]
+    branches: [main]
+    types: [ready_for_review]
 
 jobs:
   build-and-package:
@@ -55,7 +55,6 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          # run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
           name: "mujoco_wheel-*"
           path: ${{ github.workspace }}
@@ -67,7 +66,6 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          # run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
           name: "mjx_wheel-*"
           path: ${{ github.workspace }}
@@ -85,10 +83,6 @@ jobs:
           mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
           mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
 
-          echo "[DEBUG] LATEST_GIT_HASH: $LATEST_GIT_HASH"
-          echo "[DEBUG] mujoco_whl_path: $mujoco_whl_path"
-          echo "[DEBUG] mjx_whl_path: $mjx_whl_path"
-
           if [ -n "$mujoco_whl_path" ]; then
               # if the file name exists, extract the git hash and compare to upstream mujoco
               CACHED_GIT_HASH=$(echo "$mujoco_whl_path" | grep -oP "mujoco_wheel-\K[^/]+")
@@ -96,11 +90,9 @@ jobs:
                 echo "Cached wheel matches most recent one - skipping build! Hash: $CACHED_GIT_HASH"
                 echo "skip_build=true" >> $GITHUB_ENV
 
-                # names of the wheels
+                # save the names and filepaths so we can just re-upload them
                 echo "mujoco_name=mujoco_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
                 echo "mjx_name=mjx_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
-
-                # paths to the wheels
                 echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
                 echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
               else
@@ -142,7 +134,6 @@ jobs:
         id: package
         if: env.skip_build != 'true'
 
-      # [TODO] if skip_build, then reupload the cached artifacts
       - name: Upload mujoco artifact
         uses: actions/upload-artifact@v3
         with:
@@ -156,3 +147,8 @@ jobs:
           name: ${{ env.mjx_name }}
           path: ${{ env.mjx_path }}
           retention-days: 7
+
+  test_nightly:
+    name: Code Checks
+    needs: build-and-package
+    uses: ./.github/workflows/code_checks.yml

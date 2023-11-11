@@ -1,16 +1,16 @@
-name: mujoco_nightly_and_code_checks
+# name: mujoco_nightly_and_code_checks
 
-on:
-  pull_request:
-    branches: [main]
-    types: [ready_for_review]
+# on:
+#   pull_request:
+#     branches: [main]
+#     types: [ready_for_review]
 
-jobs:
-  first:
-    name: Build MuJoCo Nightly Release
-    uses: ./.github/workflows/mujoco_nightly.yml
+# jobs:
+#   first:
+#     name: Build MuJoCo Nightly Release
+#     uses: ./.github/workflows/mujoco_nightly.yml
 
-  second:
-    name: Code Checks
-    needs: first
-    uses: ./.github/workflows/code_checks.yml
+#   second:
+#     name: Code Checks
+#     needs: first
+#     uses: ./.github/workflows/code_checks.yml
