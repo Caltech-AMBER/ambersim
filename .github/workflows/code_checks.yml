@@ -62,8 +62,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           bash ./install.sh -d
-          pip install --no-deps --force-reinstall mujoco_wheel/mujoco-*.whl
-          pip install --no-deps --force-reinstall mjx_wheel/mujoco_mjx-*.whl
+          mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
+          mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
+          pip install --no-deps --force-reinstall $mujoco_whl_path
+          pip install --no-deps --force-reinstall $mjx_whl_path
       - name: Run black
         shell: bash -l {0}
         run: black --check .
