@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "53 4 * * *"  # runs at 4:53AM every day - avoid high load on the hour
   workflow_call:
+  pull_request:  # [DEBUG]
+    branches: [main]
+    types: [ready_for_review]
 
 jobs:
   build-and-package:
@@ -47,31 +50,33 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
 
       # get the most recent run ID associated with mujoco nightly
-      - name: Get Recent Run ID for mujoco_nightly.yml
-        id: get_run_id_workflow1
-        run: |
-          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly.yml/runs")
-          echo "::set-output name=run_id_workflow1::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+      # - name: Get Recent Run ID for mujoco_nightly.yml
+      #   id: get_run_id_workflow1
+      #   run: |
+      #     response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+      #       "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly.yml/runs")
+      #     echo "::set-output name=run_id_workflow1::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+      #     echo "[DEBUG] Most recent run ID for mujoco_nightly.yml: ${{ steps.get_run_id_workflow1.outputs.run_id }}"
 
-      - name: Get Recent Run ID for mujoco_nightly_and_code_checks.yml
-        id: get_run_id_workflow2
-        run: |
-          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly_and_code_checks.yml/runs")
-          echo "::set-output name=run_id_workflow2::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+      # - name: Get Recent Run ID for mujoco_nightly_and_code_checks.yml
+      #   id: get_run_id_workflow2
+      #   run: |
+      #     response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+      #       "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly_and_code_checks.yml/runs")
+      #     echo "::set-output name=run_id_workflow2::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+      #     echo "[DEBUG] Most recent run ID for mujoco_nightly_and_code_checks.yml: ${{ steps.get_run_id_workflow2.outputs.run_id }}"
 
-      - name: Compare Run IDs
-        run: |
-          run_id_workflow1="${{ steps.get_run_id_workflow1.outputs.run_id }}"
-          run_id_workflow2="${{ steps.get_run_id_workflow2.outputs.run_id }}"
+      # - name: Compare Run IDs
+      #   run: |
+      #     run_id_workflow1="${{ steps.get_run_id_workflow1.outputs.run_id }}"
+      #     run_id_workflow2="${{ steps.get_run_id_workflow2.outputs.run_id }}"
 
-          if [ "$run_id_workflow1" -gt "$run_id_workflow2" ]; then
-            most_recent_run_id="$run_id_workflow1"
-          else
-            most_recent_run_id="$run_id_workflow2"
-          fi
-          echo "run_id=$most_recent_run_id" >> $GITHUB_ENV
+      #     if [ "$run_id_workflow1" -gt "$run_id_workflow2" ]; then
+      #       most_recent_run_id="$run_id_workflow1"
+      #     else
+      #       most_recent_run_id="$run_id_workflow2"
+      #     fi
+      #     echo "run_id=$most_recent_run_id" >> $GITHUB_ENV
 
       # download previously built mujoco and mjx artifacts
       - name: Download mujoco artifact
@@ -79,21 +84,25 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          run_id: ${{ env.run_id }}
-          name: "mujoco_wheel*"
+          # run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
-          if_no_artifact_found: warn
+          name: "mujoco_wheel-*"
           path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
       - name: Download mjx artifact
         id: download-artifact-mjx
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          run_id: ${{ env.run_id }}
-          name: "mjx_wheel*"
+          # run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
-          if_no_artifact_found: warn
+          name: "mjx_wheel-*"
           path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
 
       # checks whether to rebuild or not
       - name: Build pre-check
@@ -102,8 +111,10 @@ jobs:
           # Checks the git hash of the cached files vs. the most recent one
           LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
 
-          filename=$(find ${{ github.workspace }} -type f -name "mujoco_wheel-*.whl" -print -quit)
-          echo "[DEBUG] filename: $filename"
+          mujoco_whl_path=$(find ${{ github.workspace }} -type f -name "mujoco_wheel-*.whl" -print -quit)
+          mjx_whl_path=$(find ${{ github.workspace }} -type f -name "mujoco_wheel-*.whl" -print -quit)
+          echo "[DEBUG] mujoco_whl_path: $mujoco_whl_path"
+          echo "[DEBUG] mjx_whl_path: $mjx_whl_path"
 
           if [ -n "$filename" ]; then
               # if the file name exists, extract the git hash and compare to upstream mujoco
@@ -111,6 +122,14 @@ jobs:
               if [ "$LATEST_GIT_HASH" = "$CACHED_GIT_HASH" ]; then
                 echo "Cached wheel matches most recent one - skipping build! Hash: $CACHED_GIT_HASH"
                 echo "skip_build=true" >> $GITHUB_ENV
+
+                # names of the wheels
+                echo "mujoco_name=mujoco_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+                echo "mjx_name=mjx_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+
+                # paths to the wheels
+                echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
+                echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
               else
                 echo "Cached wheel is outdated - building new ones! Old Hash: $CACHED_GIT_HASH"
                 echo "skip_build=true" >> $GITHUB_ENV
@@ -150,6 +169,7 @@ jobs:
         id: package
         if: env.skip_build != 'true'
 
+      # [TODO] if skip_build, then reupload the cached artifacts
       - name: Upload mujoco artifact
         uses: actions/upload-artifact@v3
         with:
