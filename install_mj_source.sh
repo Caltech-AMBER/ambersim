@@ -81,6 +81,7 @@ new_tar_path="$(dirname "$tar_path")/$new_name"
 mv "$tar_path" "$new_tar_path"  # renames the tar file to have the git hash in it
 
 # manually building wheel so we can cache it
+cd "$mujoco_dir/python/dist"
 MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin" pip wheel -w $(dirname "new_tar_path") "$new_tar_path"
 
 # installing mujoco from wheel and then finally mjx
