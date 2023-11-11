@@ -45,6 +45,7 @@ jobs:
           key:
             ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
             hashFiles('environment.yml') }}
+        id: cache
       - name: Update environment
         run:
           mamba env update -n ambersim -f environment.yml
