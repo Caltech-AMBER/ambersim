@@ -1,4 +1,11 @@
 #!/bin/bash
+
+while getopts h: flag; do
+    case "${flag}" in
+        h) hash=${OPTARG};;  # Hash of the MuJoCo commit to install
+    esac
+done
+
 echo -e "\n[NOTE] Installing mujoco from source..."
 
 # the script directory and mujoco directory
@@ -10,9 +17,9 @@ LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD |
 if [ -d "$mujoco_dir/python/dist" ]; then
     tar_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*${LATEST_GIT_HASH}.tar.gz" 2>/dev/null)
     whl_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*.whl" 2>/dev/null)
+
     if [ -f "$tar_path" ]; then
         echo -e "[NOTE] Found cached mujoco tar.gz file..."
-        # if wheel exists, install from wheel
         if [ -f "$whl_path" ]; then
             echo -e "[NOTE] Wheel found! Installing from wheel..."
             cd "$mujoco_dir/python/dist"
@@ -37,48 +44,50 @@ if [ -d "$mujoco_dir/python/dist" ]; then
 fi
 
 # Check if CMake and a compiler are installed
-if ! command -v cmake &> /dev/null; then
-    echo "CMake is not installed. Please install CMake before proceeding."
-    exit 1
-fi
+command -v cmake &> /dev/null || { echo "CMake is not installed. Please install CMake before proceeding."; exit 1; }
+command -v g++ &> /dev/null || { echo "C++ compiler is not available. Please install a C++ compiler before proceeding."; exit 1; }
 
-if ! command -v g++ &> /dev/null; then
-    echo "C++ compiler is not available. Please install a C++ compiler before proceeding."
-    exit 1
-fi
 
 # Clone the Mujoco repo to the directory above where this script is located
 # If it exists already, then just git pull new changes
 if [ -d "$mujoco_dir" ]; then
     echo "Mujoco exists already - running git pull to update it!"
-    (cd "$mujoco_dir" && git pull origin main)
+    cd "$mujoco_dir"
+    git pull origin main
+    if [ ! -z "$hash" ]; then
+        echo "Checking out with provided commit hash!"
+        git checkout "$hash"
+    fi
 else
+    echo "Mujoco does not exist - cloning it!"
     git clone https://github.com/google-deepmind/mujoco.git "$mujoco_dir"
+    if [ ! -z "$hash" ]; then
+        echo "Checking out to provided hash!"
+        (cd "$mujoco_dir" && git checkout "$hash")
+    fi
 fi
 
 # Configure and build
 export MAKEFLAGS="-j$(nproc)"  # allow the max number of processors when building
 cd "$mujoco_dir"
-SAVED_GIT_HASH=$(git rev-parse HEAD)  # getting the git hash
-cmake .
-cmake --build .
+if [ -z "$hash" ]; then
+    SAVED_GIT_HASH=$(git rev-parse HEAD)  # getting the git hash
+else
+    SAVED_GIT_HASH="$hash"
+fi
+cmake . && cmake --build .
 
 # Install Mujoco
-cmake . -DCMAKE_INSTALL_PREFIX="./mujoco_install"
-cmake --install .
+cmake . -DCMAKE_INSTALL_PREFIX="./mujoco_install" && cmake --install .
 
 # Generate source distribution required for Python bindings
 cd "$mujoco_dir/python"
 ./make_sdist.sh
 tar_path=$(find "$mujoco_dir/python/dist" -name 'mujoco-*.tar.gz' 2>/dev/null)
 
-# Renaming the tar file to append the commit hash
-old_name=$(basename "$tar_path")
-old_prefix="${old_name%%.tar.gz}"
-new_prefix="${old_prefix}-${SAVED_GIT_HASH}"
-new_name="${new_prefix}.tar.gz"
-new_tar_path="$(dirname "$tar_path")/$new_name"
-mv "$tar_path" "$new_tar_path"  # renames the tar file to have the git hash in it
+# Renaming the tar file by appending the commit hash
+new_tar_path="$(dirname "$tar_path")/$(basename "$tar_path" .tar.gz)-$SAVED_GIT_HASH.tar.gz"
+mv "$tar_path" "$new_tar_path"
 
 # manually building wheel so we can cache it
 cd "$mujoco_dir/python/dist"
