@@ -2,11 +2,11 @@ name: Build Nightly MuJoCo Release
 
 on:
   schedule:
-    - cron: "53 4 * * *"  # runs at 4:53AM every day - avoid high load on the hour
+    - cron: "53 21 * * *"  # [DEBUG] runs at 1:53PMPST every day - avoid high load on the hour
   workflow_call:
-  pull_request:  # [DEBUG]
-    branches: [main]
-    types: [ready_for_review]
+  # pull_request:  # [DEBUG]
+  #   branches: [main]
+  #   types: [ready_for_review]
 
 jobs:
   build-and-package:
