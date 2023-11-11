@@ -44,6 +44,7 @@ jobs:
           python -m pip install --upgrade pip
           bash ./install.sh -d
           pip install --no-deps --force-reinstall mujoco-*.whl
+          pip install --no-deps --force-reinstall mujoco_mjx*.whl
       - name: Run black
         shell: bash -l {0}
         run: black --check .
