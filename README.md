@@ -51,7 +51,7 @@ pip show mujoco-mjx
 ### Abridged Dev Guidelines
 Development on this code will be controlled via code review. To facilitate this, please follow these guidelines:
 * keep your pull requests small so that it's practical to human review them;
-* try to create _draft pull requests_ instead of regular ones and request reviews from relevant people only when ready - our CI runs only when a pull request is marked "ready for review," so this saves a lot of unnecessary CI runs;
+* try to create _draft pull requests_ instead of regular ones and request reviews from relevant people only when ready - we rebuild `mujoco` from source and run the branch tests when this happens;
 * write tests as you go (and if you are reviewing, suggest missing tests);
 * write docstrings for public classes and methods, even if it's just a one-liner;
 * before committing, make sure you locally pass all tests by running `pytest` in the repo root;
