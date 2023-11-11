@@ -11,8 +11,13 @@ from mujoco import mjx
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _rmtree
 from ambersim.utils.conversion_utils import convex_decomposition_file, save_model_xml
-from ambersim.utils.introspection_utils import get_joint_names
-from ambersim.utils.io_utils import _modify_robot_float_base, load_mjx_model_and_data_from_file
+from ambersim.utils.introspection_utils import get_actuator_names, get_joint_names
+from ambersim.utils.io_utils import (
+    _modify_robot_float_base,
+    load_mj_model_from_file,
+    load_mjx_model_and_data_from_file,
+    mj_to_mjx_model_and_data,
+)
 
 
 def test_load_model():
@@ -63,11 +68,21 @@ def test_actuators():
         # loading the URDF and checking the number of transmissions it has
         with open(urdf_filepath, "r") as f:
             urdf_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True, recover=True))
-        num_actuators = len(urdf_tree.findall("transmission"))
+        transmissions = urdf_tree.findall("transmission")
+        num_actuators = len(transmissions)
 
         # checking that the same file loaded into mjx has the same number of actuators
-        mjx_model, _ = load_mjx_model_and_data_from_file(urdf_filepath)
+        mj_model = load_mj_model_from_file(urdf_filepath)
+        mjx_model, _ = mj_to_mjx_model_and_data(mj_model)
         assert mjx_model.nu == num_actuators
+
+        # checking that each transmission has a corresponding actuator in the XML
+        # the actuators in the XML are named after the joints they actuate, so we can just check
+        # the joints in the transmission blocks of the URDF against the XML actuator names
+        xml_actuator_names = get_actuator_names(mj_model)
+        xml_actuated_joint_names = sorted([name.replace("_actuator", "") for name in xml_actuator_names])
+        urdf_actuated_joint_names = sorted([t.find("joint").get("name") for t in transmissions])
+        assert xml_actuated_joint_names == urdf_actuated_joint_names
 
 
 def test_force_float():
