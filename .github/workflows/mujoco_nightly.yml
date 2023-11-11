@@ -2,7 +2,7 @@ name: Build Nightly MuJoCo Release
 
 on:
   schedule:
-    - cron: "0 5 * * *"  # runs at 5AM every day
+    - cron: "53 4 * * *"  # runs at 4:53AM every day - avoid high load on the hour
   workflow_call:
 
 jobs:
@@ -62,24 +62,28 @@ jobs:
           python -m pip install --upgrade pip
           ./install_mj_source.sh
           
-          # Store the package as an artifact
-          # the below path is known from the mujoco installation script
+          # Saving the wheels to respective paths
           mujoco_whl_path=$(find $PWD/../mujoco/python/dist -name "mujoco-*.whl")
           mjx_whl_path=$(find $PWD/../mujoco/mjx -name "mujoco_mjx-*.whl")
           echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
           echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
+
+          # Appending the relevant git commit hash to the artifact name
+          LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
+          echo "mujoco_name=mujoco_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+          echo "mjx_name=mjx_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
         id: package
 
       - name: Upload mujoco artifact
         uses: actions/upload-artifact@v3
         with:
-          name: mujoco_wheel
+          name: ${{ env.mujoco_name }}
           path: ${{ env.mujoco_path }}
           retention-days: 7
 
       - name: Upload mjx artifact
         uses: actions/upload-artifact@v3
         with:
-          name: mjx_wheel
+          name: ${{ env.mjx_name }}
           path: ${{ env.mjx_path }}
           retention-days: 7
