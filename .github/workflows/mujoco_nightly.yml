@@ -26,6 +26,16 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
+
+      # for caching the conda env
+      # see: https://github.com/conda-incubator/setup-miniconda#caching-environments
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          activate-environment: anaconda-client-env
+          use-mamba: true
       - name: Cache conda
         uses: actions/cache@v3
         env:
@@ -35,13 +45,12 @@ jobs:
           key:
             ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
             hashFiles('environment.yml') }}
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          activate-environment: ambersim
-          use-mamba: true
-          environment-file: environment.yml
+      - name: Update environment
+        run:
+          mamba env update -n ambersim -f environment.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      # mujoco build + install
       - name: Create and Store Wheel
         shell: bash -l {0}
         run: |
@@ -60,8 +69,9 @@ jobs:
           # Store the package as an artifact
           # the below path is known from the mujoco installation script
           whl_path=$(find $PWD/../mujoco/python/dist -name "mujoco-*.whl")
-          echo "file_path=$whl_path" >> $GITHUB_ENV
+          echo "file_path=$(realpath $whl_path)" >> $GITHUB_ENV
         id: package
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
