@@ -120,8 +120,7 @@ jobs:
 
           if [ -n "$mujoco_whl_path" ]; then
               # if the file name exists, extract the git hash and compare to upstream mujoco
-              CACHED_GIT_HASH=$(echo "$mujoco_whl_path" | awk -F'mujoco-' '{print $2}' | awk -F'.' '{print NF>1?$NF:$(NF-1)}')
-              echo "[DEBUG] CACHED_GIT_HASH: $CACHED_GIT_HASH"
+              CACHED_GIT_HASH=$(echo "$mujoco_whl_path" | grep -oP "mujoco_wheel-\K[^/]+")
               if [ "$LATEST_GIT_HASH" = "$CACHED_GIT_HASH" ]; then
                 echo "Cached wheel matches most recent one - skipping build! Hash: $CACHED_GIT_HASH"
                 echo "skip_build=true" >> $GITHUB_ENV
