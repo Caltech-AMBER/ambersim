@@ -39,7 +39,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          run_id: ${{ steps.get_run_id.outputs.run_id }}"
+          run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
           name: "mujoco_wheel*"
           path: ${{ github.workspace }}
@@ -48,7 +48,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          run_id: ${{ steps.get_run_id.outputs.run_id }}"
+          run_id: ${{ steps.get_run_id.outputs.run_id }}
           name_is_regexp: true
           name: "mjx_wheel*"
           path: ${{ github.workspace }}
