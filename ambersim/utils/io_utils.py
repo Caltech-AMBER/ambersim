@@ -85,7 +85,7 @@ def load_mj_model_from_file(
             output_name = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
             save_model_xml(filepath, output_name=output_name)
             mj_model = _modify_robot_float_base(output_name)
-            Path.unlink(output_name)
+            Path(output_name).unlink()
         else:
             mj_model = _modify_robot_float_base(filepath)
     else:
