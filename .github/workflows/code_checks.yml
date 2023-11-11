@@ -21,13 +21,21 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Download artifact
+      - name: Download mujoco artifact
         id: download-artifact
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
           workflow_conclusion: success
           name: mujoco_wheel
+          path: ${{ github.workspace }}
+      - name: Download mjx artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          workflow_conclusion: success
+          name: mjx_wheel
           path: ${{ github.workspace }}
       - name: Install dependencies
         working-directory: ${{ github.workspace }}

@@ -88,4 +88,5 @@ MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin"
 whl_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*.whl" 2>/dev/null)
 MUJOCO_PATH="$mujoco_dir/mujoco_install" MUJOCO_PLUGIN_PATH="$mujoco_dir/plugin" pip install --no-deps --force-reinstall "$whl_path"
 cd "$mujoco_dir/mjx"
+pip wheel -w "$mujoco_dir/mjx" --no-deps .
 pip install --no-deps --force-reinstall .
