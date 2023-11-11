@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [ready_for_review]
     branches: [main]
 
 permissions:
@@ -22,9 +21,12 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Download Cached MuJoCo Artifact
-        uses: actions/download-artifact@v2
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
         with:
+          workflow: mujoco_nightly.yml
+          workflow_conclusion: success
           name: mujoco_wheel
           path: ${{ github.workspace }}
       - name: Install dependencies
