@@ -3,6 +3,9 @@ name: Build Nightly MuJoCo Release
 on:
   schedule:
     - cron: "0 5 * * *"  # runs at 5AM every day
+  pull_request:
+    branches: [main]
+    types: [ready_for_review]
 
 jobs:
   build-and-package:
