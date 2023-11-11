@@ -22,12 +22,23 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+
+      # get the most recent run ID associated with mujoco nightly
+      - name: Get Recent Run ID
+        id: get_run_id
+        run: |
+          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/mujoco_nightly.yml/runs")
+          echo "::set-output name=run_id::$(echo "$response" | jq -r '.workflow_runs[0].id')"
+      - name: Print Recent Run ID
+        run: echo "[DEBUG] Most recent run ID: ${{ steps.get_run_id.outputs.run_id }}"
+
       - name: Download mujoco artifact
         id: download-artifact-mujoco
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          workflow_conclusion: success
+          run_id: ${{ steps.get_run_id.outputs.run_id }}"
           check_artifacts: true
           search_artifacts: true
           name_is_regexp: true
@@ -38,7 +49,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: mujoco_nightly.yml
-          workflow_conclusion: success
+          run_id: ${{ steps.get_run_id.outputs.run_id }}"
           check_artifacts: true
           search_artifacts: true
           name_is_regexp: true

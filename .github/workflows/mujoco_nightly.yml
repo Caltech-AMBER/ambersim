@@ -46,6 +46,39 @@ jobs:
           mamba env update -n ambersim -f environment.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
+      # download previously built mujoco artifact to check version
+      - name: Download mujoco artifact
+        id: download-artifact-mujoco
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          workflow_conclusion: success
+          check_artifacts: true
+          search_artifacts: true
+          name_is_regexp: true
+          name: "mujoco_wheel-*"
+          path: ${{ github.workspace }}
+
+      - name: Build pre-check
+        shell: bash -l {0}
+        run: |
+          # Checks the git hash of the cached files vs. the most recent one
+          LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
+
+          filename=$(find ${{ github.workspace }} -type f -name "mujoco_wheel-*.whl" -print -quit)
+          echo "[DEBUG] filename: $filename"
+
+          if [ -n "$filename" ]; then
+              # if the file name exists, extract the git hash and compare to upstream mujoco
+              CACHED_GIT_HASH=$(echo "$filename" | awk -F'mujoco_wheel-' '{print $2}' | awk -F'.' '{print $1}')
+              if [ "$LATEST_GIT_HASH" = "$CACHED_GIT_HASH" ]; then
+                echo "Cached wheel matches most recent one - skipping build! Hash: $CACHED_GIT_HASH"
+                exit 0
+              fi
+          else
+              echo "No cached wheels found - building new ones!"
+          fi
+
       # mujoco build + install
       - name: Create and Store Wheel
         shell: bash -l {0}
@@ -70,6 +103,7 @@ jobs:
 
           # Appending the relevant git commit hash to the artifact name
           LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
+          echo "[DEBUG] LATEST_GIT_HASH: $LATEST_GIT_HASH"
           echo "mujoco_name=mujoco_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
           echo "mjx_name=mjx_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
         id: package
