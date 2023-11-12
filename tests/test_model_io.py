@@ -85,7 +85,7 @@ def test_actuators():
         assert xml_actuated_joint_names == urdf_actuated_joint_names
 
 
-# TODO(ahl): uncomment when equality-constrained joints are supported properly
+# TODO(ahl): uncomment when we merge #21.
 # def test_mimics():
 #     """Tests that mimic joints are added as equality constraints when converting from URDF to XML."""
 #     for urdf_filepath in Path(ROOT + "/models").rglob("*.urdf"):
