@@ -15,6 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "brax>=0.9.3",
+    "coacd>=1.0.0",
     "dm_control>=1.0.0",
     "flax>=0.7.5",
     "jax[cuda11_local]>=0.4.1",
@@ -43,6 +44,7 @@ dev = [
 test = [
     "cvxpy>=1.4.1",
     "drake>=1.21.0",
+    "libigl>=2.4.0",
     "pin>=2.6.20",
 ]
 
