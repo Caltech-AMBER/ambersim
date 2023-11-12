@@ -10,8 +10,14 @@
     <inertial>
       <mass value="2"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
-      <inertia ixx="1.0" ixy="0" ixz="0" iyy="1.0" iyz="0" izz="1.0"/>
+      <inertia ixx="0.00072" ixy="0" ixz="0" iyy="0.00072" iyz="0" izz="0.00072"/>
     </inertial>
+    <visual name="base_visual">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.03"/>
+      </geometry>
+    </visual>
   </link>
 
   <!-- pendulum link -->
@@ -19,19 +25,19 @@
     <visual name="pendulum_link_visual">
       <origin rpy="0 0 0" xyz="0 0 -0.5"/>
       <geometry>
-        <cylinder length="1.0" radius="0.02"/>
+        <capsule length="1.0" radius="0.02"/>
       </geometry>
     </visual>
     <collision name="pendulum_link_collision">
       <origin rpy="0 0 0" xyz="0 0 -0.5"/>
       <geometry>
-        <cylinder length="1.0" radius="0.02"/>
+        <capsule length="1.0" radius="0.02"/>
       </geometry>
     </collision>
     <inertial>
       <mass value="1"/>
       <origin rpy="0 0 0" xyz="0 0 -0.5"/>
-      <inertia ixx="0.083433" ixy="0" ixz="0" iyy="0.083433" iyz="0" izz="0.0002"/>
+      <inertia ixx="0.087959" ixy="0" ixz="0" iyy="0.087959" iyz="0" izz="0.00019896"/>
     </inertial>
   </link>
 
@@ -40,7 +46,7 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="base"/>
     <child link="pendulum_link"/>
-    <axis xyz="0 0 1"/>
+    <axis xyz="0 1 0"/>
     <limit effort="2.0" velocity="8.0" lower="-3.1416" upper="3.1416"/>
   </joint>
   <transmission name="pendulum_transmission">
