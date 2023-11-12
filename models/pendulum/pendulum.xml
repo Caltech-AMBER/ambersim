@@ -13,6 +13,6 @@
     </body>
   </worldbody>
   <actuator>
-    <motor gear="10" joint="pendulum_joint"/>
+    <motor joint="pendulum_joint"/>
   </actuator>
 </mujoco>

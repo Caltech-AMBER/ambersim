@@ -33,12 +33,12 @@ def swingup_controller(theta: float, theta_dot: float) -> float:
         # Use an energy shaping controller to pump the pendulum up
         desired_energy = m * g * l
         energy = 0.5 * m * l**2 * theta_dot**2 - m * g * l * np.cos(theta)
-        k = 0.01
+        k = 0.1
         tau = -k * theta_dot * (energy - desired_energy)
     else:
         # Switch to a PD controller near the top
-        kp = 1.0
-        kd = 0.5
+        kp = 10.0
+        kd = 5.0
         theta_err = np.arctan2(np.sin(theta - np.pi), np.cos(theta - np.pi))
         tau = -kp * theta_err - kd * theta_dot
 
