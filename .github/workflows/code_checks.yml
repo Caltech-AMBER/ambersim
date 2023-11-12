@@ -14,29 +14,71 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # checks out ambersim
       - uses: actions/checkout@v4
-      - name: Set up Python 3.11.5
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.5'
+
+      # checks the cache for pip packages
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+
+      # download the cached artifacts
+      - name: Download mujoco artifact
+        id: download-artifact-mujoco
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          name_is_regexp: true
+          name: "mujoco_wheel-*"
+          path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
+      - name: Download mjx artifact
+        id: download-artifact-mjx
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          name_is_regexp: true
+          name: "mjx_wheel-*"
+          path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
       - name: Install dependencies
+        working-directory: ${{ github.workspace }}
+        shell: bash -l {0}
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .[all] --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+          python -m pip install --upgrade pip
+          bash ./install.sh -d  # -d means dev, don't use -s because we manually install mj/mjx from source here
+
+          # upgrade mujoco to use nightly build
+          mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
+          mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
+          if [ -n "$mujoco_whl_path" ]; then
+              pip install --no-deps --force-reinstall $mujoco_whl_path
+          fi
+          if [ -n "$mjx_whl_path" ]; then
+              pip install --no-deps --force-reinstall $mjx_whl_path
+          fi
+          
+      # run all code checks
       - name: Run black
+        shell: bash -l {0}
         run: black --check .
       - name: Run flake8
+        shell: bash -l {0}
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Run pyright
+        shell: bash -l {0}
         run: |
           pyright
       - name: Test with pytest
+        shell: bash -l {0}
         run: |
           pytest

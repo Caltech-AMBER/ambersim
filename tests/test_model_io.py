@@ -59,7 +59,7 @@ def test_save_xml():
     # saving a URDF as XML + verifying it loads into mjx
     save_model_xml(ROOT + "/models/pendulum/pendulum.urdf")
     assert load_mjx_model_and_data_from_file("pendulum.xml")
-    Path.unlink("pendulum.xml")  # deleting test file
+    Path("pendulum.xml").unlink()  # deleting test file
 
 
 def test_actuators():
@@ -135,7 +135,7 @@ def test_force_float():
         f.write(dummy_xml_string)
 
     model2 = _modify_robot_float_base("_temp.xml")
-    Path.unlink("_temp.xml")
+    Path("_temp.xml").unlink()
     combined2 = "\t".join(get_joint_names(model2))
     assert "freejoint" in combined2
 
