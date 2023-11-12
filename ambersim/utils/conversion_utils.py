@@ -8,7 +8,7 @@ import trimesh
 from ambersim.utils._internal_utils import _check_filepath
 
 
-def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None) -> None:
+def save_model_xml(filepath: Union[str, Path], output_path: Optional[Union[str, Path]] = None) -> None:
     """Loads a model and saves it to a mujoco-compliant XML.
 
     Will save the file to the directory where this util is called. Note that you should add a mujoco tag to URDF files
@@ -17,21 +17,18 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
 
     Args:
         filepath: A path to a URDF or MJCF file. This can be global, local, or with respect to the repository root.
-        output_name: The output name of the model.
+        output_path: The output path of the model.
     """
     try:
         # loading model and saving XML
         filepath = _check_filepath(filepath)
         _model = mj.MjModel.from_xml_path(filepath)
-        if output_name is None:
-            output_name = filepath.split("/")[-1].split(".")[0]
-        else:
-            output_name = output_name.split(".")[0]  # strip any extensions
-        mj.mj_saveLastXML(f"{output_name}.xml", _model)
+        if output_path is None:
+            output_path = filepath.split("/")[-1].split(".")[0] + ".xml"
+        mj.mj_saveLastXML(output_path, _model)
 
         # reporting save path for clarity
-        output_path = Path.cwd() / Path(str(output_name) + ".xml")
-        print(f"XML file saved to {output_path}!")
+        print(f"XML file saved to {str(output_path)}!")
     except ValueError as e:
         print(e)
         print(

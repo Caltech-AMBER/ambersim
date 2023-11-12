@@ -33,6 +33,13 @@ pre-commit autoupdate
 pre-commit install
 ```
 
+## Custom Models
+We have implemented some custom utils for model parsing, but they aren't complete/perfect. Here are some guidelines for when you want to use this codebase for a custom project:
+* it's OK to just use URDFs and use our utils for loading them into `mjx` if you don't care too much about collision filtering or mujoco-specific elements like lights, sites, etc.
+* if you decide to use URDFs instead of converting the model description into an `xml`, then you should add a `<mujoco>` tag with some specific settings to the top of your URDF. See the examples in this repo as guidance.
+	* you should also make sure that your actuated joints have `<transmission>` blocks associated with them, as this is what our parser looks for to add actuators to the mujoco model.
+* if you decide to convert the URDF to an XML, then we have some custom utils for helping with the initial conversion, but if you want to add a lot of mujoco-specific elements, those need to be done by hand.
+
 ## Development Details
 
 ### Abridged Dev Guidelines
