@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from ambersim import ROOT
-from ambersim.utils._internal_utils import _rmtree
+from ambersim.utils._internal_utils import rmtree
 from ambersim.utils.conversion_utils import convex_decomposition_dir, convex_decomposition_file
 
 """This example demonstrates how to perform convex decompositions of nonconvex meshes.
@@ -24,7 +24,7 @@ decomposed_meshes = convex_decomposition_file(
 print("Example 1: paths of decomposed files:")
 for f in test_save_dir.glob("*.obj"):
     print(str(f))
-_rmtree(test_save_dir)  # remove the test directory (delete this if you want to keep saved files)
+rmtree(test_save_dir)  # remove the test directory (delete this if you want to keep saved files)
 
 # example 2: whole directory
 # setting up dummy model directory with two meshes in it
@@ -44,5 +44,5 @@ decomposed_meshes = convex_decomposition_dir(
 print("Example 2: paths of decomposed files:")
 for f in test_save_dir.glob("*.obj"):
     print(str(f))
-_rmtree(test_model_dir)
-_rmtree(test_save_dir)
+rmtree(test_model_dir)
+rmtree(test_save_dir)

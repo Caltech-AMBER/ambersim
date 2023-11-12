@@ -8,7 +8,7 @@ from dm_control import mjcf
 from mujoco import mjx
 
 from ambersim import ROOT
-from ambersim.utils._internal_utils import _rmtree
+from ambersim.utils._internal_utils import rmtree
 from ambersim.utils.conversion_utils import convex_decomposition_file, save_model_xml
 from ambersim.utils.introspection_utils import get_joint_names
 from ambersim.utils.io_utils import _modify_robot_float_base, load_mjx_model_and_data_from_file
@@ -37,7 +37,7 @@ def test_load_model():
     assert load_mjx_model_and_data_from_file(Path(repo_path))
 
     # remove temp local dir
-    _rmtree(local_dir)
+    rmtree(local_dir)
 
 
 def test_all_models():
@@ -126,4 +126,4 @@ def test_convex_decomposition():
         signed_dist_t = igl.signed_distance(coords, tverts, tfaces)[0]
         assert np.allclose(signed_dist_d, signed_dist_t)
 
-    _rmtree(savedir)
+    rmtree(savedir)

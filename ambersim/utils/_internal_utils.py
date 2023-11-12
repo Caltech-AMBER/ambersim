@@ -4,7 +4,7 @@ from typing import Union
 from ambersim import ROOT
 
 
-def _check_filepath(filepath: Union[str, Path]) -> str:
+def check_filepath(filepath: Union[str, Path]) -> str:
     """Checks validity of a filepath for model loading."""
     assert isinstance(filepath, (str, Path))
 
@@ -19,7 +19,7 @@ def _check_filepath(filepath: Union[str, Path]) -> str:
     return filepath
 
 
-def _rmtree(f: Path):
+def rmtree(f: Path):
     """Recursively deletes a directory using pathlib.
 
     See: https://stackoverflow.com/a/66552066
@@ -28,5 +28,5 @@ def _rmtree(f: Path):
         f.unlink()
     else:
         for child in f.iterdir():
-            _rmtree(child)
+            rmtree(child)
         f.rmdir()

@@ -1,8 +1,8 @@
 {
   "include": [
-    "ambersim"
+    "ambersim",
   ],
-  "reportMissingImports": false,
+  "reportMissingImports": true,
   "reportMissingTypeStubs": false,
-  "reportGeneralTypeIssues": false,
+  "reportGeneralTypeIssues": true,
 }
