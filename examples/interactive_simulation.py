@@ -12,7 +12,7 @@ system through the GUI.
 """
 
 
-def swingup_controller(theta, theta_dot):
+def swingup_controller(theta: float, theta_dot: float) -> float:
     """A simple swingup controller for the pendulum.
 
     Adopted from https://underactuated.mit.edu/pend.html#section3.
