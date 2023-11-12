@@ -104,6 +104,7 @@ def mjx_qpos_to_pin(qpos_mjx: jax.Array, mjx_model: mjx.Model, mj2pin: List[int]
         startidx = mjx_model.jnt_qposadr[mj_idx]
 
         if jnt_type == 0:  # FREE, 7-dimensional
+            # pinocchio uses the (x, y, z, w) convention
             _qpos_pin.append(qpos_mjx[startidx : startidx + 3])
             quat_wxyz = qpos_mjx[startidx + 3 : startidx + 7]
             quat_xyzw = np.concatenate((quat_wxyz[1:], quat_wxyz[:1]))
@@ -126,12 +127,12 @@ def mjx_qvel_to_pin(qvel_mjx: jax.Array, mjx_model: mjx.Model, mj2pin: List[int]
     Notice that there is one less coordinate for rotational velocities compared to quaternion coordinates.
 
     Args:
-            qvel_mjx: The mjx joint velocities.
-            mjx_model: The mjx model.
-            mj2pin: The mapping from mujoco joint order to pinocchio joint order.
+        qvel_mjx: The mjx joint velocities.
+        mjx_model: The mjx model.
+        mj2pin: The mapping from mujoco joint order to pinocchio joint order.
 
     Returns:
-            qvel_pin: The pinocchio joint velocities.
+        qvel_pin: The pinocchio joint velocities.
     """
     qvel_mjx = np.array(qvel_mjx)
     _qvel_pin = []

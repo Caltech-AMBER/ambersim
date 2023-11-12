@@ -39,8 +39,8 @@ def shared_variables():
     mj_joint_names = get_joint_names(mj_model)
 
     # loading pinocchio models
-    pin_model = pin.buildModelFromUrdf(urdf_path)
-    pin_model.addJoint(0, pin.JointModelFreeFlyer(), pin.SE3.Identity(), "freejoint")
+    pin_model = pin.buildModelFromUrdf(urdf_path, pin.JointModelFreeFlyer())
+    pin_model.names[1] = "freejoint"  # by default, adding a joint above names it "root_joint", so we rename it
     pin_data = pin_model.createData()
     pin_joint_names = list(pin_model.names)
 
@@ -54,8 +54,17 @@ def shared_variables():
             _qpos_mj.append([np.random.randn()])  # arbitrary
         else:
             # floating base state convention: (translation[x, y, z], quat[w, x, y, z])
-            # TODO(ahl): also randomize rotation
-            _qpos_mj.append([np.random.randn(), np.random.randn(), np.random.randn(), 1.0, 0.0, 0.0, 0.0])
+            _translation = np.random.randn(3)
+            _uvw = np.random.rand(3)
+            _quat = np.array(
+                [
+                    np.sqrt(1.0 - _uvw[0]) * np.sin(2 * np.pi * _uvw[1]),
+                    np.sqrt(1.0 - _uvw[0]) * np.cos(2 * np.pi * _uvw[1]),
+                    np.sqrt(_uvw[0]) * np.sin(2 * np.pi * _uvw[2]),
+                    np.sqrt(_uvw[0]) * np.cos(2 * np.pi * _uvw[2]),
+                ]
+            )  # uniformly random quaternion: stackoverflow.com/a/44031492
+            _qpos_mj.append(np.concatenate((_translation, _quat)))
     qpos_mjx = jnp.array(np.concatenate(_qpos_mj))
     qpos_pin = mjx_qpos_to_pin(qpos_mjx, mjx_model, mj2pin)  # accounts for potentially different joint ordering
 
