@@ -1,5 +1,5 @@
 <mujoco model="pendulum_scene">
-
+  <!-- Model that includes the pendulum along with scene details like lighting and a ground. -->
   <include file="pendulum.xml"/>
 
   <statistic center="0 0 0.55" extent="1.1"/>
