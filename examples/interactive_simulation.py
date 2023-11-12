@@ -47,7 +47,7 @@ def swingup_controller(theta: float, theta_dot: float) -> float:
 
 if __name__ == "__main__":
     # Create the model
-    mj_model = load_mj_model_from_file("models/pendulum/pendulum.xml")
+    mj_model = load_mj_model_from_file("models/pendulum/scene.xml")
     mj_data = mujoco.MjData(mj_model)
 
     # Set the initial state

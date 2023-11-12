@@ -1,18 +1,5 @@
 <mujoco model="pendulum">
-  <!-- Make some textures for the ground -->
-  <asset>
-    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
-    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
-  </asset>
-
   <worldbody>
-    <!-- The floor -->
-    <geom name="floor" pos="0 0 0" size="0 0 .05" type="plane" material="grid" condim="3"/>
-
-    <!-- Some light -->
-    <light name="spotlight" diffuse=".8 .8 .8" specular="0.2 0.2 0.2" pos="0 -1 2" cutoff="1000"/>
-
-    <!-- The actual pendulum model -->
     <body name="base" pos="0 0 0">
       <!-- Dummy base inertia: for parser testing only -->
       <inertial pos="0 0 0" mass="2" diaginertia="1 1 1"/>
@@ -25,10 +12,7 @@
       </body>
     </body>
   </worldbody>
-
-  <!-- The actuator -->
   <actuator>
     <motor gear="10" joint="pendulum_joint"/>
   </actuator>
-
 </mujoco>
