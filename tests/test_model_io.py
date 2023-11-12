@@ -48,7 +48,6 @@ def test_load_model():
 
 def test_all_models():
     """Tests the loading of all models in the repo."""
-    # filepaths = (p.resolve() for p in Path(ROOT + "/models").glob("**/*") if p.suffix in {".urdf", ".xml"})
     filepaths = (p.resolve() for p in Path(ROOT + "/models").glob("**/*") if p.suffix in {".xml"})
     for filepath in filepaths:
         assert load_mjx_model_and_data_from_file(filepath)
