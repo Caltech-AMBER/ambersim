@@ -43,4 +43,15 @@
     <axis xyz="0 0 1"/>
     <limit effort="2.0" velocity="8.0" lower="-3.1416" upper="3.1416"/>
   </joint>
+  <transmission name="pendulum_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="pendulum_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="pendulum">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+      <motorTorqueConstant>1</motorTorqueConstant>
+    </actuator>
+  </transmission>
 </robot>

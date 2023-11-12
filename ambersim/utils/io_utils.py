@@ -36,8 +36,7 @@ def _add_actuators(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Pat
 
     # checking whether the XML has an actuator section already
     if xml_tree.find("actuator") is None:
-        actuator = etree.Element("actuator")
-        xml_tree.append(actuator)
+        xml_tree.append(etree.Element("actuator"))
 
     # getting transmission info from URDF and loading it into the XML
     actuators = xml_tree.find("actuator")
@@ -64,6 +63,53 @@ def _add_actuators(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Pat
                     ctrllimited="false",
                     joint=joint_name,
                 )
+
+    # resaving the XML
+    with open(xml_filepath, "wb") as f:
+        f.write(etree.tostring(xml_tree, pretty_print=True))
+
+
+def _add_mimics(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Path]) -> None:
+    """Takes a URDF and a corresponding XML derived from it and adds mimic joints to the XML.
+
+    This util is necessary because mujoco doesn't automatically add equality constraints for mimic joints.
+
+    Args:
+        urdf_filepath: A path to a URDF file.
+        xml_filepath: A path to an XML file.
+    """
+    # parsing URDF
+    # the recover=True keyword parses even after encountering invalid namespaces
+    # this is useful when, e.g., we have drake:declare_convex, which is not a valid namespace
+    with open(urdf_filepath, "r") as f:
+        urdf_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True, recover=True))
+
+    # parsing XML
+    with open(xml_filepath, "r") as f:
+        xml_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True))
+
+    # checking whether the XML has an equality section already
+    if xml_tree.find("equality") is None:
+        xml_tree.append(etree.Element("equality"))
+
+    # getting mimic info from URDF and loading it into the XML
+    equality = xml_tree.find("equality")
+    for joint in urdf_tree.xpath("//joint[mimic]"):
+        joint1 = joint.get("name")  # the joint that mimics
+        mimic = joint.find("mimic")  # the mimic element
+        joint2 = mimic.get("joint")  # the joint to mimic
+        multiplier = mimic.get("multiplier") if mimic.get("multiplier") is not None else 1
+        offset = mimic.get("offset") if mimic.get("offset") is not None else 0
+
+        # adding the mimic joint
+        etree.SubElement(
+            equality,
+            "joint",
+            name=f"{joint1}_{joint2}_equality",
+            joint1=joint1,
+            joint2=joint2,
+            polycoef=f"{offset} {multiplier} 0 0 0",
+        )
 
     # resaving the XML
     with open(xml_filepath, "wb") as f:
@@ -130,6 +176,7 @@ def load_mj_model_from_file(
         output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
         save_model_xml(filepath, output_path=output_path)
         _add_actuators(filepath, output_path)
+        _add_mimics(filepath, output_path)
         temp_output_path = True
     elif is_xml:
         output_path = filepath

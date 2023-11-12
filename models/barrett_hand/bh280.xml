@@ -186,4 +186,16 @@
       </body>
     </body>
   </worldbody>
+  <actuator>
+    <motor name="bh_j32_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j32_joint"/>
+    <motor name="bh_j11_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j11_joint"/>
+    <motor name="bh_j12_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j12_joint"/>
+    <motor name="bh_j22_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j22_joint"/>
+  </actuator>
+  <equality>
+    <joint name="bh_j33_joint_bh_j32_joint_equality" joint1="bh_j33_joint" joint2="bh_j32_joint" polycoef="0 0.3442622950819672 0 0 0"/>
+    <joint name="bh_j13_joint_bh_j12_joint_equality" joint1="bh_j13_joint" joint2="bh_j12_joint" polycoef="0 0.3442622950819672 0 0 0"/>
+    <joint name="bh_j21_joint_bh_j11_joint_equality" joint1="bh_j21_joint" joint2="bh_j11_joint" polycoef="0 1 0 0 0"/>
+    <joint name="bh_j23_joint_bh_j22_joint_equality" joint1="bh_j23_joint" joint2="bh_j22_joint" polycoef="0 0.3442622950819672 0 0 0"/>
+  </equality>
 </mujoco>
