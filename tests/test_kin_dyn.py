@@ -72,6 +72,11 @@ def shared_variables():
     # qvel_mjx = jnp.array(np.random.randn(mjx_model.nv))
     # qvel_pin = mjx_qvel_to_pin(qvel_mjx, mjx_model, mj2pin)  # accounts for potentially different joint ordering
 
+    # # setting dummy torques
+    # qtau_mjx = jnp.array(np.random.randn(mjx_model.nu))
+    # # [TODO] figure out how to deal with mimic joints in pinocchio
+    # breakpoint()
+
     # return shared variables
     return (
         mj_model,
@@ -145,14 +150,14 @@ def test_fk(shared_variables):
 
 # def test_fd(shared_variables):
 #     """Tests forward dynamics."""
-#     # mj_model, mjx_model, mjx_data, mj_joint_names, pin_model, pin_data, pin_joint_names, qpos_mjx, qpos_pin, mj2pin, pin2mj = shared_variables
+#     mj_model, mjx_model, mjx_data, mj_joint_names, pin_model, pin_data, pin_joint_names, qpos_mjx, qpos_pin, mj2pin, pin2mj = shared_variables
 
-#     # # running FD test
-#     #
-#     # dv_mjx = np.array(mjx_data.qacc)
+#     # running FD test
+#     dv_mjx = np.array(mjx_data.qacc)
+#     mjx_data = mjx.forward(mjx_model, mjx_data.replace(qpos=qpos_mjx))
 
-#     # M = pin.crba(pin_model, pin_data, qpos_pin)mjx_data = mjx.forward(mjx_model, mjx_data.replace(qpos=qpos_mjx))
-#     # qvel_pin = np.zeros(pin_model.nv)  # [TODO] make this more exotic
-#     # zero_accel = np.zeros(pin_model.nv)
-#     # tau0 = pin.rnea(pin_model, pin_data, qpos_pin, qvel_pin, zero_accel)
-#     # # [TODO] add applied forces tau to pinocchio and mjx for the test, check about gravity
+#     M = pin.crba(pin_model, pin_data, qpos_pin)
+#     qvel_pin = np.zeros(pin_model.nv)  # [TODO] make this more exotic
+#     zero_accel = np.zeros(pin_model.nv)
+#     tau0 = pin.rnea(pin_model, pin_data, qpos_pin, qvel_pin, zero_accel)
+#     # [TODO] add applied forces tau to pinocchio and mjx for the test, check about gravity
