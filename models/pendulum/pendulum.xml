@@ -16,4 +16,5 @@
   <actuator>
     <motor name="pendulum_joint_actuator" ctrllimited="true" ctrlrange="-2.0 2.0" joint="pendulum_joint"/>
   </actuator>
+  <equality/>
 </mujoco>
