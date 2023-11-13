@@ -8,6 +8,7 @@ import trimesh
 from dm_control import mjcf
 from lxml import etree
 from mujoco import mjx
+from packaging import version
 
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _check_filepath
@@ -138,7 +139,7 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
 def load_mj_model_from_file(
     filepath: Union[str, Path],
     force_float: bool = False,
-    solver: Union[str, mj.mjtSolver] = mj.mjtSolver.mjSOL_CG,
+    solver: Optional[Union[str, mj.mjtSolver]] = None,
     iterations: Optional[int] = None,
     ls_iterations: Optional[int] = None,
 ) -> mj.MjModel:
@@ -157,14 +158,29 @@ def load_mj_model_from_file(
     Raises:
         NotImplementedError: if the file extension is not in [".urdf", ".xml"]
     """
-    # TODO(ahl): once we allow installing mujoco from source, update this to allow the Newton solver + update default
-    if isinstance(solver, str):
-        if solver.lower() == "cg":
-            solver = mj.mjtSolver.SOL_CG
-        else:
-            raise ValueError("Solver must be one of: ['cg']!")
-    elif isinstance(solver, mj.mjtSolver):
-        assert solver in [mj.mjtSolver.mjSOL_CG]
+    # allow different solver specifications depending on mujoco version
+    if version.parse(mj.__version__) < version.parse("3.0.1"):
+        if solver is None:
+            solver = mj.mjtSolver.mjSOL_CG
+        elif isinstance(solver, str):
+            if solver.lower() == "cg":
+                solver = mj.mjtSolver.mjSOL_CG
+            else:
+                raise ValueError("Solver must be one of: ['cg']!")
+        elif isinstance(solver, mj.mjtSolver):
+            assert solver in [mj.mjtSolver.mjSOL_CG]
+    else:
+        if solver is None:
+            solver = mj.mjtSolver.mjSOL_NEWTON
+        elif isinstance(solver, str):
+            if solver.lower() == "newton":
+                solver = mj.mjtSolver.mjSOL_NEWTON
+            elif solver.lower() == "cg":
+                solver = mj.mjtSolver.mjSOL_CG
+            else:
+                raise ValueError("Solver must be one of: ['cg', 'newton']!")
+        elif isinstance(solver, mj.mjtSolver):
+            assert solver in [mj.mjtSolver.mjSOL_CG, mj.mjtSolver.mjSOL_NEWTON]
 
     filepath = _check_filepath(filepath)
     is_urdf = str(filepath).split(".")[-1] == "urdf"
@@ -176,7 +192,7 @@ def load_mj_model_from_file(
         output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
         save_model_xml(filepath, output_path=output_path)
         _add_actuators(filepath, output_path)
-        # _add_mimics(filepath, output_path)  # TODO(ahl): uncomment when we merge #21
+        _add_mimics(filepath, output_path)
         temp_output_path = True
     elif is_xml:
         output_path = filepath
@@ -191,7 +207,7 @@ def load_mj_model_from_file(
 
     # deleting temp file
     if temp_output_path:
-        Path.unlink(output_path)
+        Path(output_path).unlink()
 
     # setting solver options
     mj_model.opt.solver = solver

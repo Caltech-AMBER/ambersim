@@ -1,0 +1,157 @@
+name: Build Nightly MuJoCo Release
+
+on:
+  schedule:
+    - cron: "53 12 * * *"  # runs at 4:53AM PST every day - avoid high load on the hour
+  pull_request:
+    branches: [main]
+    types: [ready_for_review]  # also caches when a PR is ready for review
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      # checks out ambersim
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # frees up space in the runner, since there's not enough disk space to build mujoco from source
+      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false  # might have useful/necessary stuff
+          android: true  # removes 14GB very quickly
+          dotnet: false  # removes a lot of space, but unnecessary here. skip to save time.
+          haskell: false  # removes a lot of space, but unnecessary here. skip to save time.
+          large-packages: false  # doesn't save that much space relatively, takes long to run
+          swap-storage: false  # removes a lot of space, but unnecessary here. skip to save time.
+
+      # for caching the conda env - re-updates the env every 24 hours just in case
+      # see: https://github.com/conda-incubator/setup-miniconda#caching-environments
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          activate-environment: anaconda-client-env
+          use-mamba: true
+      - name: Get Date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Cache conda
+        uses: actions/cache@v3
+        env:
+          CACHE_NUMBER: 0
+        with:
+          path: ${{ env.CONDA }}/envs
+          key:
+            conda-${{ runner.os }}--${{ runner.arch }}--${{
+            steps.get-date.outputs.today }}-${{
+            hashFiles('etc/example-environment-caching.yml') }}-${{ env.CACHE_NUMBER
+            }}
+        id: cache
+      - name: Update environment
+        run:
+          mamba env update -n ambersim -f environment.yml
+        if: steps.cache.outputs.cache-hit != 'true'  # only re-initializes the environment if we don't get a cache hit
+
+      # download previously built mujoco and mjx artifacts
+      - name: Download mujoco artifact
+        id: download-artifact-mujoco
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          name_is_regexp: true
+          name: "mujoco_wheel-*"
+          path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
+      - name: Download mjx artifact
+        id: download-artifact-mjx
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          name_is_regexp: true
+          name: "mjx_wheel-*"
+          path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
+
+      # checks whether to rebuild or not
+      - name: Build pre-check
+        shell: bash -l {0}
+        run: |
+          # Checks the git hash of the cached files vs. the most recent one
+          LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
+
+          mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
+          mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
+
+          if [ -n "$mujoco_whl_path" ]; then
+              # if the file name exists, extract the git hash and compare to upstream mujoco
+              CACHED_GIT_HASH=$(echo "$mujoco_whl_path" | grep -oP "mujoco_wheel-\K[^/]+")
+              if [ "$LATEST_GIT_HASH" = "$CACHED_GIT_HASH" ]; then
+                echo "Cached wheel matches most recent one - skipping build! Hash: $CACHED_GIT_HASH"
+                echo "skip_build=true" >> $GITHUB_ENV
+
+                # save the names and filepaths so we can just re-upload them
+                echo "mujoco_name=mujoco_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+                echo "mjx_name=mjx_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+                echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
+                echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
+              else
+                echo "Cached wheel is outdated - building new ones! Old Hash: $CACHED_GIT_HASH"
+                echo "skip_build=false" >> $GITHUB_ENV
+              fi
+          else
+              echo "No cached wheels found - building new ones!"
+              echo "skip_build=false" >> $GITHUB_ENV
+          fi
+
+      # mujoco build + install
+      - name: Create and Store Wheel
+        shell: bash -l {0}
+        run: |
+          # Installs mujoco from source
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxi-dev \
+            ninja-build
+          python -m pip install --upgrade pip
+          ./install_mj_source.sh
+          
+          # Saving the wheels to respective paths
+          mujoco_whl_path=$(find $PWD/../mujoco/python/dist -name "mujoco-*.whl")
+          mjx_whl_path=$(find $PWD/../mujoco/mjx -name "mujoco_mjx-*.whl")
+          echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
+          echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
+
+          # Appending the relevant git commit hash to the artifact name
+          LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
+          echo "mujoco_name=mujoco_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+          echo "mjx_name=mjx_wheel-${LATEST_GIT_HASH}" >> $GITHUB_ENV
+        id: package
+        if: env.skip_build != 'true'
+
+      # upload the built wheels as artifacts
+      - name: Upload mujoco artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.mujoco_name }}
+          path: ${{ env.mujoco_path }}
+          retention-days: 7
+
+      - name: Upload mjx artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.mjx_name }}
+          path: ${{ env.mjx_path }}
+          retention-days: 7
