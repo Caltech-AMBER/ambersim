@@ -11,7 +11,7 @@ conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
 ```
 
-TL;DR: installation commands are here. For details, see below.
+TL;DR: installation commands are here. This will ask you for your password to install system-wide dependencies. For details, see below.
 
 For non-developers installing `mujoco` from source:
 ```
@@ -20,7 +20,7 @@ For non-developers installing `mujoco` from source:
 
 For developers installing `mujoco` from source:
 ```
-# no path to mujoco specified
+# no path to the mujoco repo specified
 ./install.sh -s -d
 
 # specifying a path to the mujoco repo

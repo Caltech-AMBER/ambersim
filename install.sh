@@ -72,7 +72,7 @@ while true; do
 done
 
 # check if mujoco_dir ends with "mujoco"
-if ! [[ "$mujoco_dir" == */mujoco ]]; then
+if [[ -n "$mujoco_dir" ]] && ! [[ "$mujoco_dir" == */mujoco ]]; then
     echo "The mujoco directory must end in 'mujoco'!"
     exit 1
 fi
