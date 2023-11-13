@@ -14,55 +14,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # checks out ambersim
       - uses: actions/checkout@v4
-      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
-          tool-cache: false
 
-          # All of these default to true, but feel free to set to "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - name: Cache conda
-        uses: actions/cache@v3
-        env:
-          CACHE_NUMBER: 0
-        with:
-          path: ${{ env.CONDA }}/envs
-          key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('environment.yml') }}
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          activate-environment: ambersim
-          use-mamba: true
-          environment-file: environment.yml
+      # checks the cache for pip packages
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+
+      # download the cached artifacts
+      - name: Download mujoco artifact
+        id: download-artifact-mujoco
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          name_is_regexp: true
+          name: "mujoco_wheel-*"
+          path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
+      - name: Download mjx artifact
+        id: download-artifact-mjx
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: mujoco_nightly.yml
+          name_is_regexp: true
+          name: "mjx_wheel-*"
+          path: ${{ github.workspace }}
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: warn
       - name: Install dependencies
         working-directory: ${{ github.workspace }}
         shell: bash -l {0}
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y \
-            libgl1-mesa-dev \
-            libxinerama-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxi-dev \
-            ninja-build
           python -m pip install --upgrade pip
-          bash ./install.sh -d -s
+          bash ./install.sh -d  # -d means dev, don't use -s because we manually install mj/mjx from source here
+
+          # upgrade mujoco to use nightly build
+          mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")
+          mjx_whl_path=$(find ${{ github.workspace }} -name "mujoco_mjx-*.whl")
+          if [ -n "$mujoco_whl_path" ]; then
+              pip install --no-deps --force-reinstall $mujoco_whl_path
+          fi
+          if [ -n "$mjx_whl_path" ]; then
+              pip install --no-deps --force-reinstall $mjx_whl_path
+          fi
+          
+      # run all code checks
       - name: Run black
         shell: bash -l {0}
         run: black --check .

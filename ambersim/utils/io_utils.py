@@ -7,6 +7,7 @@ import numpy as np
 import trimesh
 from dm_control import mjcf
 from mujoco import mjx
+from packaging import version
 
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _check_filepath
@@ -35,7 +36,7 @@ def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
 def load_mj_model_from_file(
     filepath: Union[str, Path],
     force_float: bool = False,
-    solver: Union[str, mj.mjtSolver] = mj.mjtSolver.mjSOL_CG,
+    solver: Optional[Union[str, mj.mjtSolver]] = None,
     iterations: Optional[int] = None,
     ls_iterations: Optional[int] = None,
 ) -> mj.MjModel:
@@ -51,14 +52,29 @@ def load_mj_model_from_file(
     Returns:
         mj_model: A mujoco model.
     """
-    # TODO(ahl): once we allow installing mujoco from source, update this to allow the Newton solver + update default
-    if isinstance(solver, str):
-        if solver.lower() == "cg":
-            solver = mj.mjtSolver.SOL_CG
-        else:
-            raise ValueError("Solver must be one of: ['cg']!")
-    elif isinstance(solver, mj.mjtSolver):
-        assert solver in [mj.mjtSolver.mjSOL_CG]
+    # allow different solver specifications depending on mujoco version
+    if version.parse(mj.__version__) < version.parse("3.0.1"):
+        if solver is None:
+            solver = mj.mjtSolver.mjSOL_CG
+        elif isinstance(solver, str):
+            if solver.lower() == "cg":
+                solver = mj.mjtSolver.mjSOL_CG
+            else:
+                raise ValueError("Solver must be one of: ['cg']!")
+        elif isinstance(solver, mj.mjtSolver):
+            assert solver in [mj.mjtSolver.mjSOL_CG]
+    else:
+        if solver is None:
+            solver = mj.mjtSolver.mjSOL_NEWTON
+        elif isinstance(solver, str):
+            if solver.lower() == "newton":
+                solver = mj.mjtSolver.mjSOL_NEWTON
+            elif solver.lower() == "cg":
+                solver = mj.mjtSolver.mjSOL_CG
+            else:
+                raise ValueError("Solver must be one of: ['cg', 'newton']!")
+        elif isinstance(solver, mj.mjtSolver):
+            assert solver in [mj.mjtSolver.mjSOL_CG, mj.mjtSolver.mjSOL_NEWTON]
 
     filepath = _check_filepath(filepath)
 
@@ -69,7 +85,7 @@ def load_mj_model_from_file(
             output_name = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
             save_model_xml(filepath, output_name=output_name)
             mj_model = _modify_robot_float_base(output_name)
-            Path.unlink(output_name)
+            Path(output_name).unlink()
         else:
             mj_model = _modify_robot_float_base(filepath)
     else:

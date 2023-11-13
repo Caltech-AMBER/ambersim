@@ -38,7 +38,12 @@ sudo apt-get install -y \
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```
-python -c "import mujoco"
+python -c "import mujoco; from mujoco import mjx"
+```
+Further, you can examine the latest minor version using `pip`:
+```
+pip show mujoco
+pip show mujoco-mjx
 ```
 
 ## Development Details
@@ -46,6 +51,7 @@ python -c "import mujoco"
 ### Abridged Dev Guidelines
 Development on this code will be controlled via code review. To facilitate this, please follow these guidelines:
 * keep your pull requests small so that it's practical to human review them;
+* try to create _draft pull requests_ instead of regular ones and request reviews from relevant people only when ready - we rebuild `mujoco` from source when this happens;
 * write tests as you go (and if you are reviewing, suggest missing tests);
 * write docstrings for public classes and methods, even if it's just a one-liner;
 * before committing, make sure you locally pass all tests by running `pytest` in the repo root;
