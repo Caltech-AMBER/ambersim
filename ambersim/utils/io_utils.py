@@ -192,7 +192,7 @@ def load_mj_model_from_file(
         output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
         save_model_xml(filepath, output_path=output_path)
         _add_actuators(filepath, output_path)
-        # _add_mimics(filepath, output_path)  # TODO(ahl): uncomment when we merge #21
+        _add_mimics(filepath, output_path)
         temp_output_path = True
     elif is_xml:
         output_path = filepath
