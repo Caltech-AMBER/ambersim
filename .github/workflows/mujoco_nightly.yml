@@ -105,7 +105,7 @@ jobs:
                 echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
               else
                 echo "Cached wheel is outdated - building new ones! Old Hash: $CACHED_GIT_HASH"
-                echo "skip_build=true" >> $GITHUB_ENV
+                echo "skip_build=false" >> $GITHUB_ENV
               fi
           else
               echo "No cached wheels found - building new ones!"
