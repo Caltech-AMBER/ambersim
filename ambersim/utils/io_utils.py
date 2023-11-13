@@ -207,7 +207,7 @@ def load_mj_model_from_file(
 
     # deleting temp file
     if temp_output_path:
-        Path.unlink(output_path)
+        Path(output_path).unlink()
 
     # setting solver options
     mj_model.opt.solver = solver
