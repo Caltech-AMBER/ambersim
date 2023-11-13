@@ -11,30 +11,33 @@ conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
 ```
 
-Installation of this package is done via a `bash` script. There are two flags for configuring the installation:
-* `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
-* `-s` controls whether to install the most recent `mujoco` version from source. We recommend doing this, since the development version usually has important bugfixes.
+TL;DR: installation commands are here. For details, see below.
 
-For non-developers:
+For non-developers installing `mujoco` from source:
 ```
 ./install.sh -s
 ```
 
-For developers:
+For developers installing `mujoco` from source:
 ```
-# important dependencies for building mujoco from source
-sudo apt-get update -y
-sudo apt-get install -y \
-    libgl1-mesa-dev \
-    libxinerama-dev \
-    libxcursor-dev \
-    libxrandr-dev \
-    libxi-dev \
-    ninja-build
-
-# install mujoco from source with development options
+# no path to mujoco specified
 ./install.sh -s -d
+
+# specifying a path to the mujoco repo
+./install.sh -s -d --mujoco-dir /path/ending/in/mujoco
 ```
+
+Installation of this package is done via the above `bash` script. There are a few flags for configuring the installation:
+* `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
+* `-s` controls whether to install the most recent `mujoco` version from source. We recommend doing this, since the development version usually has important bugfixes.
+* `--disable-apt` specifies whether to disable the system-wide dependencies installed by `apt` which are required to install `mujoco` from source. They are enabled by default. The packages are:
+    * `libgl1-mesa-dev`
+    * `libxinerama-dev`
+    * `libxcursor-dev`
+    * `libxrandr-dev`
+    * `libxi-dev`
+    * `ninja-build`
+* `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If one doesn't exist, it will be pulled to this directory. If this isn't specified, `mujoco` will be created as a sibling directory of `ambersim`.
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```

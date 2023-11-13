@@ -1,21 +1,59 @@
 #!/bin/bash
 
-while getopts h: flag; do
-    case "${flag}" in
-        h) hash=${OPTARG};;  # Hash of the MuJoCo commit to install
-    esac
+OPTIONS=$(getopt -o 'h:' --long mujoco-dir: -- "$@")
+if [ $? -ne 0 ]; then
+  usage
+fi
+
+eval set -- "$OPTIONS"
+
+# process inputs
+while true; do
+  case "$1" in
+    -h)
+      if [[ -z "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+        hash="$2"
+        shift 2
+      else
+        hash=""
+        shift
+      fi
+      ;;
+    --mujoco-dir)
+      if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+        mujoco_dir="$2"
+        shift 2
+      else
+        mujoco_dir=""
+        shift
+      fi
+      ;;
+    --mujoco-dir=*)
+      mujoco_dir="${1#*=}"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      usage
+      ;;
+  esac
 done
 
 echo -e "\n[NOTE] Installing mujoco from source..."
 
 # the script directory and mujoco directory
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mujoco_dir="$script_dir/../mujoco"
+if ! [[ -n "$mujoco_dir" ]] ; then
+    mujoco_dir="$script_dir/../mujoco"
+fi
 
 # check whether we already have the most recent release cached to save build time
-LATEST_GIT_HASH=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
+latest_git_hash=$(git ls-remote https://github.com/google-deepmind/mujoco HEAD | awk '{ print $1}')
 if [ -d "$mujoco_dir/python/dist" ]; then
-    tar_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*${LATEST_GIT_HASH}.tar.gz" 2>/dev/null)
+    tar_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*${latest_git_hash}.tar.gz" 2>/dev/null)
     whl_path=$(find "$mujoco_dir/python/dist" -name "mujoco-*.whl" 2>/dev/null)
 
     if [ -f "$tar_path" ]; then
@@ -71,14 +109,14 @@ fi
 export MAKEFLAGS="-j$(nproc)"  # allow the max number of processors when building
 cd "$mujoco_dir"
 if [ -z "$hash" ]; then
-    SAVED_GIT_HASH=$(git rev-parse HEAD)  # getting the git hash
+    saved_git_hash=$(git rev-parse HEAD)  # getting the git hash
 else
-    SAVED_GIT_HASH="$hash"
+    saved_git_hash="$hash"
 fi
 cmake . && cmake --build .
 
 # Install Mujoco
-cmake . -DCMAKE_INSTALL_PREFIX="./mujoco_install" && cmake --install .
+(cd "$mujoco_dir" && cmake . -DCMAKE_INSTALL_PREFIX="./mujoco_install" && cmake --install .)
 
 # Generate source distribution required for Python bindings
 cd "$mujoco_dir/python"
@@ -86,7 +124,7 @@ cd "$mujoco_dir/python"
 tar_path=$(find "$mujoco_dir/python/dist" -name 'mujoco-*.tar.gz' 2>/dev/null)
 
 # Renaming the tar file by appending the commit hash
-new_tar_path="$(dirname "$tar_path")/$(basename "$tar_path" .tar.gz)-$SAVED_GIT_HASH.tar.gz"
+new_tar_path="$(dirname "$tar_path")/$(basename "$tar_path" .tar.gz)-$saved_git_hash.tar.gz"
 mv "$tar_path" "$new_tar_path"
 
 # manually building wheel so we can cache it
