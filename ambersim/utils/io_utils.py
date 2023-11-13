@@ -6,27 +6,33 @@ import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
+from dm_control.mjcf.element import _ElementImpl
+from dm_control.mjcf.parser import from_file
+from dm_control.mjcf.physics import Physics
 from mujoco import mjx
+from mujoco.mjx._src.device import device_put
+from mujoco.mjx._src.io import make_data
 
 from ambersim import ROOT
-from ambersim.utils._internal_utils import _check_filepath
+from ambersim.utils._internal_utils import check_filepath
 from ambersim.utils.conversion_utils import save_model_xml
 
 
-def _modify_robot_float_base(filepath: Union[str, Path]) -> mj.MjModel:
+def _modify_robot_float_base(filepath: str) -> mj.MjModel:
     """Modifies a robot to have a floating base if it doesn't already."""
     # loading current robot
     assert str(filepath).split(".")[-1] == "xml"
-    robot = mjcf.from_file(filepath, model_dir="/".join(filepath.split("/")[:-1]))
+    robot = from_file(filepath, model_dir="/".join(filepath.split("/")[:-1]))
 
     # only add free joint if the first body after worldbody has no freejoints
-    assert robot.worldbody is not None
+    assert robot.worldbody is not None  # pyright typechecking
+    assert isinstance(robot.worldbody, _ElementImpl)  # pyright typechecking
     if len(robot.worldbody.body[0].joint) == 0:
         robot.worldbody.body[0].add("freejoint", name="freejoint")
         assert robot.worldbody.body[0].inertial is not None  # checking for non-physical parsing errors
 
     # extracts the mujoco model from the dm_mujoco Physics object
-    physics = mjcf.Physics.from_mjcf_model(robot)
+    physics = Physics.from_mjcf_model(robot)
     assert physics is not None  # pyright typechecking
     model = physics.model.ptr
     return model
@@ -60,7 +66,7 @@ def load_mj_model_from_file(
     elif isinstance(solver, mj.mjtSolver):
         assert solver in [mj.mjtSolver.mjSOL_CG]
 
-    filepath = _check_filepath(filepath)
+    filepath = check_filepath(filepath)
 
     # loading the model and data. check whether freejoint is added forcibly
     if force_float:
@@ -69,7 +75,7 @@ def load_mj_model_from_file(
             output_name = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
             save_model_xml(filepath, output_name=output_name)
             mj_model = _modify_robot_float_base(output_name)
-            Path.unlink(output_name)
+            Path(output_name).unlink()
         else:
             mj_model = _modify_robot_float_base(filepath)
     else:
@@ -88,8 +94,8 @@ def load_mj_model_from_file(
 def mj_to_mjx_model_and_data(mj_model: mj.MjModel) -> Tuple[mjx.Model, mjx.Data]:
     """Converts a mujoco model to an mjx (model, data) pair."""
     try:
-        mjx_model = mjx.device_put(mj_model)
-        mjx_data = mjx.make_data(mjx_model)
+        mjx_model = device_put(mj_model)
+        mjx_data = make_data(mjx_model)
         return mjx_model, mjx_data
     except NotImplementedError as e:
         extended_msg = """

@@ -5,7 +5,7 @@ import coacd
 import mujoco as mj
 import trimesh
 
-from ambersim.utils._internal_utils import _check_filepath
+from ambersim.utils._internal_utils import check_filepath
 
 
 def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None) -> None:
@@ -21,7 +21,7 @@ def save_model_xml(filepath: Union[str, Path], output_name: Optional[str] = None
     """
     try:
         # loading model and saving XML
-        filepath = _check_filepath(filepath)
+        filepath = check_filepath(filepath)
         _model = mj.MjModel.from_xml_path(filepath)
         if output_name is None:
             output_name = filepath.split("/")[-1].split(".")[0]
@@ -69,7 +69,7 @@ def convex_decomposition_file(
         coacd.set_log_level("error")
 
     # executing the convex decomposition
-    meshfile = _check_filepath(meshfile)
+    meshfile = check_filepath(meshfile)
     _mesh = trimesh.load(meshfile, force="mesh")
     full_mesh = coacd.Mesh(_mesh.vertices, _mesh.faces)
     parts = coacd.run_coacd(full_mesh, **kwargs)  # list of (vert, face) tuples
@@ -102,7 +102,7 @@ def convex_decomposition_dir(
     Returns:
         all_decomposed_meshes: A list of lists of Trimesh objects representing the convex decompositions.
     """
-    meshdir = _check_filepath(meshdir)
+    meshdir = check_filepath(meshdir)
     if recursive:
         glob_func = Path(meshdir).rglob
     else:
