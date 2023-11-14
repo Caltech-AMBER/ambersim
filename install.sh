@@ -36,8 +36,11 @@ while true; do
       shift
       ;;
     -h)
-      if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+      if [[ -n "$2" ]] && [[ "$2" != "" ]] && [[ "${2:0:1}" != "-" ]]; then
         hash="$2"
+        shift 2
+      elif [[ "$2" == "" ]]; then
+        hash=""
         shift 2
       else
         hash=""
@@ -49,8 +52,11 @@ while true; do
       shift
       ;;
     --mujoco-dir)
-      if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+      if [[ -n "$2" ]] && [[ "$2" != "" ]] && [[ "${2:0:1}" != "-" ]]; then
         mujoco_dir="$2"
+        shift 2
+      elif [[ "$2" == "" ]]; then
+        mujoco_dir=""
         shift 2
       else
         mujoco_dir=""
