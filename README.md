@@ -30,13 +30,14 @@ For developers installing `mujoco` from source:
 Installation of this package is done via the above `bash` script. There are a few flags for configuring the installation:
 * `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
 * `-s` controls whether to install the most recent `mujoco` version from source. We recommend doing this, since the development version usually has important bugfixes.
-* `--disable-apt` specifies whether to disable the system-wide dependencies installed by `apt` which are required to install `mujoco` from source. They are enabled by default. The packages are:
+* `--disable-apt` specifies whether to disable the system-wide dependencies installed by `apt` which are required to install `mujoco` from source and for other dependencies. They are enabled by default. The packages are:
     * `libgl1-mesa-dev`
     * `libxinerama-dev`
     * `libxcursor-dev`
     * `libxrandr-dev`
     * `libxi-dev`
     * `ninja-build`
+    * `ffmpeg`
 * `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If one doesn't exist, it will be pulled to this directory. If this isn't specified, `mujoco` will be created as a sibling directory of `ambersim`.
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:
