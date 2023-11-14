@@ -53,7 +53,6 @@ class PendulumSwingupEnv(MjxEnv):
             config = PendulumSwingupConfig()
         self.config = config
         mj_model = load_mj_model_from_file(config.model_path)
-        self._init_q = mj_model.keyframe("home").qpos
 
         super().__init__(
             mj_model,

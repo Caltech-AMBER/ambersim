@@ -2,9 +2,14 @@ import functools
 import time
 from datetime import datetime
 
-import jax
+# Note: mujoco viewer must load before jax
+# isort: off
 import mujoco
 import mujoco.viewer
+
+# isort: on
+
+import jax
 from brax import envs
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import train as ppo
@@ -18,16 +23,15 @@ if __name__ == "__main__":
     env = envs.get_environment("pendulum_swingup")
 
     # Define the training function
-    make_networks_factory = functools.partial(
+    network_factory = functools.partial(
         ppo_networks.make_ppo_networks,
-        policy_hidden_layer_sizes=(128,) * 4,
-        value_hidden_layer_sizes=(256,) * 5,
+        policy_hidden_layer_sizes=(64,) * 2,
     )
     train_fn = functools.partial(
         ppo.train,
         num_timesteps=100_000,
-        num_evals=20,
-        reward_scaling=1.0,
+        num_evals=50,
+        reward_scaling=0.1,
         episode_length=200,
         normalize_observations=True,
         action_repeat=1,
@@ -39,7 +43,7 @@ if __name__ == "__main__":
         entropy_cost=0,
         num_envs=1024,
         batch_size=512,
-        network_factory=make_networks_factory,
+        network_factory=network_factory,
         seed=0,
     )
 
@@ -64,6 +68,8 @@ if __name__ == "__main__":
     # Run an interactive simulation with the trained policy
     mj_model = env.model
     mj_data = mujoco.MjData(mj_model)
+    mj_data.qpos[0] = 3.14
+    obs = env.compute_obs(mjx.device_put(mj_data), {})
 
     policy = make_inference_fn(params)
     jit_policy = jax.jit(policy)
@@ -75,9 +81,9 @@ if __name__ == "__main__":
             act_rng, rng = jax.random.split(rng)
 
             # Apply the policy
-            obs = env.compute_obs(mjx.device_put(mj_data), {})
             act, _ = jit_policy(obs, act_rng)
             mj_data.ctrl[:] = act
+            obs = env.compute_obs(mjx.device_put(mj_data), {})
 
             # Step the simulation
             for _ in range(env._physics_steps_per_control_step):
