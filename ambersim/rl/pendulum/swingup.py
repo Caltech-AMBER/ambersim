@@ -19,24 +19,28 @@ class PendulumSwingupConfig:
     model_path: Union[Path, str] = "models/pendulum/scene.xml"
 
     # number of "simulation steps" for every control input
-    # in pendulum.xml, we use a time step of 0.001, which is the "framerate of reality"
-    # divide 1khz by physics_steps_per_control_step to get the control frequency
-    physics_steps_per_control_step: int = 10
+    physics_steps_per_control_step: int = 1
 
     # the standard deviation of the noise (in radians) to add to the angular observations
     stdev_obs: float = 0.0
 
-    # the angular tolerance for the task to be considered "done" (in radians)
-    tol_done: float = 1e-2
+    # Reward function coefficients
+    theta_cost_weight: float = 1.0
+    theta_dot_cost_weight: float = 0.1
+    control_cost_weight: float = 0.001
 
-    # max episode length
-    T_reset: int = 1000
+    # Ranges for sampling initial conditions
+    qpos_hi: float = 4.0
+    qpos_lo: float = 4.0
+    qvel_hi: float = 4.0
+    qvel_lo: float = -4.0
 
 
 class PendulumSwingupEnv(MjxEnv):
     """Environment for training a torque-constrained pendulum swingup task.
 
-    This is the most dead simple swingup task: simply take a pendulum starting from hanging and try to go vertical.
+    This is the most dead simple swingup task: simply take a pendulum starting
+    from hanging and try to go vertical.
 
     States: x = (qpos, qvel), shape=(2,)
     Observations: y = (cos(theta), sin(theta), dtheta), shape=(3,)
@@ -56,10 +60,6 @@ class PendulumSwingupEnv(MjxEnv):
             config.physics_steps_per_control_step,
         )
 
-    def _theta_domain(self, theta: jax.Array) -> jax.Array:
-        """Restricts the value of an angle to [0, 2 * pi]."""
-        return jnp.mod(theta + jnp.pi, 2 * jnp.pi) - jnp.pi
-
     def compute_obs(self, data: mjx.Data, info: Dict[str, Any]) -> jax.Array:
         """Observes the environment based on the system State. See parent docstring."""
         theta = data.qpos[0]
@@ -73,23 +73,33 @@ class PendulumSwingupEnv(MjxEnv):
             reward (shape=(1,)): the reward, maximized at qpos[0] = np.pi.
         """
         theta = data.qpos[0]
-        dtheta = data.qvel[0]
-        u = data.ctrl[0]
-        return -(self._theta_domain(theta) ** 2 + 0.1 * dtheta**2 + 0.001 * u**2)
+        theta_dot = data.qvel[0]
+        tau = data.ctrl[0]
+
+        # Compute a normalized theta error
+        theta_err = theta - jnp.pi
+        theta_err_normalized = jnp.arctan2(jnp.sin(theta_err), jnp.cos(theta_err))
+
+        # Compute the reward
+        reward_theta = -self.config.theta_cost_weight * jnp.square(theta_err_normalized).sum()
+        reward_theta_dot = -self.config.theta_dot_cost_weight * jnp.square(theta_dot).sum()
+        reward_tau = -self.config.control_cost_weight * jnp.square(tau).sum()
+
+        return reward_theta + reward_theta_dot + reward_tau
 
     def reset(self, rng: jax.Array) -> State:
         """Resets the env. See parent docstring."""
-        rng, key = jax.random.split(rng)
+        rng, rng1, rng2 = jax.random.split(rng, 3)
 
-        # resetting the positions and velocities
-        qpos = jnp.array(self._init_q)
-        qvel = jnp.zeros(self.model.nv)
+        # reset the positions and velocities
+        qpos = jax.random.uniform(rng1, (self.sys.nq,), minval=self.config.qpos_lo, maxval=self.config.qpos_hi)
+        qvel = jax.random.uniform(rng2, (self.sys.nv,), minval=self.config.qvel_lo, maxval=self.config.qvel_hi)
         data = self.pipeline_init(qpos, qvel)
 
-        # other State fields
+        # other state fields
         obs = self.compute_obs(data, {})
         reward, done = jnp.zeros(2)
-        metrics = {}
+        metrics = {"reward": reward}
         state_info = {"rng": rng, "step": 0}
         state = State(data, obs, reward, done, metrics, state_info)
         return state
@@ -103,12 +113,11 @@ class PendulumSwingupEnv(MjxEnv):
         obs = self.compute_obs(data, state.info)  # observation
         obs = obs + jax.random.normal(rng_obs, obs.shape) * self.config.stdev_obs  # adding noise to obs
         reward = self.compute_reward(data, state.info)
-        done = jnp.where(jnp.abs(self._theta_domain(data.qpos[0])) < self.config.tol_done, 1.0, 0.0)
+        done = 0.0  # pendulum just runs for a fixed number of steps
 
         # updating state
-        state.info["step"] = jnp.where(
-            (done == 1.0) | (state.info["step"] > self.config.T_reset), 0, state.info["step"] + 1
-        )  # reset step counter if done
-        state.info.update(rng=rng)
+        state.info["step"] = state.info["step"] + 1
+        state.info["rng"] = rng
+        state.metrics["reward"] = reward
         state = state.replace(pipeline_state=data, obs=obs, reward=reward, done=done)
         return state

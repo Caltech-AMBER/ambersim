@@ -29,59 +29,41 @@ if __name__ == "__main__":
     )
     train_fn = functools.partial(
         ppo.train,
-        num_timesteps=1_000_000,
-        num_evals=10,
-        reward_scaling=1,
-        episode_length=10000,
+        num_timesteps=100_000,
+        num_evals=50,
+        reward_scaling=0.1,
+        episode_length=200,
         normalize_observations=True,
         action_repeat=1,
-        unroll_length=20,
-        num_minibatches=8,
-        gae_lambda=0.95,
-        num_updates_per_batch=4,
-        discounting=0.99,
+        unroll_length=10,
+        num_minibatches=32,
+        num_updates_per_batch=8,
+        discounting=0.97,
         learning_rate=3e-4,
-        entropy_cost=1e-2,
-        num_envs=8192,
-        batch_size=1024,
+        entropy_cost=0,
+        num_envs=1024,
+        batch_size=512,
         network_factory=make_networks_factory,
-        num_resets_per_eval=10,
         seed=0,
     )
 
-    def progress(num_steps, metrics):
-        """Logs progress during RL."""
-        # times.append(datetime.now())
-        # x_data.append(num_steps)
-        y_data.append(metrics["eval/episode_reward"])
-        # ydataerr.append(metrics['eval/episode_reward_std'])
-
-        # plt.xlim([0, train_fn.keywords['num_timesteps'] * 1.25])
-
-        # plt.xlabel('# environment steps')
-        # plt.ylabel('reward per episode')
-        # plt.title(f'y={y_data[-1]:.3f}')
-
-        # plt.errorbar(x_data, y_data, yerr=ydataerr)
-        # plt.show()
-        print(y_data[-1])
-
-    x_data = []
-    y_data = []
-    ydataerr = []
     times = [datetime.now()]
 
-    env = envs.get_environment(env_name)
-    eval_env = envs.get_environment(env_name)
+    def progress(num_steps, metrics):
+        """Logs progress during RL."""
+        print(f'num_steps={num_steps}, reward={metrics["eval/episode_reward"]}')
+        times.append(datetime.now())
+
+    # Do the training
     make_inference_fn, params, _ = train_fn(
         environment=env,
         progress_fn=progress,
-        eval_env=eval_env,
     )
 
-    # #### #
-    # eval #
-    # #### #
+    print(f"Time to jit: {times[1] - times[0]}")
+    print(f"Time to train: {times[-1] - times[1]}")
+
+    # Render a trajectory with the trained policy
     renderer = mj.Renderer(env.model)
 
     def get_image(state: State, camera: str) -> np.ndarray:
@@ -95,14 +77,11 @@ if __name__ == "__main__":
     inference_fn = make_inference_fn(params)
     jit_inference_fn = jit(inference_fn)
 
-    eval_env = envs.get_environment(env_name)
-
-    jit_reset = jit(eval_env.reset)
-    jit_step = jit(eval_env.step)
+    jit_reset = jit(env.reset)
+    jit_step = jit(env.step)
 
     rng = jax.random.PRNGKey(0)
     state = jit_reset(rng)
-    rollout = [state]
     images = [get_image(state, camera="camera")]
 
     # grab a trajectory
@@ -113,15 +92,13 @@ if __name__ == "__main__":
         act_rng, rng = jax.random.split(rng)
         ctrl, _ = jit_inference_fn(state.obs, act_rng)
         state = jit_step(state, ctrl)
-        rollout.append(state)
         if i % render_every == 0:
             images.append(get_image(state, camera="camera"))
 
         if state.done:
             break
-    # media.show_video(images, fps=1.0 / eval_env.dt / render_every)
 
-    # saving images as video
+    # Save images as video
     output_video_file = "output_video.mp4"
     height, width, channels = images[0].shape
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # You can try 'XVID' or 'MJPG' as well
@@ -137,4 +114,3 @@ if __name__ == "__main__":
 
     # Release the VideoWriter object
     video_writer.release()
-    breakpoint()
