@@ -28,6 +28,7 @@ dependencies = [
     "opencv-python>=4.0.0.0",
     "scipy>=1.10.0",
     "torch>=1.13.1",
+    "opencv-python>=4.8.1.78",
 ]
 
 [project.optional-dependencies]
