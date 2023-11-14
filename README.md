@@ -37,7 +37,6 @@ Installation of this package is done via the above `bash` script. There are a fe
     * `libxrandr-dev`
     * `libxi-dev`
     * `ninja-build`
-    * `ffmpeg`
 * `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If one doesn't exist, it will be pulled to this directory. If this isn't specified, `mujoco` will be created as a sibling directory of `ambersim`.
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:

@@ -93,8 +93,7 @@ if [ $apt_dependencies = true ] ; then
         libxcursor-dev \
         libxrandr-dev \
         libxi-dev \
-        ninja-build \
-        ffmpeg
+        ninja-build
 fi
 
 # Install regular or development dependencies
