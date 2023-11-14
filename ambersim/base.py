@@ -1,12 +1,13 @@
 import jax
 from jax import numpy as jp
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Dict, Any
 
-from brax.base import Motion, Transform
+from brax.base import Base, Motion, Transform
 from brax.envs.base import Env
 import mujoco
 from mujoco import mjx
+from flax import struct
 
 
 class MjxEnv(Env):
@@ -75,3 +76,25 @@ class MjxEnv(Env):
         offset = data.xpos[1:, :] - data.subtree_com[self.model.body_rootid[np.arange(1, self.model.nbody)]]
         xd = Transform.create(pos=offset).vmap().do(cvel)
         return x, xd
+
+
+@struct.dataclass
+class State(Base):
+    """Environment state for training and inference with brax.
+
+    Args:
+      pipeline_state: the physics state, mjx.Data
+      obs: environment observations
+      reward: environment reward
+      done: boolean, True if the current episode has terminated
+      metrics: metrics that get tracked per environment step
+      info: environment variables defined and updated by the environment reset
+        and step functions
+    """
+
+    pipeline_state: mjx.Data
+    obs: jax.Array
+    reward: jax.Array
+    done: jax.Array
+    metrics: Dict[str, jax.Array] = struct.field(default_factory=dict)
+    info: Dict[str, Any] = struct.field(default_factory=dict)
