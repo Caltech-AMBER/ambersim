@@ -20,7 +20,7 @@ while true; do
       fi
       ;;
     --mujoco-dir)
-      if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+      if [[ -z "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
         mujoco_dir="$2"
         shift 2
       else
