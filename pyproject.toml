@@ -21,9 +21,11 @@ dependencies = [
     "jax[cuda11_local]>=0.4.1",
     "jaxlib>=0.4.1",
     "matplotlib>=3.5.2",
+    "mediapy>=1.1.2",
     "mujoco>=3.0.0",
     "mujoco-mjx>=3.0.0",
     "numpy>=1.23.1",
+    "opencv-python>=4.0.0.0",
     "scipy>=1.10.0",
     "torch>=1.13.1",
 ]
