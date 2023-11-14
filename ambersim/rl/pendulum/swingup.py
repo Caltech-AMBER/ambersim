@@ -30,10 +30,10 @@ class PendulumSwingupConfig:
     control_cost_weight: float = 0.001
 
     # Ranges for sampling initial conditions
-    qpos_hi: float = 4.0
-    qpos_lo: float = 4.0
-    qvel_hi: float = 4.0
-    qvel_lo: float = -4.0
+    qpos_hi: float = jnp.pi
+    qpos_lo: float = -jnp.pi
+    qvel_hi: float = 2
+    qvel_lo: float = -2
 
 
 class PendulumSwingupEnv(MjxEnv):

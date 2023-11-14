@@ -25,7 +25,7 @@ if __name__ == "__main__":
     # Define the training function
     network_factory = functools.partial(
         ppo_networks.make_ppo_networks,
-        policy_hidden_layer_sizes=(64,) * 2,
+        policy_hidden_layer_sizes=(64,) * 3,
     )
     train_fn = functools.partial(
         ppo.train,
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     # Run an interactive simulation with the trained policy
     mj_model = env.model
     mj_data = mujoco.MjData(mj_model)
-    mj_data.qpos[0] = 3.14
+    mj_data.qpos[0] = 0.1  # initial angle
     obs = env.compute_obs(mjx.device_put(mj_data), {})
 
     policy = make_inference_fn(params)
