@@ -4,40 +4,64 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * shared interfaces for control architectures, and
 * massively-parallelized simulation.
 
-## Quickstart
-
-### Non-developers
-Create a conda environment with Cuda 11.8 support:
+## Installation
+Clone this repository and run the following commands in the repository root to create and activate a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
 conda activate <env_name>
 ```
-To locally install this package, clone the repository and in the repo root, run
+
+TL;DR: installation commands are here. This will ask you for your password to install system-wide dependencies. For details, see below.
+
+For non-developers installing `mujoco` from source:
 ```
-pip install . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+./install.sh -s
 ```
 
-### Developers
-Create a conda environment with Cuda 11.8 support:
+For developers installing `mujoco` from source:
 ```
-conda env create -n <env_name> -f environment.yml
-conda activate <env_name>
+# no path to the mujoco repo specified
+./install.sh -s -d
+
+# specifying a path to the mujoco repo
+./install.sh -s -d --mujoco-dir /path/ending/in/mujoco
 ```
-Install the project with the editable flag and development dependencies:
+
+Installation of this package is done via the above `bash` script. There are a few flags for configuring the installation:
+* `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
+* `-s` controls whether to install the most recent `mujoco` version from source. We recommend doing this, since the development version usually has important bugfixes.
+* `--disable-apt` specifies whether to disable the system-wide dependencies installed by `apt` which are required to install `mujoco` from source. They are enabled by default. The packages are:
+    * `libgl1-mesa-dev`
+    * `libxinerama-dev`
+    * `libxcursor-dev`
+    * `libxrandr-dev`
+    * `libxi-dev`
+    * `ninja-build`
+* `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If one doesn't exist, it will be pulled to this directory. If this isn't specified, `mujoco` will be created as a sibling directory of `ambersim`.
+
+If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```
-pip install -e .[all] --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+python -c "import mujoco; from mujoco import mjx"
 ```
-Then, install pre-commit hooks by running the following in the repo root:
+Further, you can examine the latest minor version using `pip`:
 ```
-pre-commit autoupdate
-pre-commit install
+pip show mujoco
+pip show mujoco-mjx
 ```
+
+## Custom Models
+We have implemented some custom utils for model parsing, but they aren't complete/perfect. Here are some guidelines for when you want to use this codebase for a custom project:
+* it's OK to just use URDFs and use our utils for loading them into `mjx` if you don't care too much about collision filtering or mujoco-specific elements like lights, sites, etc.
+* if you decide to use URDFs instead of converting the model description into an `xml`, then you should add a `<mujoco>` tag with some specific settings to the top of your URDF. See the examples in this repo as guidance.
+	* you should also make sure that your actuated joints have `<transmission>` blocks associated with them, as this is what our parser looks for to add actuators to the mujoco model.
+* if you decide to convert the URDF to an XML, then we have some custom utils for helping with the initial conversion, but if you want to add a lot of mujoco-specific elements, those need to be done by hand.
 
 ## Development Details
 
 ### Abridged Dev Guidelines
 Development on this code will be controlled via code review. To facilitate this, please follow these guidelines:
 * keep your pull requests small so that it's practical to human review them;
+* try to create _draft pull requests_ instead of regular ones and request reviews from relevant people only when ready - we rebuild `mujoco` from source when this happens;
 * write tests as you go (and if you are reviewing, suggest missing tests);
 * write docstrings for public classes and methods, even if it's just a one-liner;
 * before committing, make sure you locally pass all tests by running `pytest` in the repo root;
@@ -49,7 +73,7 @@ Python dependencies are specified using a `pyproject.toml` file. Non-python depe
 
 Major versioning decisions:
 * `python=3.11.5`. `torch`, `jax`, and `mujoco` all support it and there are major reported speed improvements over `python` 3.10.
-* `cuda==11.8`. Both `torch` and `jax` support `cuda12`; however, they annoyingly support different minor versions which makes them incompatible in the same environment [https://github.com/google/jax/issues/18032](#18032). Once this is resolved, we will upgrade to `cuda-12.2` or later. It seems most likely that `torch` will support `cuda-12.3` once they do upgrade, since that is the most recent release.
+* `cuda==11.8`. Both `torch` and `jax` support `cuda12`; however, they annoyingly support different minor versions which makes them [incompatible in the same environment](https://github.com/google/jax/issues/18032). Once this is resolved, we will upgrade to `cuda-12.2` or later. It seems most likely that `torch` will support `cuda-12.3` once they do upgrade, since that is the most recent release.
 
 ### Tooling
 We use various tools to ensure code quality.
