@@ -12,7 +12,7 @@ There's currently no official pypi release, but you can still install this packa
 pip install "ambersim[all] @ git+https://github.com/Caltech-AMBER/ambersim.git" --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # barebones dependencies
-pip install "ambersim @ git+https://github.com/Caltech-AMBER/ambersim.git"
+pip install "ambersim @ git+https://github.com/Caltech-AMBER/ambersim.git" --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
 This package also installs a script that can help you optionally build and install `mujoco` from source to get the latest and greatest features and bugfixes between official releases.
 ```
