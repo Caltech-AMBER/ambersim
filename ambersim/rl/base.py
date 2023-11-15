@@ -1,4 +1,5 @@
-from typing import Any, Dict, Tuple
+from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 import jax
 import mujoco
@@ -10,8 +11,29 @@ from jax import numpy as jp
 from mujoco import mjx
 
 
-class MjxEnv(Env):
-    """API for driving an MJX system for training and inference in brax."""
+@struct.dataclass
+class State(Base):
+    """Environment state for training and inference with brax.
+
+    Args:
+        pipeline_state: the physics state.
+        obs: environment observations.
+        reward: environment reward.
+        done: True if the current episode has terminated.
+        metrics: metrics that get tracked per environment step.
+        info: environment variables defined and updated by the environment reset and step functions.
+    """
+
+    pipeline_state: mjx.Data
+    obs: jax.Array
+    reward: jax.Array
+    done: jax.Array
+    metrics: Dict[str, jax.Array] = struct.field(default_factory=dict)
+    info: Dict[str, Any] = struct.field(default_factory=dict)
+
+
+class MjxEnv(Env, ABC):
+    """API for an MJX system for training and inference in brax."""
 
     def __init__(
         self,
@@ -21,32 +43,14 @@ class MjxEnv(Env):
         """Initializes MjxEnv.
 
         Args:
-          mj_model: the MuJoCo model.
-          physics_steps_per_control_step: the number of times to step the physics
-            pipeline for each environment step.
+            mj_model: The MuJoCo model.
+            physics_steps_per_control_step: The number of times to step the physics pipeline for each environment step.
         """
         assert physics_steps_per_control_step >= 1
         self.model = mj_model
         self.data = mujoco.MjData(mj_model)
         self.sys = mjx.device_put(mj_model)
         self._physics_steps_per_control_step = physics_steps_per_control_step
-
-    def pipeline_init(self, qpos: jax.Array, qvel: jax.Array) -> mjx.Data:
-        """Initializes the physics state."""
-        data = mjx.device_put(self.data)
-        data = data.replace(qpos=qpos, qvel=qvel, ctrl=jp.zeros(self.sys.nu))
-        data = mjx.forward(self.sys, data)
-        return data
-
-    def pipeline_step(self, data: mjx.Data, ctrl: jax.Array) -> mjx.Data:
-        """Takes a physics step using the physics pipeline."""
-
-        def f(data, _):
-            data = data.replace(ctrl=ctrl)
-            return mjx.step(self.sys, data), None
-
-        data, _ = jax.lax.scan(f, data, (), self._physics_steps_per_control_step)
-        return data
 
     @property
     def dt(self) -> jax.Array:
@@ -74,31 +78,76 @@ class MjxEnv(Env):
         """
         return "mjx"
 
-    def _pos_vel(self, data: mjx.Data) -> Tuple[Transform, Motion]:
-        """Returns 6d spatial transform and 6d velocity for all bodies."""
-        x = Transform(pos=data.xpos[1:, :], rot=data.xquat[1:, :])
-        cvel = Motion(vel=data.cvel[1:, 3:], ang=data.cvel[1:, :3])
-        offset = data.xpos[1:, :] - data.subtree_com[self.model.body_rootid[np.arange(1, self.model.nbody)]]
-        xd = Transform.create(pos=offset).vmap().do(cvel)
-        return x, xd
+    def pipeline_init(self, qpos: jax.Array, qvel: jax.Array) -> mjx.Data:
+        """Initializes the physics state."""
+        data = mjx.device_put(self.data)
+        data = data.replace(qpos=qpos, qvel=qvel, ctrl=jp.zeros(self.sys.nu))
+        data = mjx.forward(self.sys, data)
+        return data
 
+    def pipeline_step(self, data: mjx.Data, ctrl: jax.Array) -> mjx.Data:
+        """Takes a physics step using the physics pipeline."""
 
-@struct.dataclass
-class State(Base):
-    """Environment state for training and inference with brax.
+        def f(data, _):
+            data = data.replace(ctrl=ctrl)
+            return mjx.step(self.sys, data), None
 
-    Args:
-        pipeline_state: the physics state.
-        obs: environment observations.
-        reward: environment reward.
-        done: True if the current episode has terminated.
-        metrics: metrics that get tracked per environment step.
-        info: environment variables defined and updated by the environment reset and step functions.
-    """
+        data, _ = jax.lax.scan(f, data, (), self._physics_steps_per_control_step)
+        return data
 
-    pipeline_state: mjx.Data
-    obs: jax.Array
-    reward: jax.Array
-    done: jax.Array
-    metrics: Dict[str, jax.Array] = struct.field(default_factory=dict)
-    info: Dict[str, Any] = struct.field(default_factory=dict)
+    def compute_reward(self, data: mjx.Data, info: Dict[str, Any]) -> jax.Array:
+        """Computes the reward for the current environment state. May modify state in place.
+
+        Args:
+            data: The physics state.
+            info: Auxiliary info from the State.
+
+        Returns:
+            reward: The reward.
+
+        Raises:
+            NotImplementedError: If the environment does not implement a reward function.
+            We choose to not make this abstract in case classes that inherit from MjxEnv are used for simulation but not
+            for reinforcement learning.
+        """
+        raise NotImplementedError
+
+    def compute_obs(self, data: mjx.Data, info: Dict[str, Any]) -> jax.Array:
+        """Observes the environment based on the system State. May modify state in place.
+
+        Args:
+            data: The physics state.
+            info: Auxiliary info from the State.
+
+        Returns:
+            obs: the observation.
+
+        Raises:
+            NotImplementedError: if the environment does not implement an observation function.
+            We choose to not make this abstract in case classes that inherit from MjxEnv are used for simulation but not
+            for reinforcement learning.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def reset(self, rng: jax.Array) -> State:
+        """Resets the environment.
+
+        Args:
+            rng: random number generator seed.
+
+        Returns:
+            state: initial environment state.
+        """
+
+    @abstractmethod
+    def step(self, state: State, action: jax.Array) -> State:
+        """Takes a step in the environment.
+
+        Args:
+            state: current environment state.
+            action: action to take.
+
+        Returns:
+            new_state: new environment state.
+        """

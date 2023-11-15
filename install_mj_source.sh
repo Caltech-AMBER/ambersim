@@ -1,9 +1,6 @@
 #!/bin/bash
 
 OPTIONS=$(getopt -o 'h:' --long mujoco-dir: -- "$@")
-if [ $? -ne 0 ]; then
-  usage
-fi
 
 eval set -- "$OPTIONS"
 
@@ -11,8 +8,11 @@ eval set -- "$OPTIONS"
 while true; do
   case "$1" in
     -h)
-      if [[ -z "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+      if [[ -n "$2" ]] && [[ "$2" != "" ]] && [[ "${2:0:1}" != "-" ]]; then
         hash="$2"
+        shift 2
+      elif [[ "$2" == "" ]]; then
+        hash=""
         shift 2
       else
         hash=""
@@ -20,8 +20,11 @@ while true; do
       fi
       ;;
     --mujoco-dir)
-      if [[ -z "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+      if [[ -n "$2" ]] && [[ "$2" != "" ]] && [[ "${2:0:1}" != "-" ]]; then
         mujoco_dir="$2"
+        shift 2
+      elif [[ "$2" == "" ]]; then
+        mujoco_dir=""
         shift 2
       else
         mujoco_dir=""
@@ -37,7 +40,9 @@ while true; do
       break
       ;;
     *)
-      usage
+      echo "$1"
+      echo "[ERROR] Open an issue, this should never occur if you call install.sh."
+      exit 1
       ;;
   esac
 done
