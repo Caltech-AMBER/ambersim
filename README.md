@@ -30,7 +30,7 @@ For developers installing `mujoco` from source:
 Installation of this package is done via the above `bash` script. There are a few flags for configuring the installation:
 * `-d` controls whether to use the heavier _development_ dependencies, which include linting and testing dependencies;
 * `-s` controls whether to install the most recent `mujoco` version from source. We recommend doing this, since the development version usually has important bugfixes.
-* `--disable-apt` specifies whether to disable the system-wide dependencies installed by `apt` which are required to install `mujoco` from source. They are enabled by default. The packages are:
+* `--disable-apt` specifies whether to disable the system-wide dependencies installed by `apt`. This is enabled by default. The packages are:
     * `libgl1-mesa-dev`
     * `libxinerama-dev`
     * `libxcursor-dev`
