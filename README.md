@@ -20,6 +20,18 @@ install-mujoco-from-source [--hash <mujoco_commit_hash>] [--mujoco-dir /path/to/
 ```
 Both `--hash` and `--mujoco-dir` are optional arguments. If no hash is supplied, we pull the latest one. If no `mujoco` directory is supplied, we assume that `mujoco/` is a sibling directory to `ambersim`, and if none exists, this script pulls the entire `mujoco` repo there.
 
+In order to build `mujoco` successfully, you may need to install system-wide dependencies with the following commands:
+```
+sudo apt-get update
+sudo apt-get install -y \
+    libgl1-mesa-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxrandr-dev \
+    libxi-dev \
+    ninja-build
+```
+
 ### Local
 Clone this repository and run the following commands in the repository root to create and activate a conda environment with Cuda 11.8 support:
 ```
