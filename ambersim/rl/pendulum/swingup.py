@@ -42,7 +42,7 @@ class PendulumSwingupEnv(MjxEnv):
     This is the most dead simple swingup task: simply take a pendulum starting
     from hanging and try to go vertical.
 
-    States: x = (qpos, qvel), shape=(2,)
+    States: x = (theta, dtheta), shape=(2,)
     Observations: y = (cos(theta), sin(theta), dtheta), shape=(3,)
     Actions: a = tau, the motor torque, shape=(1,)
     """
