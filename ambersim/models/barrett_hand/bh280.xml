@@ -1,0 +1,201 @@
+<mujoco model="bhand">
+  <compiler angle="radian" meshdir="meshes/"/>
+  <statistic meansize="0.0596351" extent="0.356088" center="6.79486e-05 -1.7895e-08 0.0381812"/>
+  <asset>
+    <mesh name="palm_280" file="palm_280.obj"/>
+    <mesh name="palm_280_col_0" file="palm_280_col_0.obj"/>
+    <mesh name="palm_280_col_1" file="palm_280_col_1.obj"/>
+    <mesh name="palm_280_col_2" file="palm_280_col_2.obj"/>
+    <mesh name="palm_280_col_3" file="palm_280_col_3.obj"/>
+    <mesh name="palm_280_col_4" file="palm_280_col_4.obj"/>
+    <mesh name="palm_280_col_5" file="palm_280_col_5.obj"/>
+    <mesh name="palm_280_col_6" file="palm_280_col_6.obj"/>
+    <mesh name="palm_280_col_7" file="palm_280_col_7.obj"/>
+    <mesh name="palm_280_col_8" file="palm_280_col_8.obj"/>
+    <mesh name="palm_280_col_9" file="palm_280_col_9.obj"/>
+    <mesh name="palm_280_col_10" file="palm_280_col_10.obj"/>
+    <mesh name="palm_280_col_11" file="palm_280_col_11.obj"/>
+    <mesh name="palm_280_col_12" file="palm_280_col_12.obj"/>
+    <mesh name="palm_280_col_13" file="palm_280_col_13.obj"/>
+    <mesh name="palm_280_col_14" file="palm_280_col_14.obj"/>
+    <mesh name="finger" file="finger.obj"/>
+    <mesh name="finger_col_0" file="finger_col_0.obj"/>
+    <mesh name="finger_col_1" file="finger_col_1.obj"/>
+    <mesh name="finger_col_2" file="finger_col_2.obj"/>
+    <mesh name="finger_tip" file="finger_tip.obj"/>
+    <mesh name="finger_tip_col_0" file="finger_tip_col_0.obj"/>
+    <mesh name="finger_tip_col_1" file="finger_tip_col_1.obj"/>
+    <mesh name="finger_tip_col_2" file="finger_tip_col_2.obj"/>
+    <mesh name="finger_tip_col_3" file="finger_tip_col_3.obj"/>
+    <mesh name="finger_tip_col_4" file="finger_tip_col_4.obj"/>
+    <mesh name="finger_tip_col_5" file="finger_tip_col_5.obj"/>
+    <mesh name="finger_tip_col_6" file="finger_tip_col_6.obj"/>
+    <mesh name="finger_tip_col_7" file="finger_tip_col_7.obj"/>
+    <mesh name="finger_tip_col_8" file="finger_tip_col_8.obj"/>
+    <mesh name="finger_tip_col_9" file="finger_tip_col_9.obj"/>
+    <mesh name="finger_tip_col_10" file="finger_tip_col_10.obj"/>
+    <mesh name="finger_tip_col_11" file="finger_tip_col_11.obj"/>
+    <mesh name="finger_tip_col_12" file="finger_tip_col_12.obj"/>
+    <mesh name="knuckle" file="knuckle.obj"/>
+    <mesh name="knuckle_col_0" file="knuckle_col_0.obj"/>
+    <mesh name="knuckle_col_1" file="knuckle_col_1.obj"/>
+    <mesh name="knuckle_col_2" file="knuckle_col_2.obj"/>
+    <mesh name="knuckle_col_3" file="knuckle_col_3.obj"/>
+    <mesh name="knuckle_col_4" file="knuckle_col_4.obj"/>
+    <mesh name="knuckle_col_5" file="knuckle_col_5.obj"/>
+    <mesh name="knuckle_col_6" file="knuckle_col_6.obj"/>
+    <mesh name="knuckle_col_7" file="knuckle_col_7.obj"/>
+    <mesh name="knuckle_col_8" file="knuckle_col_8.obj"/>
+    <mesh name="knuckle_col_9" file="knuckle_col_9.obj"/>
+    <mesh name="knuckle_col_10" file="knuckle_col_10.obj"/>
+    <mesh name="knuckle_col_11" file="knuckle_col_11.obj"/>
+    <mesh name="knuckle_col_12" file="knuckle_col_12.obj"/>
+  </asset>
+  <worldbody>
+    <body name="bh_palm">
+      <inertial pos="0 -0.0039272 0.040712" quat="0.619879 0.340221 -0.340221 0.619879" mass="1" diaginertia="0.00111287 0.0010893 0.000922237"/>
+      <geom name="bh_palm_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="palm_280"/>
+      <geom name="bh_palm_collision_0" type="mesh" mesh="palm_280_col_0"/>
+      <geom name="bh_palm_collision_1" type="mesh" mesh="palm_280_col_1"/>
+      <geom name="bh_palm_collision_2" type="mesh" mesh="palm_280_col_2"/>
+      <geom name="bh_palm_collision_3" type="mesh" mesh="palm_280_col_3"/>
+      <geom name="bh_palm_collision_4" type="mesh" mesh="palm_280_col_4"/>
+      <geom name="bh_palm_collision_5" type="mesh" mesh="palm_280_col_5"/>
+      <geom name="bh_palm_collision_6" type="mesh" mesh="palm_280_col_6"/>
+      <geom name="bh_palm_collision_7" type="mesh" mesh="palm_280_col_7"/>
+      <geom name="bh_palm_collision_8" type="mesh" mesh="palm_280_col_8"/>
+      <geom name="bh_palm_collision_9" type="mesh" mesh="palm_280_col_9"/>
+      <geom name="bh_palm_collision_10" type="mesh" mesh="palm_280_col_10"/>
+      <geom name="bh_palm_collision_11" type="mesh" mesh="palm_280_col_11"/>
+      <geom name="bh_palm_collision_12" type="mesh" mesh="palm_280_col_12"/>
+      <geom name="bh_palm_collision_13" type="mesh" mesh="palm_280_col_13"/>
+      <geom name="bh_palm_collision_14" type="mesh" mesh="palm_280_col_14"/>
+      <body name="bh_finger_32" pos="0 -0.05 0.0754" quat="0.499998 0.5 0.500002 0.5">
+        <inertial pos="-0.030745 0.0019837 0.00068129" quat="0.0130815 0.704816 -0.0221097 0.708925" mass="0.1" diaginertia="6.04128e-05 5.94723e-05 7.25215e-06"/>
+        <joint name="bh_j32_joint" pos="0 0 0" axis="0 0 -1" range="0 2.44"/>
+        <geom name="bh_finger_32_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="finger"/>
+        <geom name="bh_finger_32_collision_0" type="mesh" mesh="finger_col_0"/>
+        <geom name="bh_finger_32_collision_1" type="mesh" mesh="finger_col_1"/>
+        <geom name="bh_finger_32_collision_2" type="mesh" mesh="finger_col_2"/>
+        <body name="bh_finger_33" pos="-0.069936 0.003 0">
+          <inertial pos="-0.016427 0.015348 0.00063234" quat="0.646184 0.646104 0.287264 0.287186" mass="0.1" diaginertia="3.57379e-05 3.4232e-05 6.15307e-06"/>
+          <joint name="bh_j33_joint" pos="0 0 0" axis="0 0 -1" range="0 0.84"/>
+          <geom name="bh_finger_33_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="finger_tip"/>
+          <geom name="bh_finger_33_collision_0" type="mesh" mesh="finger_tip_col_0"/>
+          <geom name="bh_finger_33_collision_1" type="mesh" mesh="finger_tip_col_1"/>
+          <geom name="bh_finger_33_collision_2" type="mesh" mesh="finger_tip_col_2"/>
+          <geom name="bh_finger_33_collision_3" type="mesh" mesh="finger_tip_col_3"/>
+          <geom name="bh_finger_33_collision_4" type="mesh" mesh="finger_tip_col_4"/>
+          <geom name="bh_finger_33_collision_5" type="mesh" mesh="finger_tip_col_5"/>
+          <geom name="bh_finger_33_collision_6" type="mesh" mesh="finger_tip_col_6"/>
+          <geom name="bh_finger_33_collision_7" type="mesh" mesh="finger_tip_col_7"/>
+          <geom name="bh_finger_33_collision_8" type="mesh" mesh="finger_tip_col_8"/>
+          <geom name="bh_finger_33_collision_9" type="mesh" mesh="finger_tip_col_9"/>
+          <geom name="bh_finger_33_collision_10" type="mesh" mesh="finger_tip_col_10"/>
+          <geom name="bh_finger_33_collision_11" type="mesh" mesh="finger_tip_col_11"/>
+          <geom name="bh_finger_33_collision_12" type="mesh" mesh="finger_tip_col_12"/>
+        </body>
+      </body>
+      <body name="bh_finger_11" pos="0.025 0 0.0415" quat="0.707105 0 0 -0.707108">
+        <inertial pos="-0.033751 0 0.018292" quat="0.424485 0.56552 0.56552 0.424485" mass="0.1" diaginertia="6.0239e-05 5.36364e-05 1.70196e-05"/>
+        <joint name="bh_j11_joint" pos="0 0 0" axis="0 0 -1" range="0 3.1416"/>
+        <geom name="bh_finger_11_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="knuckle"/>
+        <geom name="bh_finger_11_collision_0" type="mesh" mesh="knuckle_col_0"/>
+        <geom name="bh_finger_11_collision_1" type="mesh" mesh="knuckle_col_1"/>
+        <geom name="bh_finger_11_collision_2" type="mesh" mesh="knuckle_col_2"/>
+        <geom name="bh_finger_11_collision_3" type="mesh" mesh="knuckle_col_3"/>
+        <geom name="bh_finger_11_collision_4" type="mesh" mesh="knuckle_col_4"/>
+        <geom name="bh_finger_11_collision_5" type="mesh" mesh="knuckle_col_5"/>
+        <geom name="bh_finger_11_collision_6" type="mesh" mesh="knuckle_col_6"/>
+        <geom name="bh_finger_11_collision_7" type="mesh" mesh="knuckle_col_7"/>
+        <geom name="bh_finger_11_collision_8" type="mesh" mesh="knuckle_col_8"/>
+        <geom name="bh_finger_11_collision_9" type="mesh" mesh="knuckle_col_9"/>
+        <geom name="bh_finger_11_collision_10" type="mesh" mesh="knuckle_col_10"/>
+        <geom name="bh_finger_11_collision_11" type="mesh" mesh="knuckle_col_11"/>
+        <geom name="bh_finger_11_collision_12" type="mesh" mesh="knuckle_col_12"/>
+        <body name="bh_finger_12" pos="-0.05 0 0.0339" quat="0.707105 0.707108 0 0">
+          <inertial pos="-0.030745 0.0019837 0.00068129" quat="0.0130815 0.704816 -0.0221097 0.708925" mass="0.1" diaginertia="6.04128e-05 5.94723e-05 7.25215e-06"/>
+          <joint name="bh_j12_joint" pos="0 0 0" axis="0 0 -1" range="0 2.44"/>
+          <geom name="bh_finger_12_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="finger"/>
+          <geom name="bh_finger_12_collision_0" type="mesh" mesh="finger_col_0"/>
+          <geom name="bh_finger_12_collision_1" type="mesh" mesh="finger_col_1"/>
+          <geom name="bh_finger_12_collision_2" type="mesh" mesh="finger_col_2"/>
+          <body name="bh_finger_13" pos="-0.069936 0.003 0">
+            <inertial pos="-0.016427 0.015348 0.00063234" quat="0.646184 0.646104 0.287264 0.287186" mass="0.1" diaginertia="3.57379e-05 3.4232e-05 6.15307e-06"/>
+            <joint name="bh_j13_joint" pos="0 0 0" axis="0 0 -1" range="0 0.84"/>
+            <geom name="bh_finger_13_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="finger_tip"/>
+            <geom name="bh_finger_13_collision_0" type="mesh" mesh="finger_tip_col_0"/>
+            <geom name="bh_finger_13_collision_1" type="mesh" mesh="finger_tip_col_1"/>
+            <geom name="bh_finger_13_collision_2" type="mesh" mesh="finger_tip_col_2"/>
+            <geom name="bh_finger_13_collision_3" type="mesh" mesh="finger_tip_col_3"/>
+            <geom name="bh_finger_13_collision_4" type="mesh" mesh="finger_tip_col_4"/>
+            <geom name="bh_finger_13_collision_5" type="mesh" mesh="finger_tip_col_5"/>
+            <geom name="bh_finger_13_collision_6" type="mesh" mesh="finger_tip_col_6"/>
+            <geom name="bh_finger_13_collision_7" type="mesh" mesh="finger_tip_col_7"/>
+            <geom name="bh_finger_13_collision_8" type="mesh" mesh="finger_tip_col_8"/>
+            <geom name="bh_finger_13_collision_9" type="mesh" mesh="finger_tip_col_9"/>
+            <geom name="bh_finger_13_collision_10" type="mesh" mesh="finger_tip_col_10"/>
+            <geom name="bh_finger_13_collision_11" type="mesh" mesh="finger_tip_col_11"/>
+            <geom name="bh_finger_13_collision_12" type="mesh" mesh="finger_tip_col_12"/>
+          </body>
+        </body>
+      </body>
+      <body name="bh_finger_21" pos="-0.025 0 0.0415" quat="0.707105 0 0 -0.707108">
+        <inertial pos="-0.033751 0 0.018292" quat="0.424485 0.56552 0.56552 0.424485" mass="0.1" diaginertia="6.0239e-05 5.36364e-05 1.70196e-05"/>
+        <joint name="bh_j21_joint" pos="0 0 0" axis="0 0 1" range="0 3.1416"/>
+        <geom name="bh_finger_21_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="knuckle"/>
+        <geom name="bh_finger_21_collision_0" type="mesh" mesh="knuckle_col_0"/>
+        <geom name="bh_finger_21_collision_1" type="mesh" mesh="knuckle_col_1"/>
+        <geom name="bh_finger_21_collision_2" type="mesh" mesh="knuckle_col_2"/>
+        <geom name="bh_finger_21_collision_3" type="mesh" mesh="knuckle_col_3"/>
+        <geom name="bh_finger_21_collision_4" type="mesh" mesh="knuckle_col_4"/>
+        <geom name="bh_finger_21_collision_5" type="mesh" mesh="knuckle_col_5"/>
+        <geom name="bh_finger_21_collision_6" type="mesh" mesh="knuckle_col_6"/>
+        <geom name="bh_finger_21_collision_7" type="mesh" mesh="knuckle_col_7"/>
+        <geom name="bh_finger_21_collision_8" type="mesh" mesh="knuckle_col_8"/>
+        <geom name="bh_finger_21_collision_9" type="mesh" mesh="knuckle_col_9"/>
+        <geom name="bh_finger_21_collision_10" type="mesh" mesh="knuckle_col_10"/>
+        <geom name="bh_finger_21_collision_11" type="mesh" mesh="knuckle_col_11"/>
+        <geom name="bh_finger_21_collision_12" type="mesh" mesh="knuckle_col_12"/>
+        <body name="bh_finger_22" pos="-0.05 0 0.0339" quat="0.707105 0.707108 0 0">
+          <inertial pos="-0.030745 0.0019837 0.00068129" quat="0.0130815 0.704816 -0.0221097 0.708925" mass="0.1" diaginertia="6.04128e-05 5.94723e-05 7.25215e-06"/>
+          <joint name="bh_j22_joint" pos="0 0 0" axis="0 0 -1" range="0 2.44"/>
+          <geom name="bh_finger_22_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="finger"/>
+          <geom name="bh_finger_22_collision_0" type="mesh" mesh="finger_col_0"/>
+          <geom name="bh_finger_22_collision_1" type="mesh" mesh="finger_col_1"/>
+          <geom name="bh_finger_22_collision_2" type="mesh" mesh="finger_col_2"/>
+          <body name="bh_finger_23" pos="-0.069936 0.003 0">
+            <inertial pos="-0.016427 0.015348 0.00063234" quat="0.646184 0.646104 0.287264 0.287186" mass="0.1" diaginertia="3.57379e-05 3.4232e-05 6.15307e-06"/>
+            <joint name="bh_j23_joint" pos="0 0 0" axis="0 0 -1" range="0 0.84"/>
+            <geom name="bh_finger_23_visual" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="finger_tip"/>
+            <geom name="bh_finger_23_collision_0" type="mesh" mesh="finger_tip_col_0"/>
+            <geom name="bh_finger_23_collision_1" type="mesh" mesh="finger_tip_col_1"/>
+            <geom name="bh_finger_23_collision_2" type="mesh" mesh="finger_tip_col_2"/>
+            <geom name="bh_finger_23_collision_3" type="mesh" mesh="finger_tip_col_3"/>
+            <geom name="bh_finger_23_collision_4" type="mesh" mesh="finger_tip_col_4"/>
+            <geom name="bh_finger_23_collision_5" type="mesh" mesh="finger_tip_col_5"/>
+            <geom name="bh_finger_23_collision_6" type="mesh" mesh="finger_tip_col_6"/>
+            <geom name="bh_finger_23_collision_7" type="mesh" mesh="finger_tip_col_7"/>
+            <geom name="bh_finger_23_collision_8" type="mesh" mesh="finger_tip_col_8"/>
+            <geom name="bh_finger_23_collision_9" type="mesh" mesh="finger_tip_col_9"/>
+            <geom name="bh_finger_23_collision_10" type="mesh" mesh="finger_tip_col_10"/>
+            <geom name="bh_finger_23_collision_11" type="mesh" mesh="finger_tip_col_11"/>
+            <geom name="bh_finger_23_collision_12" type="mesh" mesh="finger_tip_col_12"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor name="bh_j32_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j32_joint"/>
+    <motor name="bh_j11_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j11_joint"/>
+    <motor name="bh_j12_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j12_joint"/>
+    <motor name="bh_j22_joint_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" joint="bh_j22_joint"/>
+  </actuator>
+  <equality>
+    <joint name="bh_j33_joint_bh_j32_joint_equality" joint1="bh_j33_joint" joint2="bh_j32_joint" polycoef="0 0.3442622950819672 0 0 0"/>
+    <joint name="bh_j13_joint_bh_j12_joint_equality" joint1="bh_j13_joint" joint2="bh_j12_joint" polycoef="0 0.3442622950819672 0 0 0"/>
+    <joint name="bh_j21_joint_bh_j11_joint_equality" joint1="bh_j21_joint" joint2="bh_j11_joint" polycoef="0 1 0 0 0"/>
+    <joint name="bh_j23_joint_bh_j22_joint_equality" joint1="bh_j23_joint" joint2="bh_j22_joint" polycoef="0 0.3442622950819672 0 0 0"/>
+  </equality>
+</mujoco>
