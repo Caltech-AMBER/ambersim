@@ -9,7 +9,7 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 There's currently no official pypi release, but you can still install this package via `pip`. We recommend installing it in a conda environment with Cuda 11.8 support.
 ```
 # all development dependencies
-pip install "ambersim[all] @ git+https://github.com/Caltech-AMBER/ambersim.git"
+pip install "ambersim[all] @ git+https://github.com/Caltech-AMBER/ambersim.git" --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # barebones dependencies
 pip install "ambersim @ git+https://github.com/Caltech-AMBER/ambersim.git"
