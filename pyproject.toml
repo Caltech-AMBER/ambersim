@@ -51,6 +51,9 @@ test = [
 # All packages
 all = ["ambersim[dev, test]"]
 
+[project.scripts]
+install-mujoco-from-src = "ambersim._scripts._install_shim:entrypoint"
+
 [tool.setuptools.packages.find]
 include = ["ambersim"]
 

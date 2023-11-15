@@ -5,6 +5,22 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * massively-parallelized simulation.
 
 ## Installation
+### Via `pip`
+There's currently no official pypi release, but you can still install this package via `pip`. We recommend installing it in a conda environment with Cuda 11.8 support.
+```
+# all development dependencies
+pip install -e .[all] git@github.com:Caltech-AMBER/ambersim.git
+
+# barebones dependencies
+pip install -e . git@github.com:Caltech-AMBER/ambersim.git
+```
+This package also installs a script that can help you optionally build and install `mujoco` from source to get the latest and greatest features and bugfixes between official releases.
+```
+install-mujoco-from-source [--hash <mujoco_commit_hash>] [--mujoco-dir /path/to/local/mujoco]
+```
+Both `--hash` and `--mujoco-dir` are optional arguments. If no hash is supplied, we pull the latest one. If no `mujoco` directory is supplied, we assume that `mujoco/` is a sibling directory to `ambersim`, and if none exists, this script pulls the entire `mujoco` repo there.
+
+### Local
 Clone this repository and run the following commands in the repository root to create and activate a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
