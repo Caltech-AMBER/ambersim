@@ -21,12 +21,15 @@ while true; do
       ;;
     --mujoco-dir)
       if [[ -n "$2" ]] && [[ "$2" != "" ]] && [[ "${2:0:1}" != "-" ]]; then
+        echo "CASE 1"
         mujoco_dir="$2"
         shift 2
       elif [[ "$2" == "" ]]; then
+        echo "CASE 2"
         mujoco_dir=""
         shift 2
       else
+        echo "CASE 3"
         mujoco_dir=""
         shift
       fi
