@@ -13,7 +13,7 @@ from brax import envs
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import train as ppo
 from mujoco import mjx
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
 from ambersim.rl.pendulum.swingup import PendulumSwingupEnv
 
