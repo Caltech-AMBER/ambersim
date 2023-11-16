@@ -1,18 +1,10 @@
 import functools
 from datetime import datetime
 
-# Note: mujoco viewer must load before jax
-# isort: off
-import mujoco
-import mujoco.viewer
-
-# isort: on
-
 import jax
 from brax import envs
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import train as ppo
-from mujoco import mjx
 from tensorboardX import SummaryWriter
 
 from ambersim.rl.pendulum.swingup import PendulumSwingupEnv
