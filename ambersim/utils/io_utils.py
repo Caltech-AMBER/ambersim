@@ -2,17 +2,17 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import coacd
-import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
 from lxml import etree
-from mujoco import mjx
 from packaging import version
 
+import mujoco as mj
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _check_filepath
 from ambersim.utils.conversion_utils import save_model_xml
+from mujoco import mjx
 
 
 def _add_actuators(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Path]) -> None:
@@ -192,7 +192,7 @@ def load_mj_model_from_file(
         output_path = "/".join(str(filepath).split("/")[:-1]) + "/_temp_xml_model.xml"
         save_model_xml(filepath, output_path=output_path)
         _add_actuators(filepath, output_path)
-        # _add_mimics(filepath, output_path)  # TODO(ahl): uncomment when we merge #21
+        _add_mimics(filepath, output_path)
         temp_output_path = True
     elif is_xml:
         output_path = filepath
@@ -207,7 +207,7 @@ def load_mj_model_from_file(
 
     # deleting temp file
     if temp_output_path:
-        Path.unlink(output_path)
+        Path(output_path).unlink()
 
     # setting solver options
     mj_model.opt.solver = solver

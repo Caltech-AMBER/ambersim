@@ -53,7 +53,7 @@ jobs:
         shell: bash -l {0}
         run: |
           python -m pip install --upgrade pip
-          bash ./install.sh -d  # -d means dev, don't use -s because we manually install mj/mjx from source here
+          bash ./ambersim/_scripts/install.sh -d  # -d means dev, don't use -s because we manually install mj/mjx from source here
 
           # upgrade mujoco to use nightly build
           mujoco_whl_path=$(find ${{ github.workspace }} -name "mujoco-*.whl")

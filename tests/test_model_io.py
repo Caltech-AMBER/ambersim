@@ -1,13 +1,12 @@
 from pathlib import Path
 
 import igl
-import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
 from lxml import etree
-from mujoco import mjx
 
+import mujoco as mj
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _rmtree
 from ambersim.utils.conversion_utils import convex_decomposition_file, save_model_xml
@@ -18,6 +17,7 @@ from ambersim.utils.io_utils import (
     load_mjx_model_and_data_from_file,
     mj_to_mjx_model_and_data,
 )
+from mujoco import mjx
 
 
 def test_load_model():
@@ -84,28 +84,27 @@ def test_actuators():
         assert xml_actuated_joint_names == urdf_actuated_joint_names
 
 
-# TODO(ahl): uncomment when we merge #21.
-# def test_mimics():
-#     """Tests that mimic joints are added as equality constraints when converting from URDF to XML."""
-#     for urdf_filepath in Path(ROOT + "/models").rglob("*.urdf"):
-#         # loading the URDF and checking the number of mimic joints it has
-#         with open(urdf_filepath, "r") as f:
-#             urdf_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True, recover=True))
-#         mimics = urdf_tree.xpath("//joint[mimic]")
-#         num_mimics = len(mimics)
+def test_mimics():
+    """Tests that mimic joints are added as equality constraints when converting from URDF to XML."""
+    for urdf_filepath in Path(ROOT + "/models").rglob("*.urdf"):
+        # loading the URDF and checking the number of mimic joints it has
+        with open(urdf_filepath, "r") as f:
+            urdf_tree = etree.XML(f.read(), etree.XMLParser(remove_blank_text=True, recover=True))
+        mimics = urdf_tree.xpath("//joint[mimic]")
+        num_mimics = len(mimics)
 
-#         # checking that the same file loaded into mjx has the same number of equality constraints
-#         mj_model = load_mj_model_from_file(urdf_filepath)
-#         assert mj_model.neq == num_mimics
+        # checking that the same file loaded into mjx has the same number of equality constraints
+        mj_model = load_mj_model_from_file(urdf_filepath)
+        assert mj_model.neq == num_mimics
 
-#         # checking that each mimic joint has a corresponding equality constraint in the XML
-#         xml_equality_names = get_equality_names(mj_model)
-#         for joint in urdf_tree.xpath("//joint[mimic]"):
-#             joint1 = joint.get("name")  # the joint that mimics
-#             mimic = joint.find("mimic")  # the mimic element
-#             joint2 = mimic.get("joint")  # the joint to mimic
-#             eq_name = f"{joint1}_{joint2}_equality"
-#             assert eq_name in xml_equality_names
+        # checking that each mimic joint has a corresponding equality constraint in the XML
+        xml_equality_names = get_equality_names(mj_model)
+        for joint in urdf_tree.xpath("//joint[mimic]"):
+            joint1 = joint.get("name")  # the joint that mimics
+            mimic = joint.find("mimic")  # the mimic element
+            joint2 = mimic.get("joint")  # the joint to mimic
+            eq_name = f"{joint1}_{joint2}_equality"
+            assert eq_name in xml_equality_names
 
 
 def test_force_float():
