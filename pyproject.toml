@@ -58,7 +58,7 @@ install-mujoco-from-src = "ambersim._scripts._install_shim:entrypoint"
 include = ["ambersim*"]
 
 [tool.setuptools.package-data]
-ambersim = ["*.obj", "*.urdf", "*.xml"]
+ambersim = ["*.obj", "*.urdf", "*.xml", "*.sh"]
 
 [tool.black]
 line-length = 120

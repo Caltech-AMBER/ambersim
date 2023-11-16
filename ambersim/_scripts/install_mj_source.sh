@@ -52,7 +52,7 @@ echo -e "\n[NOTE] Installing mujoco from source..."
 # the script directory and mujoco directory
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! [[ -n "$mujoco_dir" ]] ; then
-    mujoco_dir="$script_dir/../mujoco"
+    mujoco_dir="$script_dir/../../mujoco"
 fi
 
 # check whether we already have the most recent release cached to save build time
