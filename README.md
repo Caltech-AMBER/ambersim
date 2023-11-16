@@ -41,18 +41,18 @@ conda activate <env_name>
 
 TL;DR: installation commands are here. This will ask you for your password to install system-wide dependencies. For details, see below.
 
-For non-developers installing `mujoco` from source:
+For non-developers installing `mujoco` from source, run the following in the repo root:
 ```
-./install.sh -s
+./ambersim/_scripts/install.sh -s
 ```
 
 For developers installing `mujoco` from source:
 ```
 # no path to the mujoco repo specified
-./install.sh -s -d
+./ambersim/_scripts/install.sh -s -d
 
 # specifying a path to the mujoco repo
-./install.sh -s -d --mujoco-dir /path/ending/in/mujoco
+./ambersim/_scripts/install.sh -s -d --mujoco-dir /path/ending/in/mujoco
 ```
 
 Installation of this package is done via the above `bash` script. There are a few flags for configuring the installation:
