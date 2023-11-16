@@ -55,7 +55,7 @@ all = ["ambersim[dev, test]"]
 install-mujoco-from-src = "ambersim._scripts._install_shim:entrypoint"
 
 [tool.setuptools.packages.find]
-include = ["ambersim"]
+include = ["ambersim*"]
 
 [tool.setuptools.package-data]
 ambersim = ["*.obj", "*.urdf", "*.xml"]
