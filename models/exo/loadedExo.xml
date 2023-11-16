@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mujoco model="Amy_Li_loadedExo">
+<mujoco model="loadedExo">
   <compiler angle="radian" autolimits="true" meshdir="STL"/>
   <size nconmax="100" njmax="500"/>
   <default>
       <joint limited="false"/>
       <equality solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"/>
+      <default class="multi_mode_controlled_actuator">
+       <general biastype="affine" gainprm="35 0 0 0 0 0 0 0 0 0" biasprm="0 -35 -0.65 0 0 0 0 0 0 0"/>
+      </default>
+
       <!-- <geom conaffinity="0" condim="1" contype="0" material="geom" margin="0.001"/> -->
    </default>
   <option gravity="0 0 -9.81" integrator="RK4" iterations="50" solver="Newton"
@@ -41,22 +45,22 @@
       <texture builtin="checker" height="100" name="texplane" rgb1="0 0 0" rgb2="0.8 0.8 0.8" type="2d" width="100"/>
       <material name="plane" reflectance="0.5" shininess="1" specular="1" texrepeat="60 60" texture="texplane"/>
       <!-- <material name="geom" texture="texgeom" texuniform="true"/> -->
-      <mesh name='terrain' file = '../../terrain/random_terrain.obj'/>
+      <!-- <mesh name='terrain' file = '../../terrain/random_terrain.obj'/> -->
    </asset>
   
    <worldbody>
-      <body name="terrain">
+      <!-- <body name="terrain"> -->
             <!-- <geom mesh="terrain" conaffinity="15" condim="3" friction="1 .1 .1"/>  -->
-             <geom mesh='terrain' type="mesh" friction="1 .1 .1" name="terrain_mesh" />
+             <!-- <geom mesh='terrain' type="mesh" friction="1 .1 .1" name="terrain_mesh" /> -->
             <!-- <geom mesh='terrain' type="mesh" friction="1 .1 .1" name="terrain_mesh"  
                   solimp = "0.9 0.95 0.01 0.9 2"
                   solref="0.02 1"/> -->
    
-        </body>
-<!--       <geom conaffinity="15" condim="3" friction="1 .1 .1" material="plane" name="terrain_mesh"
+        <!-- </body> -->
+      <geom conaffinity="15" condim="3" friction="1 .1 .1" material="plane" name="terrain_mesh"
             rgba=".9 .9 .9 1"
             size="10 5 0.1"
-            type="plane"/> -->
+            type="plane"/>
    
       <body name="torso" pos="0 0 1">
          <inertial diaginertia="8.0012      8.2603     0.55024" mass="51.1774"
@@ -258,29 +262,29 @@
             />
    </contact>
    <actuator>
-      <motor ctrllimited="true" ctrlrange="-350  350" joint="LeftFrontalHipJoint"
+      <general ctrllimited="true" ctrlrange="-350  350" joint="LeftFrontalHipJoint" class="multi_mode_controlled_actuator"
              name="LeftFrontalHipLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-180  180" joint="LeftTransverseHipJoint"
+      <general ctrllimited="true" ctrlrange="-180  180" joint="LeftTransverseHipJoint" class="multi_mode_controlled_actuator"
              name="LeftTransverseHipLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-219  219" joint="LeftSagittalHipJoint"
+      <general ctrllimited="true" ctrlrange="-219  219" joint="LeftSagittalHipJoint" class="multi_mode_controlled_actuator"
              name="LeftSagittalHipLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-219  219" joint="LeftSagittalKneeJoint"
+      <general ctrllimited="true" ctrlrange="-219  219" joint="LeftSagittalKneeJoint" class="multi_mode_controlled_actuator"
              name="LeftSagittalKneeLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-184  184" joint="LeftSagittalAnkleJoint"
+      <general ctrllimited="true" ctrlrange="-184  184" joint="LeftSagittalAnkleJoint" class="multi_mode_controlled_actuator"
              name="LeftSagittalAnkleLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-82  82" joint="LeftHenkeAnkleJoint"
+      <general ctrllimited="true" ctrlrange="-82  82" joint="LeftHenkeAnkleJoint" class="multi_mode_controlled_actuator"
              name="LeftHenkeAnkleLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-350  350" joint="RightFrontalHipJoint"
+      <general ctrllimited="true" ctrlrange="-350  350" joint="RightFrontalHipJoint" class="multi_mode_controlled_actuator"
              name="RightFrontalHipLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-180  180" joint="RightTransverseHipJoint"
+      <general ctrllimited="true" ctrlrange="-180  180" joint="RightTransverseHipJoint" class="multi_mode_controlled_actuator"
              name="RightTransverseHipLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-219  219" joint="RightSagittalHipJoint"
+      <general ctrllimited="true" ctrlrange="-219  219" joint="RightSagittalHipJoint" class="multi_mode_controlled_actuator"
              name="RightSagittalHipLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-219  219" joint="RightSagittalKneeJoint"
+      <general ctrllimited="true" ctrlrange="-219  219" joint="RightSagittalKneeJoint" class="multi_mode_controlled_actuator"
              name="RightSagittalKneeLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-184  184" joint="RightSagittalAnkleJoint"
+      <general ctrllimited="true" ctrlrange="-184  184" joint="RightSagittalAnkleJoint" class="multi_mode_controlled_actuator"
              name="RightSagittalAnkleLink_actuator"/>
-      <motor ctrllimited="true" ctrlrange="-82  82" joint="RightHenkeAnkleJoint"
+      <general ctrllimited="true" ctrlrange="-82  82" joint="RightHenkeAnkleJoint" class="multi_mode_controlled_actuator"
              name="RightHenkeAnkleLink_actuator"/>
    </actuator>
    <sensor>

@@ -15,6 +15,40 @@ from ambersim.utils._internal_utils import _check_filepath
 from ambersim.utils.conversion_utils import save_model_xml
 
 
+def set_actuators_type(model: mj.MjModel, actuator_type: str, actuator_idx: int, kp: float = 35) -> mj.MjModel:
+    """Modify the actuator type based on given input.
+
+    Args:
+        mj_model: A mujoco model
+        actuator_type: ['position', 'torque']
+
+    Returns:
+        mj_model: A mujoco model.
+
+    """
+    # Make sure the actuator index is within the valid range
+    if 0 <= actuator_idx < model.nu:
+        # Use numpy to set the entire row to zeros
+        model.actuator_gainprm[actuator_idx, :] = np.zeros_like(model.actuator_gainprm[actuator_idx, :])
+        model.actuator_biasprm[actuator_idx, :] = np.zeros_like(model.actuator_biasprm[actuator_idx, :])
+
+        # Make sure the actuator type is supported
+        if actuator_type.lower() == "position":
+            # Configure for position control
+            model.actuator_gainprm[actuator_idx, 0] = kp  # Position gain
+            model.actuator_biasprm[actuator_idx, 1] = -kp  # Position gain
+        elif actuator_type.lower() == "torque":
+            # Configure for torque control
+            model.actuator_gainprm[actuator_idx, 0] = 1.0  # Torque gain
+
+        else:
+            raise ValueError("Actuator type must be one of: ['position', 'torque']!")
+    else:
+        raise IndexError("Actuator index is out of range!")
+
+    return model
+
+
 def _add_actuators(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Path]) -> None:
     """Takes a URDF and a corresponding XML derived from it and adds actuators to the XML.
 
