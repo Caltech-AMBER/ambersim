@@ -18,7 +18,6 @@ def entrypoint():
     args = parser.parse_args()
 
     # executing the installation of mujoco from source
-    print(args.mujoco_dir)
     subprocess.call([f"{ROOT}/_scripts/install_mj_source.sh", "-h", args.h, "--mujoco-dir", args.mujoco_dir])
 
 

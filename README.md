@@ -18,7 +18,7 @@ This package also installs a script that can help you optionally build and insta
 ```
 install-mujoco-from-source [--hash <mujoco_commit_hash>] [--mujoco-dir /path/to/local/mujoco]
 ```
-Both `--hash` and `--mujoco-dir` are optional arguments. If no hash is supplied, we pull the latest one. If no `mujoco` directory is supplied, we clone `mujoco` into your environments site packages directly.
+Both `--hash` and `--mujoco-dir` are optional arguments. If no hash is supplied, we pull the latest one. If no `mujoco` directory is supplied, we clone `mujoco` into `$HOME/mujoco`.
 
 In order to build `mujoco` successfully, you may need to install system-wide dependencies with the following commands:
 ```
@@ -65,7 +65,7 @@ Installation of this package is done via the above `bash` script. There are a fe
     * `libxrandr-dev`
     * `libxi-dev`
     * `ninja-build`
-* `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If the supplied directory doesn't exist, it will be created and `mujoco` will be installed there. If `mujoco-dir` is not specified, then it will be cloned and installed into the `ambersim` repo root.
+* `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If the supplied directory doesn't exist, it will be created and `mujoco` will be installed there. If `mujoco-dir` is not specified, then it will be cloned and installed into `$HOME/mujoco`.
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```

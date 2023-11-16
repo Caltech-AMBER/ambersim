@@ -21,15 +21,12 @@ while true; do
       ;;
     --mujoco-dir)
       if [[ -n "$2" ]] && [[ "$2" != "" ]] && [[ "${2:0:1}" != "-" ]]; then
-        echo "CASE 1"
         mujoco_dir="$2"
         shift 2
       elif [[ "$2" == "" ]]; then
-        echo "CASE 2"
         mujoco_dir=""
         shift 2
       else
-        echo "CASE 3"
         mujoco_dir=""
         shift
       fi
@@ -53,9 +50,8 @@ done
 echo -e "\n[NOTE] Installing mujoco from source..."
 
 # the script directory and mujoco directory
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! [[ -n "$mujoco_dir" ]] ; then
-    mujoco_dir="$script_dir/../../mujoco"
+    mujoco_dir="$HOME/mujoco"
 fi
 
 # check whether we already have the most recent release cached to save build time
