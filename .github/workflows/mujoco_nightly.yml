@@ -126,11 +126,11 @@ jobs:
             libxi-dev \
             ninja-build
           python -m pip install --upgrade pip
-          ./install_mj_source.sh
+          ./ambersim/_scripts/install_mj_source.sh
           
           # Saving the wheels to respective paths
-          mujoco_whl_path=$(find $PWD/../mujoco/python/dist -name "mujoco-*.whl")
-          mjx_whl_path=$(find $PWD/../mujoco/mjx -name "mujoco_mjx-*.whl")
+          mujoco_whl_path=$(find $HOME/mujoco/python/dist -name "mujoco-*.whl")
+          mjx_whl_path=$(find $HOME/mujoco/mjx -name "mujoco_mjx-*.whl")
           echo "mujoco_path=$(realpath $mujoco_whl_path)" >> $GITHUB_ENV
           echo "mjx_path=$(realpath $mjx_whl_path)" >> $GITHUB_ENV
 
