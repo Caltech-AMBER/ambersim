@@ -2,6 +2,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import mujoco
+
 # package root
 ROOT = str(Path(__file__).parent.absolute())
 
