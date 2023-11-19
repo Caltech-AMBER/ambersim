@@ -158,6 +158,9 @@ def load_mj_model_from_file(
     Raises:
         NotImplementedError: if the file extension is not in [".urdf", ".xml"]
     """
+    # importing mujoco here to fix import bug
+    import mujoco
+
     # allow different solver specifications depending on mujoco version
     if version.parse(mj.__version__) < version.parse("3.0.1"):
         if solver is None:
