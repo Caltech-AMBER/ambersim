@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
-import mujoco
+import mujoco  # if we don't import mujoco before certain functions in ambersim, we may get segfaults
 
 # package root
 ROOT = str(Path(__file__).parent.absolute())
