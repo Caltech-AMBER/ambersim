@@ -26,6 +26,7 @@ dependencies = [
     "numpy>=1.23.1",
     "scipy>=1.10.0",
     "torch>=1.13.1",
+    "tensorboard>=2.15.1",
 ]
 
 [project.optional-dependencies]
@@ -52,8 +53,14 @@ test = [
 # All packages
 all = ["ambersim[dev, test]"]
 
+[project.scripts]
+install-mujoco-from-src = "ambersim._scripts._install_shim:entrypoint"
+
 [tool.setuptools.packages.find]
-include = ["ambersim"]
+include = ["ambersim*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.obj", "*.urdf", "*.xml", "install.sh", "install_mj_source.sh"]
 
 [tool.black]
 line-length = 120

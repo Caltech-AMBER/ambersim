@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 # package root
-ROOT = str(Path(__file__).parent.parent)
+ROOT = str(Path(__file__).parent.absolute())
 
 # configure MuJoCo to use the EGL rendering backend (requires GPU)
 try:

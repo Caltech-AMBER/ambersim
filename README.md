@@ -5,6 +5,7 @@ This repository houses tools built on the GPU-accelerated simulation capabilitie
 * massively-parallelized simulation.
 
 ## Installation
+### Local
 Clone this repository and run the following commands in the repository root to create and activate a conda environment with Cuda 11.8 support:
 ```
 conda env create -n <env_name> -f environment.yml
@@ -13,18 +14,18 @@ conda activate <env_name>
 
 TL;DR: installation commands are here. This will ask you for your password to install system-wide dependencies. For details, see below.
 
-For non-developers installing `mujoco` from source:
+For non-developers installing `mujoco` from source, run the following in the repo root:
 ```
-./install.sh -s
+./ambersim/_scripts/install.sh -s
 ```
 
 For developers installing `mujoco` from source:
 ```
 # no path to the mujoco repo specified
-./install.sh -s -d
+./ambersim/_scripts/install.sh -s -d
 
 # specifying a path to the mujoco repo
-./install.sh -s -d --mujoco-dir /path/ending/in/mujoco
+./ambersim/_scripts/install.sh -s -d --mujoco-dir /path/ending/in/mujoco
 ```
 
 Installation of this package is done via the above `bash` script. There are a few flags for configuring the installation:
@@ -37,7 +38,7 @@ Installation of this package is done via the above `bash` script. There are a fe
     * `libxrandr-dev`
     * `libxi-dev`
     * `ninja-build`
-* `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If one doesn't exist, it will be pulled to this directory. If this isn't specified, `mujoco` will be created as a sibling directory of `ambersim`.
+* `--mujoco-dir` specifies the directory of the local `mujoco` repo, which must end in the directory `mujoco`. If the supplied directory doesn't exist, it will be created and `mujoco` will be installed there. If `mujoco-dir` is not specified, then it will be cloned and installed into `$HOME/mujoco`. We recommend pointing this to a reasonable location instead of using the default.
 
 If the following line of code runs without error, then the installation of `mujoco` from source was successful:
 ```
@@ -47,6 +48,33 @@ Further, you can examine the latest minor version using `pip`:
 ```
 pip show mujoco
 pip show mujoco-mjx
+```
+
+### Via `pip`
+There's currently no official pypi release, but you can still install this package via `pip`. We recommend installing it in a conda environment with Cuda 11.8 support.
+```
+# all development dependencies
+pip install "ambersim[all] @ git+https://github.com/Caltech-AMBER/ambersim.git" --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+# barebones dependencies
+pip install "ambersim @ git+https://github.com/Caltech-AMBER/ambersim.git" --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+```
+This package also installs a script that can help you optionally build and install `mujoco` from source to get the latest and greatest features and bugfixes between official releases.
+```
+install-mujoco-from-source [--hash <mujoco_commit_hash>] [--mujoco-dir /path/to/local/mujoco]
+```
+Both `--hash` and `--mujoco-dir` are optional arguments. If no hash is supplied, we pull the latest one. If no `mujoco` directory is supplied, we clone `mujoco` into `$HOME/mujoco`. We recommend pointing this to a reasonable location instead of using the default.
+
+In order to build `mujoco` successfully, you may need to install system-wide dependencies with the following commands:
+```
+sudo apt-get update
+sudo apt-get install -y \
+    libgl1-mesa-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxrandr-dev \
+    libxi-dev \
+    ninja-build
 ```
 
 ## Custom Models
