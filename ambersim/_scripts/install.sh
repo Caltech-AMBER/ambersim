@@ -109,5 +109,6 @@ fi
 
 # Checking whether to install mujoco from source
 if [ "$source" = true ] ; then
-    bash install_mj_source.sh -h "$hash" --mujoco-dir "$mujoco_dir"
+    script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    bash "$script_dir/install_mj_source.sh" -h "$hash" --mujoco-dir "$mujoco_dir"
 fi
