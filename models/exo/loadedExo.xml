@@ -57,7 +57,7 @@
                   solref="0.02 1"/> -->
    
         <!-- </body> -->
-      <geom conaffinity="15" condim="3" friction="1 .1 .1" material="plane" name="terrain_mesh"
+      <geom conaffinity="3" condim="3" friction="1 .1 .1" material="plane" name="terrain_mesh"
             rgba=".9 .9 .9 1"
             size="10 5 0.1"
             type="plane"/>
@@ -124,24 +124,27 @@
                                  type="mesh"/>
                            <geom condim="3" friction="1 0.1 0.001" name="left_sole" pos="0.06 -3.3e-05 -0.15975"
                                  contype="1"
+                                 conaffinity="0"
                                  solimp="0.9 0.95 0.001 0.4 2" 
                                  solref="0.02 1"
                                  quat="0.707105 0 -0.707108 0"
                                  rgba="1 0 0 1"
                                  size="0.0049535 0.059645 0.1375"
                                  type="box"/>
-                           <geom condim="3" friction="1" name="left_toe" pos="0.2195 0 -0.1537"
+                           <!-- <geom condim="3" friction="1" name="left_toe" pos="0.2195 0 -0.1537"
                                  contype="1"
+                                 conaffinity="0"
                                  quat="0.6018 0 -0.7986 0"
                                  rgba="1 0 0 1"
                                  size="0.0049535 0.059645 0.022"
-                                 type="box"/>
-                           <geom condim="3" friction="1" name="left_heel" pos="-0.0940 0 -0.1566"
+                                 type="box"/> -->
+                           <!-- <geom condim="3" friction="1" name="left_heel" pos="-0.0940 0 -0.1566"
                                  contype="1"
+                                 conaffinity="0"
                                  quat="0.7716 0 -0.6361 0"
                                  rgba="1 0 0 1"
                                  size="0.0049535 0.059645 0.0165"
-                                 type="box"/>
+                                 type="box"/> -->
                            <site name="left_foot_imu" pos="-0.036966       0.015    -0.13705"
                                  quat="-1.6377e-07    -0.94552  -5.639e-08     0.32557"
                                  size=".01"/>
@@ -209,25 +212,28 @@
                                  quat="0.945518 0 -0.32557 0"
                                  type="mesh"/>
                            <geom condim="3" friction="1 0.1 0.001" name="right_sole" pos="0.06 -3.3e-05 -0.15975"
-                                 contype="1"  
+                                 contype="2"  
+                                 conaffinity="0" 
                                  solimp="0.9 0.95 0.001 0.4 2" 
                                  solref="0.02 1"
                                  quat="0.707105 0 -0.707108 0"
                                  rgba="1 0 0 1"
                                  size="0.0049535 0.059645 0.1375"
                                  type="box"/>
-                           <geom condim="3" friction="1" name="right_toe" pos="0.2195 0 -0.1537"
-                                 contype="1"
+                           <!-- <geom condim="3" friction="1" name="right_toe" pos="0.2195 0 -0.1537"
+                                 contype="2"
+                                 conaffinity="0" 
                                  quat="0.6018 0 -0.7986 0"
                                  rgba="1 0 0 1"
                                  size="0.0049535 0.059645 0.022"
                                  type="box"/>
                            <geom condim="3" friction="1" name="right_heel" pos="-0.0940 0 -0.1566"
-                                 contype="1"
+                                 contype="2"
+                                 conaffinity="0" 
                                  quat="0.7716 0 -0.6361 0"
                                  rgba="1 0 0 1"
                                  size="0.0049535 0.059645 0.0165"
-                                 type="box"/>
+                                 type="box"/> -->
                            <site name="right_foot_imu" pos="-0.036966       0.015    -0.13705"
                                  quat="-1.6377e-07    -0.94552  -5.639e-08     0.32557"
                                  size=".01"/>
@@ -247,7 +253,7 @@
          </body>
       </body>
    </worldbody>
-   <contact>
+   <!-- <contact>
       <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="left_sole" geom2="terrain_mesh"
            />
       <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="right_sole" geom2="terrain_mesh"
@@ -260,7 +266,7 @@
             />
       <pair condim="3" friction="1 1 0.005 0.0001 0.0001" geom1="right_heel" geom2="terrain_mesh"
             />
-   </contact>
+   </contact> -->
    <actuator>
       <general ctrllimited="true" ctrlrange="-350  350" joint="LeftFrontalHipJoint" class="multi_mode_controlled_actuator"
              name="LeftFrontalHipLink_actuator"/>

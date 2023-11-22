@@ -1,13 +1,13 @@
-import jax
-from jax import numpy as jp
-import numpy as np
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 
+import jax
+import mujoco
+import numpy as np
 from brax.base import Base, Motion, Transform
 from brax.envs.base import Env
-import mujoco
-from mujoco import mjx
 from flax import struct
+from jax import numpy as jp
+from mujoco import mjx
 
 
 class MjxEnv(Env):
@@ -57,17 +57,25 @@ class MjxEnv(Env):
 
     @property
     def observation_size(self) -> int:
+        """Returns the size of the observation vector."""
         rng = jax.random.PRNGKey(0)
         reset_state = self.unwrapped.reset(rng)
         return reset_state.obs.shape[-1]
 
     @property
     def action_size(self) -> int:
+        """Returns the size of the action vector."""
         return self.sys.nu
 
     @property
     def backend(self) -> str:
+        """Returns the backend used by the environment."""
         return "mjx"
+
+    @property
+    def mass(self) -> float:
+        """Returns the total mass of the system."""
+        return jp.sum(self.model.body_mass)
 
     def _pos_vel(self, data: mjx.Data) -> Tuple[Transform, Motion]:
         """Returns 6d spatial transform and 6d velocity for all bodies."""
