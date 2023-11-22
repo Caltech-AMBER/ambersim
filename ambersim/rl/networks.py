@@ -26,7 +26,7 @@ class MLP(nn.Module):
     bias: bool = True
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """Forward pass through the network."""
         # TODO(vincekurtz): consider using jax control flow here
         for i, layer_size in enumerate(self.layer_sizes):
