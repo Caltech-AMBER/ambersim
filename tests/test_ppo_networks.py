@@ -1,5 +1,7 @@
+import pickle
+from pathlib import Path
+
 import jax
-import jax.numpy as jnp
 import pytest
 from brax.training import distribution
 from brax.training.agents.ppo.networks import PPONetworks
@@ -49,3 +51,39 @@ def test_ppo_wrapper():
         action_size=action_size,
     )
     assert isinstance(ppo_networks, PPONetworks)
+
+
+def test_ppo_networks_io():
+    """Test saving and loading PPONetworks."""
+    # Create a PPONetworks object
+    observation_size = 3
+    action_size = 2
+    network_wrapper = BraxPPONetworksWrapper(
+        policy_network=MLP(layer_sizes=(512, 4)),
+        value_network=MLP(layer_sizes=(512, 1)),
+        action_distribution=distribution.NormalTanhDistribution,
+    )
+    ppo_networks = network_wrapper.make_ppo_networks(
+        observation_size=observation_size,
+        action_size=action_size,
+    )
+    assert isinstance(ppo_networks, PPONetworks)
+
+    # Save to a file
+    local_dir = Path("_test_ppo_networks_io")
+    local_dir.mkdir(parents=True, exist_ok=True)
+    model_path = local_dir / "ppo_networks.pkl"
+    with Path(model_path).open("wb") as f:
+        pickle.dump(network_wrapper, f)
+
+    # Load from a file and check that the network is the same
+    with Path(model_path).open("rb") as f:
+        new_network_wrapper = pickle.load(f)
+    new_ppo_networks = new_network_wrapper.make_ppo_networks(
+        observation_size=observation_size,
+        action_size=action_size,
+    )
+    assert isinstance(new_ppo_networks, PPONetworks)
+    assert jax.tree_util.tree_structure(ppo_networks) == jax.tree_util.tree_structure(new_ppo_networks)
+
+    _rmtree(local_dir)
