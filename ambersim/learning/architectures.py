@@ -20,7 +20,9 @@ class MLP(nn.Module):
     @nn.compact
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         """Forward pass through the network."""
-        # TODO(vincekurtz): consider using jax control flow here
+        # TODO(vincekurtz): consider using jax control flow here. Note that
+        # standard jax control flows (e.g. jax.lax.scan) do not play nicely with
+        # flax, see for example https://github.com/google/flax/discussions/1283.
         for i, layer_size in enumerate(self.layer_sizes):
             x = nn.Dense(
                 layer_size,
