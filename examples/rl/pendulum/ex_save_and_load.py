@@ -20,7 +20,8 @@ from brax.training.agents.ppo import train as ppo
 from brax.training.agents.ppo.networks import make_inference_fn
 from mujoco import mjx
 
-from ambersim.rl.networks import MLP, BraxPPONetworksWrapper
+from ambersim.learning.architectures import MLP
+from ambersim.rl.helpers import BraxPPONetworksWrapper
 from ambersim.rl.pendulum.swingup import PendulumSwingupEnv
 
 """

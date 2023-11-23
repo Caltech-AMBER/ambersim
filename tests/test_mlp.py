@@ -4,7 +4,7 @@ from pathlib import Path
 import jax
 import jax.numpy as jnp
 
-from ambersim.rl.networks import MLP
+from ambersim.learning.architectures import MLP
 from ambersim.utils._internal_utils import _rmtree
 
 

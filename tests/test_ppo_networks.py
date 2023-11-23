@@ -6,7 +6,8 @@ import pytest
 from brax.training import distribution
 from brax.training.agents.ppo.networks import PPONetworks
 
-from ambersim.rl.networks import MLP, BraxPPONetworksWrapper
+from ambersim.learning.architectures import MLP
+from ambersim.rl.helpers import BraxPPONetworksWrapper
 from ambersim.utils._internal_utils import _rmtree
 
 
