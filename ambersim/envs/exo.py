@@ -113,9 +113,12 @@ class Exo(MjxEnv):
         self.load_ctrl_params()
 
         self.loadRelevantParams()
-        self.custom_action_space = config.custom_action_space
-        self.custom_act_space_size = int(jp.sum(self.custom_action_space))
-
+        if self.config.residual_action_space:
+            self.custom_action_space = config.custom_action_space
+            self.custom_act_space_size = int(jp.sum(self.custom_action_space))
+        else:
+            self.custom_action_space = jp.ones(self.model.nu)
+            self.custom_act_space_size = self.model.nu
         # calculate observation size
         # TODO: fix hard code here
         self.observation_size_single_step = (
@@ -282,10 +285,7 @@ class Exo(MjxEnv):
             "last_full_act": jp.zeros(self.model.nu),
             "last_act": jp.zeros(self.action_size),
             "last_vel": jp.zeros(12),
-            # "last_contact_buffer": jp.zeros((20, 4), dtype=bool),
             "command": new_cmd,
-            # "last_contact": jp.zeros(4, dtype=bool),
-            # "feet_air_time": jp.zeros(4),
             "mcot": zero,
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
             "nominal_action": jp.zeros(12),
@@ -426,13 +426,13 @@ class Exo(MjxEnv):
         cur_action = action
         # action = self.convert_action_to_full_dimension(action)
         # action = action * self.config.action_scale
-        action = self.conv_action_based_on_idx(cur_action, jp.zeros(12))
 
         data0 = state.pipeline_state
         domain_idx = state.info["domain_info"]["domain_idx"]
         step_start = state.info["domain_info"]["step_start"]
 
         if self.config.residual_action_space:
+            action = self.conv_action_based_on_idx(cur_action, jp.zeros(12))
 
             def update_step(step_start, domain_idx):
                 new_step_start = data0.time
@@ -603,18 +603,6 @@ class Exo(MjxEnv):
         # This means less deviation results in a higher (less negative) reward
         return self.config.reward.cop_scale * jp.sum(deviation_L + deviation_R)
 
-    # def _get_foot_vel(self, x: Transform, xd: Motion, contact_filt: jax.Array) -> jax.Array:
-    #     # Get feet velocities
-    #     _, foot_world_vel = self._get_feet_pos_vel(x, xd)
-    #     # Penalize large feet velocity for feet that are in contact with the ground.
-    #     return jp.sum(jp.square(foot_world_vel[:, :2]) * contact_filt.reshape((-1, 1)))
-
-    # def _get_feet_pos_vel(self, x: Transform, xd: Motion) -> Tuple[jax.Array, jax.Array]:
-    #     offset = Transform.create(pos=self.config.feet_pos)
-    #     pos = x.take(self.config.feet_indices).vmap().do(offset).pos
-    #     vel = offset.vmap().do(xd.take(self.config.feet_indices)).vel
-    #     return pos, vel
-
     def _get_contact_force(self, data: mjx.Data) -> jax.Array:
         contact_force = data.efc_force[data.contact.efc_address]
         return contact_force
@@ -714,30 +702,6 @@ class Exo(MjxEnv):
         dtau = 1 / step_dur
         dB = dB * dtau
         return dB  # dB.astype(jnp.float32)
-
-    # def _ncr_vec(self, n, r_vec):
-    #     r_vec = jp.minimum(r_vec, n - r_vec)
-    #     numer = jp.array([jp.prod(jp.arange(n, n - r, -1)) for r in r_vec])
-    #     denom = jp.array([jp.prod(jp.arange(1, r + 1)) for r in r_vec])
-    #     return numer // denom
-
-    # def _forward(self, t, t0, step_dur, alpha):
-    #     tau = jp.clip((t - t0) / step_dur, 0, 1)
-    #     i_vals = jp.arange(self.bez_deg + 1)
-    #     x = self._ncr_vec(self.bez_deg, i_vals)
-    #     powers = ((1 - tau) ** (self.bez_deg - i_vals)) * (tau ** i_vals)
-    #     B = jp.dot(x * powers, alpha.T)
-    #     return B
-
-    # def _forward_vel(self, t, t0, step_dur, alpha):
-    #     tau = jp.clip((t - t0) / step_dur, 0, 1)
-    #     i_vals = jp.arange(self.bez_deg)
-    #     coef = self.bez_deg * (alpha[:, 1:] - alpha[:, :-1]) * self._ncr_vec(self.bez_deg - 1, i_vals)
-    #     powers = ((1 - tau) ** (self.bez_deg - i_vals - 1)) * (tau ** i_vals)
-    #     dB = jp.dot(coef * powers, jp.ones(self.bez_deg))
-    #     dtau = 1 / step_dur
-    #     dB = dB * dtau
-    #     return dB
 
     def _getDesireJtTraj(self, alpha, step_dur, t, t0=0):
         self.q_desire = self._forward(t, t0, step_dur, alpha)

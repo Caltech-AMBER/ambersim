@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mujoco model="loadedExo">
-  <compiler angle="radian" autolimits="true" meshdir="STL"/>
+  <compiler angle="radian" autolimits="false" meshdir="STL"/>
   <size nconmax="100" njmax="500"/>
   <default>
       <joint limited="false"/>
-      <equality solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"/>
+      <equality solimp="0.9 0.95 0.001 0.5 1" solref="0.02 1"/>
       <default class="multi_mode_controlled_actuator">
        <general biastype="affine" gainprm="35 0 0 0 0 0 0 0 0 0" biasprm="0 -35 -0.65 0 0 0 0 0 0 0"/>
       </default>
-
-      <!-- <geom conaffinity="0" condim="1" contype="0" material="geom" margin="0.001"/> -->
    </default>
-  <option gravity="0 0 -9.81" integrator="RK4" iterations="50" solver="Newton"
+  <option gravity="0 0 -9.81" integrator="RK4" iterations="10" solver="Newton"
            timestep="0.001"/>
 
    <visual>

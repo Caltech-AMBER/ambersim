@@ -15,7 +15,9 @@ from ambersim.utils._internal_utils import _check_filepath
 from ambersim.utils.conversion_utils import save_model_xml
 
 
-def set_actuators_type(model: mj.MjModel, actuator_type: str, actuator_idx: int, kp: float = 35) -> mj.MjModel:
+def set_actuators_type(
+    model: mj.MjModel, actuator_type: str, actuator_idx: int, kp: float = 35, kd: float = 0
+) -> mj.MjModel:
     """Modify the actuator type based on given input.
 
     Args:
@@ -37,6 +39,7 @@ def set_actuators_type(model: mj.MjModel, actuator_type: str, actuator_idx: int,
             # Configure for position control
             model.actuator_gainprm[actuator_idx, 0] = kp  # Position gain
             model.actuator_biasprm[actuator_idx, 1] = -kp  # Position gain
+            model.actuator_gainprm[actuator_idx, 2] = -kd  # Velocity gain (?)
         elif actuator_type.lower() == "torque":
             # Configure for torque control
             model.actuator_gainprm[actuator_idx, 0] = 1.0  # Torque gain
