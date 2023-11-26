@@ -13,17 +13,19 @@ def test_mlp_construction():
     input_size = (3,)
     layer_sizes = (2, 3, 4)
 
+    # Pseudo-random keys
+    param_rng, tabulate_rng, input_rng = jax.random.split(jax.random.PRNGKey(0), 3)
+
     # Create the MLP
-    rng = jax.random.PRNGKey(0)
     mlp = MLP(layer_sizes=layer_sizes, bias=True)
     dummy_input = jnp.ones(input_size)
-    params = mlp.init(rng, dummy_input)
+    params = mlp.init(param_rng, dummy_input)
 
     # Check the MLP's structure
-    print(mlp.tabulate(rng, dummy_input))
+    print(mlp.tabulate(tabulate_rng, dummy_input))
 
     # Forward pass through the network
-    my_input = jax.random.normal(rng, input_size)
+    my_input = jax.random.normal(input_rng, input_size)
     my_output = mlp.apply(params, my_input)
     assert my_output.shape[-1] == layer_sizes[-1]
 
