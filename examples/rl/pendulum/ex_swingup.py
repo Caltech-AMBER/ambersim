@@ -2,14 +2,9 @@ import functools
 import time
 from datetime import datetime
 
-# Note: mujoco viewer must load before jax
-# isort: off
+import jax
 import mujoco
 import mujoco.viewer
-
-# isort: on
-
-import jax
 from brax import envs
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import train as ppo
