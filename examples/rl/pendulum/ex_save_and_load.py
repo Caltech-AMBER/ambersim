@@ -4,14 +4,9 @@ import sys
 import time
 from datetime import datetime
 
-# Note: mujoco viewer must load before jax
-# isort: off
+import jax
 import mujoco
 import mujoco.viewer
-
-# isort: on
-
-import jax
 from brax import envs
 from brax.io import model
 from brax.training import distribution
