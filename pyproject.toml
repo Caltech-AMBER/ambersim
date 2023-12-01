@@ -32,13 +32,12 @@ dependencies = [
 [project.optional-dependencies]
 
 # Development packages
-dev = [
+lint = [
     "black>=23.3.0",
     "flake8>=6.0.0",
     "isort>=5.12.0",
     "pre-commit>=3.3.2",
     "pyright>=1.1.332",
-    "pytest>=7.4.2",
 ]
 
 # Test-specific packages for verification
@@ -47,10 +46,17 @@ test = [
     "drake>=1.21.0",
     "libigl>=2.4.0",
     "pin>=2.6.20",
+    "pytest>=7.4.2",
+]
+
+# mujoco-MPC
+mjpc = [
+    "mujoco_mpc@git+https://github.com/google-deepmind/mujoco_mpc.git#subdirectory=python",
 ]
 
 # All packages
-all = ["ambersim[dev, test]"]
+dev = ["ambersim[lint, test]"]
+all = ["ambersim[lint, test, mjpc]"]
 
 [project.scripts]
 install-mujoco-from-src = "ambersim._scripts._install_shim:entrypoint"
