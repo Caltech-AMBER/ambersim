@@ -35,9 +35,6 @@ class TrajectoryOptimizerParams:
 class TrajectoryOptimizer:
     """The API for generic trajectory optimization algorithms."""
 
-    def __init__(self) -> None:
-        """Initialize the trajopt object."""
-
     @staticmethod
     def optimize(params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array]:
         """Optimizes a trajectory.
