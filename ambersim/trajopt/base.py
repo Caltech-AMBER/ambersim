@@ -33,18 +33,30 @@ class TrajectoryOptimizerParams:
 
 @struct.dataclass
 class TrajectoryOptimizer:
-    """The API for generic trajectory optimization algorithms."""
+    """The API for generic trajectory optimization algorithms on mechanical systems.
+
+    We choose to implement this as a flax dataclass (as opposed to a regular class whose functions operate on pytree
+    nodes) because:
+    (1) the OOP formalism allows us to define coherent abstractions through inheritance;
+    (2) struct.dataclass registers dataclasses a pytree nodes, so we can deal with awkward issues like the `self`
+        variable when using JAX transformations on methods of the dataclass.
+    """
 
     @staticmethod
-    def optimize(params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array]:
+    def optimize(params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory.
+
+        The shapes of the outputs include (?) because we may choose to return non-zero-order-hold parameterizations of
+        the optimized trajectories (for example, we could choose to return a cubic spline parameterization of the
+        control inputs over the trajectory as is done in the gradient-based methods of MJPC).
 
         Args:
             params: The parameters of the trajectory optimizer.
 
         Returns:
-            xs (shape=(N + 1, nq + nv)): The optimized trajectory.
-            us (shape=(N, nu)): The optimized controls.
+            qs (shape=(N + 1, nq) or (?)): The optimized trajectory.
+            vs (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
+            us (shape=(N, nu) or (?)): The optimized controls.
         """
         # abstract dataclasses are weird, so we just make all children implement this - to be useful, they need it
         # anyway, so it isn't really a problem if an "abstract" TrajectoryOptimizer is instantiated.
