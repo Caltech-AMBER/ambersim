@@ -49,7 +49,23 @@ class TrajectoryOptimizer:
         situation in vanilla predictive sampling. If we don't need to pass the model, we instead initialize it as a
         field of this dataclass, which makes the optimize function more performant, since it can just reference the
         fixed model attribute of the optimizer instead of applying JAX transformations to the entire large model pytree.
+
+    Finally, abstract dataclasses are weird, so we just make all children implement the below functions by instead
+    raising a NotImplementedError.
     """
+
+    def cost(self, qs: jax.Array, vs: jax.Array, us: jax.Array) -> jax.Array:
+        """Computes the cost of a trajectory.
+
+        Args:
+            qs: The generalized positions over the trajectory.
+            vs: The generalized velocities over the trajectory.
+            us: The controls over the trajectory.
+
+        Returns:
+            The cost of the trajectory.
+        """
+        raise NotImplementedError
 
     def optimize(self, params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory.
@@ -66,6 +82,4 @@ class TrajectoryOptimizer:
             vs_star (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
             us_star (shape=(N, nu) or (?)): The optimized controls.
         """
-        # abstract dataclasses are weird, so we just make all children implement this - to be useful, they need it
-        # anyway, so it isn't really a problem if an "abstract" TrajectoryOptimizer is instantiated.
         raise NotImplementedError
