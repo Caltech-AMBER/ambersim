@@ -8,6 +8,7 @@ from mujoco import mjx
 from mujoco.mjx import step
 
 from ambersim.trajopt.base import TrajectoryOptimizer, TrajectoryOptimizerParams
+from ambersim.trajopt.cost import CostFunction
 
 """Shooting methods and their derived subclasses."""
 
@@ -77,19 +78,6 @@ class ShootingParams(TrajectoryOptimizerParams):
 class ShootingAlgorithm(TrajectoryOptimizer):
     """A trajectory optimization algorithm based on shooting methods."""
 
-    def cost(self, qs: jax.Array, vs: jax.Array, us: jax.Array) -> jax.Array:
-        """Computes the cost of a trajectory.
-
-        Args:
-            qs: The generalized positions over the trajectory.
-            vs: The generalized velocities over the trajectory.
-            us: The controls over the trajectory.
-
-        Returns:
-            The cost of the trajectory.
-        """
-        raise NotImplementedError
-
     def optimize(self, params: ShootingParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory using a shooting method.
 
@@ -125,13 +113,10 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
     (4) the cost function is quadratic in the states and controls.
     """
 
-    model: mjx.Model = struct.field(pytree_node=False)
+    model: mjx.Model
+    cost: CostFunction
     nsamples: int = struct.field(pytree_node=False)
     stdev: float = struct.field(pytree_node=False)  # noise scale, parameters theta_new ~ N(theta, (stdev ** 2) * I)
-
-    def cost(self, qs: jax.Array, vs: jax.Array, us: jax.Array) -> jax.Array:
-        """Computes the cost of a trajectory using quadratic weights."""
-        raise NotImplementedError  # TODO(ahl): implement this, maybe make a library of parametric cost functions
 
     def optimize(self, params: VanillaPredictiveSamplerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory using a vanilla predictive sampler.
@@ -172,7 +157,7 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
 
         # predict many samples, evaluate them, and return the best trajectory tuple
         qs_samples, vs_samples = vmap(shoot, in_axes=(None, None, None, 0))(m, q0, v0, us_samples)
-        costs = vmap(self.cost)(qs_samples, vs_samples, us_samples)  # (nsamples,)
+        costs, _ = vmap(self.cost, in_axes=(0, 0, 0, None))(qs_samples, vs_samples, us_samples, None)  # (nsamples,)
         best_idx = jnp.argmin(costs)
         qs_star = lax.dynamic_slice(qs_samples, (best_idx, 0, 0), (1, N + 1, m.nq))[0]  # (N + 1, nq)
         vs_star = lax.dynamic_slice(vs_samples, (best_idx, 0, 0), (1, N + 1, m.nv))[0]  # (N + 1, nv)
