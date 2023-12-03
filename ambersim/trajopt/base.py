@@ -40,10 +40,18 @@ class TrajectoryOptimizer:
     (1) the OOP formalism allows us to define coherent abstractions through inheritance;
     (2) struct.dataclass registers dataclasses a pytree nodes, so we can deal with awkward issues like the `self`
         variable when using JAX transformations on methods of the dataclass.
+
+    Further, we choose not to specify the mjx.Model as either a field of this dataclass or as a parameter. The reason is
+    because we want to allow for maximum flexibility in the API. Two motivating scenarios:
+    (1) we want to domain randomize over the model parameters and potentially optimize for them. In this case, it makes
+        sense to specify the mjx.Model as a parameter that gets passed as an input into the optimize function.
+    (2) we want to fix the model and only randomize/optimize over non-model-parameters. For instance, this is the
+        situation in vanilla predictive sampling. If we don't need to pass the model, we instead initialize it as a
+        field of this dataclass, which makes the optimize function more performant, since it can just reference the
+        fixed model attribute of the optimizer instead of applying JAX transformations to the entire large model pytree.
     """
 
-    @staticmethod
-    def optimize(params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
+    def optimize(self, params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory.
 
         The shapes of the outputs include (?) because we may choose to return non-zero-order-hold parameterizations of
@@ -54,9 +62,9 @@ class TrajectoryOptimizer:
             params: The parameters of the trajectory optimizer.
 
         Returns:
-            qs (shape=(N + 1, nq) or (?)): The optimized trajectory.
-            vs (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
-            us (shape=(N, nu) or (?)): The optimized controls.
+            qs_star (shape=(N + 1, nq) or (?)): The optimized trajectory.
+            vs_star (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
+            us_star (shape=(N, nu) or (?)): The optimized controls.
         """
         # abstract dataclasses are weird, so we just make all children implement this - to be useful, they need it
         # anyway, so it isn't really a problem if an "abstract" TrajectoryOptimizer is instantiated.
