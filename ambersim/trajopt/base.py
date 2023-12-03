@@ -2,6 +2,11 @@ from typing import Tuple
 
 import jax
 from flax import struct
+from jax import grad, hessian
+
+# ####################### #
+# TRAJECTORY OPTIMIZATION #
+# ####################### #
 
 
 @struct.dataclass
@@ -49,23 +54,12 @@ class TrajectoryOptimizer:
         situation in vanilla predictive sampling. If we don't need to pass the model, we instead initialize it as a
         field of this dataclass, which makes the optimize function more performant, since it can just reference the
         fixed model attribute of the optimizer instead of applying JAX transformations to the entire large model pytree.
+    Similar logic applies for not specifying the role of the CostFunction - we trust that the user will either use the
+    provided API or will ignore it and still end up implementing something custom and reasonable.
 
     Finally, abstract dataclasses are weird, so we just make all children implement the below functions by instead
     raising a NotImplementedError.
     """
-
-    def cost(self, qs: jax.Array, vs: jax.Array, us: jax.Array) -> jax.Array:
-        """Computes the cost of a trajectory.
-
-        Args:
-            qs: The generalized positions over the trajectory.
-            vs: The generalized velocities over the trajectory.
-            us: The controls over the trajectory.
-
-        Returns:
-            The cost of the trajectory.
-        """
-        raise NotImplementedError
 
     def optimize(self, params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory.
@@ -83,3 +77,91 @@ class TrajectoryOptimizer:
             us_star (shape=(N, nu) or (?)): The optimized controls.
         """
         raise NotImplementedError
+
+
+# ############# #
+# COST FUNCTION #
+# ############# #
+
+
+@struct.dataclass
+class CostFunctionParams:
+    """Generic parameters for cost functions."""
+
+
+@struct.dataclass
+class CostFunction:
+    """The API for generic cost functions for trajectory optimization problems for mechanical systems.
+
+    Rationale behind CostFunctionParams in this generic API:
+    (1) computation of higher-order derivatives could depend on results or intermediates from lower-order derivatives.
+        So, we can flexibly cache the requisite values to avoid repeated computation;
+    (2) we may want to randomize or optimize the cost function parameters themselves, so specifying a generic pytree
+        as input generically accounts for all possibilities;
+    (3) there could simply be parameters that cannot be easily specified in advance that are key for cost evaluation,
+        like a time-varying reference trajectory that gets updated in real time.
+    (4) histories of higher-order derivatives can be useful for updating their current estimates, e.g., BFGS.
+    """
+
+    def cost(
+        self, qs: jax.Array, vs: jax.Array, us: jax.Array, params: CostFunctionParams
+    ) -> Tuple[jax.Array, CostFunctionParams]:
+        """Computes the cost of a trajectory.
+
+        Args:
+            qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
+            vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
+            us (shape=(N, nu)): The controls over the trajectory.
+
+        Returns:
+            val (shape=(,)): The cost of the trajectory.
+            new_params: The updated parameters of the cost function.
+        """
+        raise NotImplementedError
+
+    def grad(
+        self, qs: jax.Array, vs: jax.Array, us: jax.Array, params: CostFunctionParams
+    ) -> Tuple[jax.Array, jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
+        """Computes the gradient of the cost of a trajectory.
+
+        The default implementation of this function uses JAX's autodiff. Simply override this function if you would like
+        to supply an analytical gradient.
+
+        Args:
+            qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
+            vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
+            us (shape=(N, nu)): The controls over the trajectory.
+
+        Returns:
+            gcost_qs (shape=(N + 1, nq): The gradient of the cost wrt qs.
+            gcost_vs (shape=(N + 1, nv): The gradient of the cost wrt vs.
+            gcost_us (shape=(N, nu)): The gradient of the cost wrt us.
+            gcost_params: The gradient of the cost wrt params.
+            new_params: The updated parameters of the cost function.
+        """
+        return grad(self.cost, argnums=(0, 1, 2, 3))(qs, vs, us, params) + (params,)
+
+    def hess(
+        self, qs: jax.Array, vs: jax.Array, us: jax.Array, params: CostFunctionParams
+    ) -> Tuple[jax.Array, jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
+        """Computes the Hessian of the cost of a trajectory.
+
+        The default implementation of this function uses JAX's autodiff. Simply override this function if you would like
+        to supply an analytical Hessian.
+
+        Args:
+            qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
+            vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
+            us (shape=(N, nu)): The controls over the trajectory.
+
+        Returns:
+            Hcost_qs (shape=(N + 1, nq, N + 1, nq)): The Hessian of the cost wrt qs.
+                Let t, s be times from 0 to N + 1. Then, d^2/dq_{t,i}dq_{s,j} = Hcost_qs[t, i, s, j].
+            Hcost_vs (shape=(N + 1, nv, N + 1, nv)): The Hessian of the cost wrt vs.
+                Let t, s be times from 0 to N + 1. Then, d^2/dv_{t,i}dv_{s,j} = Hcost_vs[t, i, s, j].
+            Hcost_us (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
+                Let t, s be times from 0 to N. Then, d^2/du_{t,i}du_{s,j} = Hcost_us[t, i, s, j].
+            Hcost_params: The Hessian of the cost wrt params.
+            new_params: The updated parameters of the cost function.
+        """
+        return hessian(self.cost, argnums=(0, 1, 2, 3))(qs, vs, us, params) + (params,)
