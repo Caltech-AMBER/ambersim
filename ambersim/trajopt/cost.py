@@ -61,7 +61,7 @@ class StaticGoalQuadraticCost(CostFunction):
         return xs, xg, xs_err, xf_err, qs.shape[-1], vs.shape[-1]
 
     @staticmethod
-    def batch_quadform(bs: jax.Array, A: jax.array) -> jax.Array:
+    def batch_quadform(bs: jax.Array, A: jax.Array) -> jax.Array:
         """Computes a batched quadratic form for a single instance of A.
 
         Args:
@@ -97,6 +97,7 @@ class StaticGoalQuadraticCost(CostFunction):
             qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
             vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
+            params: Unused. Included for API compliance.
 
         Returns:
             cost_val: The cost of the trajectory.
@@ -117,6 +118,7 @@ class StaticGoalQuadraticCost(CostFunction):
             qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
             vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
+            params: Unused. Included for API compliance.
 
         Returns:
             gcost_qs (shape=(N + 1, nq): The gradient of the cost wrt qs.
@@ -147,6 +149,7 @@ class StaticGoalQuadraticCost(CostFunction):
             qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
             vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
+            params: Unused. Included for API compliance.
 
         Returns:
             Hcost_qs (shape=(N + 1, nq, N + 1, nq)): The Hessian of the cost wrt qs.
