@@ -19,13 +19,11 @@ from ambersim.trajopt.cost import CostFunction
 # ##### #
 
 
-# def shoot(m: mjx.Model, d: mjx.Data, q0: jax.Array, v0: jax.Array, us: jax.Array) -> Tuple[jax.Array, jax.Array]:
 def shoot(m: mjx.Model, q0: jax.Array, v0: jax.Array, us: jax.Array) -> Tuple[jax.Array, jax.Array]:
     """Utility function that shoots a model forward given a sequence of control inputs.
 
     Args:
         m: The model.
-        # d: The data.
         q0: The initial generalized coordinates.
         v0: The initial generalized velocities.
         us: The control inputs.
@@ -34,9 +32,10 @@ def shoot(m: mjx.Model, q0: jax.Array, v0: jax.Array, us: jax.Array) -> Tuple[ja
         qs (shape=(N + 1, nq)): The generalized coordinates.
         vs (shape=(N + 1, nv)): The generalized velocities.
     """
+    # initializing the data
     d = mjx.make_data(m)
-    # d = d.replace(qpos=q0, qvel=v0)  # setting the initial state.
-    # d = mjx.forward(m, d)  # setting other internal states like acceleration without integrating
+    d = d.replace(qpos=q0, qvel=v0)  # setting the initial state.
+    d = mjx.forward(m, d)  # setting other internal states like acceleration without integrating
 
     def scan_fn(d, u):
         """Integrates the model forward one step given the control input u."""
@@ -120,39 +119,9 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
     """
 
     model: mjx.Model
-    # data: mjx.Data
     cost_function: CostFunction
     nsamples: int = struct.field(pytree_node=False)
     stdev: float = struct.field(pytree_node=False)  # noise scale, parameters theta_new ~ N(theta, (stdev ** 2) * I)
-
-    # @classmethod
-    # def create(
-    #     cls,
-    #     model: mjx.Model,
-    #     cost_function: CostFunction,
-    #     nsamples: int,
-    #     stdev: float,
-    # ) -> "VanillaPredictiveSampler":
-    #     """Creates a vanilla predictive sampler from the given parameters.
-
-    #     You should always initialize the sampler using this class method.
-    #     """
-    #     # initializing a batched mjx.Data object
-    #     def _init_data(model: mjx.Model) -> mjx.Data:
-    #         data = mjx.make_data(model)
-    #         data = mjx.forward(model, data)
-    #         return data
-
-    #     _dummy_fn = lambda _dummy: _init_data(model)  # dummy fn to allow vmapping over func with no inputs
-    #     data = vmap(_dummy_fn)(jnp.empty(nsamples))  # (nsamples,)
-
-    #     return cls(
-    #         model=model,
-    #         data=data,
-    #         cost_function=cost_function,
-    #         nsamples=nsamples,
-    #         stdev=stdev,
-    #     )
 
     def optimize(self, params: VanillaPredictiveSamplerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory using a vanilla predictive sampler.
@@ -167,7 +136,6 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         """
         # unpack the params
         m = self.model
-        # d = self.data
         nsamples = self.nsamples
         stdev = self.stdev
 
@@ -193,7 +161,6 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
 
         # predict many samples, evaluate them, and return the best trajectory tuple
         # vmap over the input data and the control trajectories
-        # qs_samples, vs_samples = vmap(shoot, in_axes=(None, 0, None, None, 0))(m, d, q0, v0, us_samples)
         qs_samples, vs_samples = vmap(shoot, in_axes=(None, None, None, 0))(m, q0, v0, us_samples)
         costs, _ = vmap(self.cost_function.cost, in_axes=(0, 0, 0, None))(
             qs_samples, vs_samples, us_samples, None
