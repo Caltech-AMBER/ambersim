@@ -135,11 +135,11 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         # unpack the params
         m = self.model
         nsamples = self.nsamples
+        N = self.N
 
         q0 = params.q0
         v0 = params.v0
         us_guess = params.us_guess
-        N = params.N
         key = params.key
 
         # sample over the control inputs
