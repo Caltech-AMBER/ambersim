@@ -1,5 +1,3 @@
-import timeit
-
 import jax
 import jax.numpy as jnp
 from jax import jit
@@ -17,7 +15,7 @@ if __name__ == "__main__":
             timestep=0.002,  # dt
             iterations=1,  # number of Newton steps to take during solve
             ls_iterations=4,  # number of line search iterations along step direction
-            integrator=1,  # RK4 instead of Euler semi-implicit
+            integrator=0,  # Euler semi-implicit integration
             solver=2,  # Newton solver
             disableflags=DisableBit.CONTACT,  # [IMPORTANT] disable contact for this example
         )
@@ -30,7 +28,7 @@ if __name__ == "__main__":
         qg=jnp.zeros(model.nq),
         vg=jnp.zeros(model.nv),
     )
-    nsamples = 100
+    nsamples = 100000
     stdev = 0.01
     ps = VanillaPredictiveSampler(model=model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
 
@@ -38,35 +36,40 @@ if __name__ == "__main__":
     key = jax.random.PRNGKey(0)  # random seed for the predictive sampler
     q0 = jnp.zeros(model.nq).at[6].set(1.0)
     v0 = jnp.zeros(model.nv)
-    num_steps = 100
+    num_steps = 25
     us_guess = jnp.zeros((num_steps, model.nu))
     params = VanillaPredictiveSamplerParams(key=key, q0=q0, v0=v0, us_guess=us_guess)
 
     # sampling the best sequence of qs, vs, and us
     optimize_fn = jit(ps.optimize)
 
-    def _time_fn():
-        qs_star, vs_star, us_star = optimize_fn(params)
-        qs_star.block_until_ready()
-        vs_star.block_until_ready()
-        us_star.block_until_ready()
+    # [DEBUG] profiling with nsight systems
+    # qs_star, vs_star, us_star = optimize_fn(params)  # JIT compiling
+    # with jax.profiler.trace("/tmp/jax-trace", create_perfetto_link=True):
+    #     qs_star, vs_star, us_star = optimize_fn(params)  # after JIT
 
-    compile_time = timeit.timeit(_time_fn, number=1)
-    print(f"Compile time: {compile_time}")
+    # def _time_fn():
+    #     qs_star, vs_star, us_star = optimize_fn(params)
+    #     qs_star.block_until_ready()
+    #     vs_star.block_until_ready()
+    #     us_star.block_until_ready()
 
-    # informal timing test
-    # TODO(ahl): identify bottlenecks and zap them
-    # [Dec. 3, 2023] on vulcan, I've informally tested the scaling of runtime with the number of steps and the number
-    # of samples. Here are a few preliminary results:
-    # * nsamples=100, numsteps=10. avg: 0.01s
-    # * nsamples=1000, numsteps=10. avg: 0.015s
-    # * nsamples=10000, numsteps=10. avg: 0.07s
-    # * nsamples=100, numsteps=100. avg: 0.1s
-    # we conclude that the runtime scales predictably linearly with numsteps, but we also have some sort of (perhaps
-    # logarithmic) scaling of runtime with nsamples. this outlook is somewhat grim, and we need to also keep in mind
-    # that we've completely disabled contact for this example and set the number of solver iterations and line search
-    # iterations to very runtime-friendly values
-    num_timing_iters = 100
-    time = timeit.timeit(_time_fn, number=num_timing_iters)
-    print(f"Avg. runtime: {time / num_timing_iters}")  # timeit returns TOTAL time, so we compute the average ourselves
-    breakpoint()
+    # compile_time = timeit.timeit(_time_fn, number=1)
+    # print(f"Compile time: {compile_time}")
+
+    # # informal timing test
+    # # TODO(ahl): identify bottlenecks and zap them
+    # # [Dec. 3, 2023] on vulcan, I've informally tested the scaling of runtime with the number of steps and the number
+    # # of samples. Here are a few preliminary results:
+    # # * nsamples=100, numsteps=10. avg: 0.01s
+    # # * nsamples=1000, numsteps=10. avg: 0.015s
+    # # * nsamples=10000, numsteps=10. avg: 0.07s
+    # # * nsamples=100, numsteps=100. avg: 0.1s
+    # # we conclude that the runtime scales predictably linearly with numsteps, but we also have some sort of (perhaps
+    # # logarithmic) scaling of runtime with nsamples. this outlook is somewhat grim, and we need to also keep in mind
+    # # that we've completely disabled contact for this example and set the number of solver iterations and line search
+    # # iterations to very runtime-friendly values
+    # num_timing_iters = 100
+    # time = timeit.timeit(_time_fn, number=num_timing_iters)
+    # print(f"Avg. runtime: {time / num_timing_iters}")  # timeit returns TOTAL time, so we compute the average ourselves
+    # breakpoint()
