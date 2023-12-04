@@ -135,21 +135,20 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         # unpack the params
         m = self.model
         nsamples = self.nsamples
-        N = self.N
+        stdev = self.stdev
 
         q0 = params.q0
         v0 = params.v0
         us_guess = params.us_guess
+        N = params.N
         key = params.key
 
         # sample over the control inputs
-        # TODO(ahl): write a create classmethod that allows the user to set default_limits optionally with some semi-
-        # reasonable default value
-        keys = jax.random.split(key, nsamples)  # splitting the random key so we can vmap over random sampling
-        jrn = partial(jax.random.normal, shape=(N, m.nu))  # jax random normal function with shape already set
-        _us_samples = vmap(jrn)(keys) + us_guess  # (nsamples, N, nu)
+        _us_samples = us_guess + jax.random.normal(key, shape=(nsamples, N, m.nu)) * stdev
 
         # clamping the samples to their control limits
+        # TODO(ahl): write a create classmethod that allows the user to set default_limits optionally with some semi-
+        # reasonable default value
         # TODO(ahl): check whether joints with no limits have reasonable defaults for m.actuator_ctrlrange
         limits = m.actuator_ctrlrange
         clip_fn = partial(jnp.clip, a_min=limits[:, 0], a_max=limits[:, 1])  # clipping function with limits already set
