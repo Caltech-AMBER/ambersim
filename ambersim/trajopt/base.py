@@ -112,6 +112,7 @@ class CostFunction:
             qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
             vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
+            params: The parameters of the cost function.
 
         Returns:
             val (shape=(,)): The cost of the trajectory.
@@ -131,6 +132,7 @@ class CostFunction:
             qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
             vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
+            params: The parameters of the cost function.
 
         Returns:
             gcost_qs (shape=(N + 1, nq): The gradient of the cost wrt qs.
@@ -153,6 +155,7 @@ class CostFunction:
             qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
             vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
+            params: The parameters of the cost function.
 
         Returns:
             Hcost_qs (shape=(N + 1, nq, N + 1, nq)): The Hessian of the cost wrt qs.
