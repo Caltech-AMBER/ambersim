@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Tuple
 
 import jax
@@ -62,6 +63,8 @@ class ShootingParams(TrajectoryOptimizerParams):
     """Parameters for shooting methods."""
 
     # inputs into the algorithm
+    q0: jax.Array  # shape=(nq,) or (?)
+    v0: jax.Array  # shape=(nv,) or (?)
     us_guess: jax.Array  # shape=(N, nu) or (?)
 
     @property
@@ -114,7 +117,7 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
     """
 
     model: mjx.Model
-    cost: CostFunction
+    cost_function: CostFunction
     nsamples: int = struct.field(pytree_node=False)
     stdev: float = struct.field(pytree_node=False)  # noise scale, parameters theta_new ~ N(theta, (stdev ** 2) * I)
 
@@ -143,21 +146,23 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         # TODO(ahl): write a create classmethod that allows the user to set default_limits optionally with some semi-
         # reasonable default value
         keys = jax.random.split(key, nsamples)  # splitting the random key so we can vmap over random sampling
-        _us_samples = vmap(jax.random.normal, in_axes=(0, None))(keys, shape=(N, m.nu)) + us_guess  # (nsamples, N, nu)
+        jrn = partial(jax.random.normal, shape=(N, m.nu))  # jax random normal function with shape already set
+        _us_samples = vmap(jrn)(keys) + us_guess  # (nsamples, N, nu)
 
         # clamping the samples to their control limits
         # TODO(ahl): check whether joints with no limits have reasonable defaults for m.actuator_ctrlrange
         limits = m.actuator_ctrlrange
-        us_samples = vmap(vmap(jnp.clip, in_axes=(0, None, None)), in_axes=(0, None, None))(
-            _us_samples, a_min=limits[:, 0], a_max=limits[:, 1]
-        )  # apply limits only to the last dim, need a nested vmap
+        clip_fn = partial(jnp.clip, a_min=limits[:, 0], a_max=limits[:, 1])  # clipping function with limits already set
+        us_samples = vmap(vmap(clip_fn))(_us_samples)  # apply limits only to the last dim, need a nested vmap
         # limited = m.actuator_ctrllimited[:, None]  # (nu, 1) whether each actuator has limited control authority
         # default_limits = jnp.array([[-1000.0, 1000.0]] * m.nu)  # (nu, 2) default limits for each actuator
         # limits = jnp.where(limited, m.actuator_ctrlrange, default_limits)  # (nu, 2)
 
         # predict many samples, evaluate them, and return the best trajectory tuple
         qs_samples, vs_samples = vmap(shoot, in_axes=(None, None, None, 0))(m, q0, v0, us_samples)
-        costs, _ = vmap(self.cost, in_axes=(0, 0, 0, None))(qs_samples, vs_samples, us_samples, None)  # (nsamples,)
+        costs, _ = vmap(self.cost_function.cost, in_axes=(0, 0, 0, None))(
+            qs_samples, vs_samples, us_samples, None
+        )  # (nsamples,)
         best_idx = jnp.argmin(costs)
         qs_star = lax.dynamic_slice(qs_samples, (best_idx, 0, 0), (1, N + 1, m.nq))[0]  # (N + 1, nq)
         vs_star = lax.dynamic_slice(vs_samples, (best_idx, 0, 0), (1, N + 1, m.nv))[0]  # (N + 1, nv)
