@@ -136,8 +136,11 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         N = params.N
         key = params.key
 
-        # sample over the control inputs
-        _us_samples = us_guess + jax.random.normal(key, shape=(nsamples, N, m.nu)) * stdev
+        # sample over the control inputs - the first sample is the guess, since it's possible that it's the best one
+        noise = jnp.concatenate(
+            (jnp.zeros((1, N, m.nu)), jax.random.normal(key, shape=(nsamples - 1, N, m.nu)) * stdev), axis=0
+        )
+        _us_samples = us_guess + noise
 
         # clamping the samples to their control limits
         limits = m.actuator_ctrlrange
