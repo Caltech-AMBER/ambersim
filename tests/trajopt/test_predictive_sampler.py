@@ -1,5 +1,8 @@
+import os
+
 import jax
 import jax.numpy as jnp
+import pytest
 from jax import jit, vmap
 from mujoco.mjx._src.types import DisableBit
 
@@ -8,8 +11,11 @@ from ambersim.trajopt.cost import StaticGoalQuadraticCost
 from ambersim.trajopt.shooting import VanillaPredictiveSampler, VanillaPredictiveSamplerParams, shoot
 from ambersim.utils.io_utils import load_mjx_model_and_data_from_file
 
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"  # fixes OOM error
 
-def _make_vps_data():
+
+@pytest.fixture
+def vps_data():
     """Makes data required for testing vanilla predictive sampling."""
     # initializing the predictive sampler
     model, _ = load_mjx_model_and_data_from_file("models/barrett_hand/bh280.xml", force_float=False)
@@ -35,9 +41,9 @@ def _make_vps_data():
     return ps, model, cost_function
 
 
-def test_smoke_VPS():
+def test_smoke_VPS(vps_data):
     """Simple smoke test to make sure we can run inputs through the vanilla predictive sampler + jit."""
-    ps, model, _ = _make_vps_data()
+    ps, model, _ = vps_data
 
     # sampler parameters
     key = jax.random.PRNGKey(0)  # random seed for the predictive sampler
@@ -51,10 +57,10 @@ def test_smoke_VPS():
     assert optimize_fn(params)
 
 
-def test_VPS_cost_decrease():
+def test_VPS_cost_decrease(vps_data):
     """Tests to make sure vanilla predictive sampling decreases (or maintains) the cost."""
     # set up sampler and cost function
-    ps, model, cost_function = _make_vps_data()
+    ps, model, cost_function = vps_data
 
     # batched sampler parameters
     batch_size = 10
@@ -72,7 +78,7 @@ def test_VPS_cost_decrease():
     xs_stars, us_stars = vmap(ps.optimize)(params)
 
     # "optimal" rollout from predictive sampling
-    vmap_cost = vmap(lambda xs, us: cost_function.cost(xs, us, CostFunctionParams())[0], in_axes=(0, 0))
+    vmap_cost = jit(vmap(lambda xs, us: cost_function.cost(xs, us, CostFunctionParams()))[0], in_axes=(0, 0))
     costs_star = vmap_cost(xs_stars, us_stars)
 
     # simply shooting the random initial guess
