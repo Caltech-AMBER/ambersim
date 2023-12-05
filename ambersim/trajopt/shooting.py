@@ -149,15 +149,9 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         _us_samples = us_guess + jax.random.normal(key, shape=(nsamples, N, m.nu)) * stdev
 
         # clamping the samples to their control limits
-        # TODO(ahl): write a create classmethod that allows the user to set default_limits optionally with some semi-
-        # reasonable default value
-        # TODO(ahl): check whether joints with no limits have reasonable defaults for m.actuator_ctrlrange
         limits = m.actuator_ctrlrange
         clip_fn = partial(jnp.clip, a_min=limits[:, 0], a_max=limits[:, 1])  # clipping function with limits already set
         us_samples = vmap(vmap(clip_fn))(_us_samples)  # apply limits only to the last dim, need a nested vmap
-        # limited = m.actuator_ctrllimited[:, None]  # (nu, 1) whether each actuator has limited control authority
-        # default_limits = jnp.array([[-1000.0, 1000.0]] * m.nu)  # (nu, 2) default limits for each actuator
-        # limits = jnp.where(limited, m.actuator_ctrlrange, default_limits)  # (nu, 2)
 
         # predict many samples, evaluate them, and return the best trajectory tuple
         # vmap over the input data and the control trajectories
