@@ -26,7 +26,7 @@ dependencies = [
     "numpy>=1.23.1",
     "scipy>=1.10.0",
     # "torch>=1.13.1",
-    "tensorboard==2.13.0",  # [Dec. 4, 2023] https://github.com/tensorflow/tensorflow/issues/62075#issuecomment-1808652131
+    "tensorboard>=2.13.0",  # [Dec. 4, 2023] https://github.com/tensorflow/tensorflow/issues/62075#issuecomment-1808652131
 ]
 
 [project.optional-dependencies]
@@ -47,8 +47,8 @@ test = [
     # "drake>=1.21.0",
     "libigl>=2.4.0",
     "pin>=2.6.20",
-    # "tensorflow==2.13.0",  # [Dec. 4, 2023] https://github.com/tensorflow/tensorflow/issues/62075#issuecomment-1808652131
-    # "tensorboard-plugin-profile==2.13.0",
+    "tensorflow=>2.13.0",  # [Dec. 4, 2023] https://github.com/tensorflow/tensorflow/issues/62075#issuecomment-1808652131
+    "tensorboard-plugin-profile>=2.13.0",
 ]
 
 # All packages
