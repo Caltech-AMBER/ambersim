@@ -19,22 +19,20 @@ from ambersim.trajopt.cost import CostFunction
 # ##### #
 
 
-def shoot(m: mjx.Model, q0: jax.Array, v0: jax.Array, us: jax.Array) -> Tuple[jax.Array, jax.Array]:
+def shoot(m: mjx.Model, x0: jax.Array, us: jax.Array) -> jax.Array:
     """Utility function that shoots a model forward given a sequence of control inputs.
 
     Args:
         m: The model.
-        q0: The initial generalized coordinates.
-        v0: The initial generalized velocities.
+        x0: The initial state.
         us: The control inputs.
 
     Returns:
-        qs (shape=(N + 1, nq)): The generalized coordinates.
-        vs (shape=(N + 1, nv)): The generalized velocities.
+        xs (shape=(N + 1, nq + nv)): The state trajectory.
     """
     # initializing the data
     d = mjx.make_data(m)
-    d = d.replace(qpos=q0, qvel=v0)  # setting the initial state.
+    d = d.replace(qpos=x0[: m.nq], qvel=x0[m.nq :])  # setting the initial state.
     d = mjx.forward(m, d)  # setting other internal states like acceleration without integrating
 
     def scan_fn(d, u):
@@ -45,12 +43,9 @@ def shoot(m: mjx.Model, q0: jax.Array, v0: jax.Array, us: jax.Array) -> Tuple[ja
         return d, x
 
     # scan over the control inputs to get the trajectory.
-    _, xs = lax.scan(scan_fn, d, us, length=us.shape[0])
-    _qs = xs[:, : m.nq]
-    _vs = xs[:, m.nq : m.nq + m.nv]
-    qs = jnp.concatenate((q0[None, :], _qs), axis=0)  # (N + 1, nq)
-    vs = jnp.concatenate((v0[None, :], _vs), axis=0)  # (N + 1, nv)
-    return qs, vs
+    _, _xs = lax.scan(scan_fn, d, us, length=us.shape[0])
+    xs = jnp.concatenate((x0[None, :], _xs), axis=0)  # (N + 1, nq + nv)
+    return xs
 
 
 # ################ #
@@ -65,8 +60,7 @@ class ShootingParams(TrajectoryOptimizerParams):
     """Parameters for shooting methods."""
 
     # inputs into the algorithm
-    q0: jax.Array  # shape=(nq,) or (?)
-    v0: jax.Array  # shape=(nv,) or (?)
+    x0: jax.Array  # shape=(nq + nv,) or (?)
     us_guess: jax.Array  # shape=(N, nu) or (?)
 
     @property
@@ -83,16 +77,15 @@ class ShootingParams(TrajectoryOptimizerParams):
 class ShootingAlgorithm(TrajectoryOptimizer):
     """A trajectory optimization algorithm based on shooting methods."""
 
-    def optimize(self, params: ShootingParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
+    def optimize(self, params: ShootingParams) -> Tuple[jax.Array, jax.Array]:
         """Optimizes a trajectory using a shooting method.
 
         Args:
             params: The parameters of the trajectory optimizer.
 
         Returns:
-            qs (shape=(N + 1, nq) or (?)): The optimized trajectory.
-            vs (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
-            us (shape=(N, nu) or (?)): The optimized controls.
+            xs_star (shape=(N + 1, nq) or (?)): The optimized trajectory.
+            us_star (shape=(N, nu) or (?)): The optimized controls.
         """
         raise NotImplementedError
 
@@ -123,15 +116,14 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
     nsamples: int = struct.field(pytree_node=False)
     stdev: float = struct.field(pytree_node=False)  # noise scale, parameters theta_new ~ N(theta, (stdev ** 2) * I)
 
-    def optimize(self, params: VanillaPredictiveSamplerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
+    def optimize(self, params: VanillaPredictiveSamplerParams) -> Tuple[jax.Array, jax.Array]:
         """Optimizes a trajectory using a vanilla predictive sampler.
 
         Args:
             params: The parameters of the trajectory optimizer.
 
         Returns:
-            qs (shape=(N + 1, nq)): The optimized trajectory.
-            vs (shape=(N + 1, nv)): The optimized generalized velocities.
+            xs (shape=(N + 1, nq + nv)): The optimized trajectory.
             us (shape=(N, nu)): The optimized controls.
         """
         # unpack the params
@@ -139,8 +131,7 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         nsamples = self.nsamples
         stdev = self.stdev
 
-        q0 = params.q0
-        v0 = params.v0
+        x0 = params.x0
         us_guess = params.us_guess
         N = params.N
         key = params.key
@@ -155,12 +146,9 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
 
         # predict many samples, evaluate them, and return the best trajectory tuple
         # vmap over the input data and the control trajectories
-        qs_samples, vs_samples = vmap(shoot, in_axes=(None, None, None, 0))(m, q0, v0, us_samples)
-        costs, _ = vmap(self.cost_function.cost, in_axes=(0, 0, 0, None))(
-            qs_samples, vs_samples, us_samples, None
-        )  # (nsamples,)
+        xs_samples = vmap(shoot, in_axes=(None, None, 0))(m, x0, us_samples)
+        costs, _ = vmap(self.cost_function.cost, in_axes=(0, 0, None))(xs_samples, us_samples, None)  # (nsamples,)
         best_idx = jnp.argmin(costs)
-        qs_star = lax.dynamic_slice(qs_samples, (best_idx, 0, 0), (1, N + 1, m.nq))[0]  # (N + 1, nq)
-        vs_star = lax.dynamic_slice(vs_samples, (best_idx, 0, 0), (1, N + 1, m.nv))[0]  # (N + 1, nv)
+        xs_star = lax.dynamic_slice(xs_samples, (best_idx, 0, 0), (1, N + 1, m.nq + m.nv))[0]  # (N + 1, nq + nv)
         us_star = lax.dynamic_slice(us_samples, (best_idx, 0, 0), (1, N, m.nu))[0]  # (N, nu)
-        return qs_star, vs_star, us_star
+        return xs_star, us_star

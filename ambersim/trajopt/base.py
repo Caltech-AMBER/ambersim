@@ -72,8 +72,7 @@ class TrajectoryOptimizer:
             params: The parameters of the trajectory optimizer.
 
         Returns:
-            qs_star (shape=(N + 1, nq) or (?)): The optimized trajectory.
-            vs_star (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
+            xs_star (shape=(N + 1, nq + nv) or (?)): The optimized trajectory.
             us_star (shape=(N, nu) or (?)): The optimized controls.
         """
         raise NotImplementedError
@@ -103,14 +102,11 @@ class CostFunction:
     (4) histories of higher-order derivatives can be useful for updating their current estimates, e.g., BFGS.
     """
 
-    def cost(
-        self, qs: jax.Array, vs: jax.Array, us: jax.Array, params: CostFunctionParams
-    ) -> Tuple[jax.Array, CostFunctionParams]:
+    def cost(self, xs: jax.Array, us: jax.Array, params: CostFunctionParams) -> Tuple[jax.Array, CostFunctionParams]:
         """Computes the cost of a trajectory.
 
         Args:
-            qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
-            vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
+            xs (shape=(N + 1, nq + nv)): The state trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
             params: The parameters of the cost function.
 
@@ -121,50 +117,56 @@ class CostFunction:
         raise NotImplementedError
 
     def grad(
-        self, qs: jax.Array, vs: jax.Array, us: jax.Array, params: CostFunctionParams
-    ) -> Tuple[jax.Array, jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
+        self, xs: jax.Array, us: jax.Array, params: CostFunctionParams
+    ) -> Tuple[jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
         """Computes the gradient of the cost of a trajectory.
 
         The default implementation of this function uses JAX's autodiff. Simply override this function if you would like
         to supply an analytical gradient.
 
         Args:
-            qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
-            vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
+            xs (shape=(N + 1, nq + nv)): The state trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
             params: The parameters of the cost function.
 
         Returns:
-            gcost_qs (shape=(N + 1, nq): The gradient of the cost wrt qs.
-            gcost_vs (shape=(N + 1, nv): The gradient of the cost wrt vs.
+            gcost_xs (shape=(N + 1, nq + nv): The gradient of the cost wrt xs.
             gcost_us (shape=(N, nu)): The gradient of the cost wrt us.
             gcost_params: The gradient of the cost wrt params.
             new_params: The updated parameters of the cost function.
         """
-        return grad(self.cost, argnums=(0, 1, 2, 3))(qs, vs, us, params) + (params,)
+        _fn = lambda xs, us, params: self.cost(xs, us, params)[0]  # only differentiate wrt the cost val
+        return grad(_fn, argnums=(0, 1, 2))(xs, us, params) + (params,)
 
     def hess(
-        self, qs: jax.Array, vs: jax.Array, us: jax.Array, params: CostFunctionParams
-    ) -> Tuple[jax.Array, jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
+        self, xs: jax.Array, us: jax.Array, params: CostFunctionParams
+    ) -> Tuple[
+        jax.Array, jax.Array, CostFunctionParams, jax.Array, CostFunctionParams, CostFunctionParams, CostFunctionParams
+    ]:
         """Computes the Hessian of the cost of a trajectory.
 
         The default implementation of this function uses JAX's autodiff. Simply override this function if you would like
         to supply an analytical Hessian.
 
+        Let t, s be times 0, 1, 2, etc. Then, d^2H/da_{t,i}db_{s,j} = Hcost_asbs[t, i, s, j].
+
         Args:
-            qs (shape=(N + 1, nq)): The generalized positions over the trajectory.
-            vs (shape=(N + 1, nv)): The generalized velocities over the trajectory.
+            xs (shape=(N + 1, nq + nv)): The state trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
             params: The parameters of the cost function.
 
         Returns:
-            Hcost_qs (shape=(N + 1, nq, N + 1, nq)): The Hessian of the cost wrt qs.
-                Let t, s be times from 0 to N + 1. Then, d^2/dq_{t,i}dq_{s,j} = Hcost_qs[t, i, s, j].
-            Hcost_vs (shape=(N + 1, nv, N + 1, nv)): The Hessian of the cost wrt vs.
-                Let t, s be times from 0 to N + 1. Then, d^2/dv_{t,i}dv_{s,j} = Hcost_vs[t, i, s, j].
-            Hcost_us (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
-                Let t, s be times from 0 to N. Then, d^2/du_{t,i}du_{s,j} = Hcost_us[t, i, s, j].
-            Hcost_params: The Hessian of the cost wrt params.
+            Hcost_xsxs (shape=(N + 1, nq + nv, N + 1, nq + nv)): The Hessian of the cost wrt xs.
+            Hcost_xsus (shape=(N + 1, nq + nv, N, nu)): The Hessian of the cost wrt xs and us.
+            Hcost_xsparams: The Hessian of the cost wrt xs and params.
+            Hcost_usus (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
+            Hcost_usparams: The Hessian of the cost wrt us and params.
+            Hcost_paramsall: The Hessian of the cost wrt params and everything else.
             new_params: The updated parameters of the cost function.
         """
-        return hessian(self.cost, argnums=(0, 1, 2, 3))(qs, vs, us, params) + (params,)
+        _fn = lambda xs, us, params: self.cost(xs, us, params)[0]  # only differentiate wrt the cost val
+        hessians = hessian(_fn, argnums=(0, 1, 2))(xs, us, params)
+        Hcost_xsxs, Hcost_xsus, Hcost_xsparams = hessians[0]
+        _, Hcost_usus, Hcost_usparams = hessians[1]
+        Hcost_paramsall = hessians[2]
+        return Hcost_xsxs, Hcost_xsus, Hcost_xsparams, Hcost_usus, Hcost_usparams, Hcost_paramsall, params
