@@ -138,7 +138,7 @@ jit_fn = jit(fn)
 with jax.profiler.trace("/dir/to/profiling/results"):
     jit_fn()
 ```
-Now, the traced results will specifically show the time spent in `fn2` under the name you chose.
+Now, the traced results will specifically show the time spent in `fn2` under the name you chose. Note that you can also use `jax.profiler.TraceAnnotation` or `jax.profiler.annotate_function()` instead, [as recommended](https://jax.readthedocs.io/en/latest/profiling.html#adding-custom-trace-events).
 
 ### Tooling
 We use various tools to ensure code quality.
