@@ -78,7 +78,7 @@ def test_VPS_cost_decrease(vps_data):
     xs_stars, us_stars = vmap(ps.optimize)(params)
 
     # "optimal" rollout from predictive sampling
-    vmap_cost = jit(vmap(lambda xs, us: cost_function.cost(xs, us, CostFunctionParams()))[0], in_axes=(0, 0))
+    vmap_cost = jit(vmap(lambda xs, us: cost_function.cost(xs, us, CostFunctionParams())[0], in_axes=(0, 0)))
     costs_star = vmap_cost(xs_stars, us_stars)
 
     # simply shooting the random initial guess
