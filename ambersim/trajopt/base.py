@@ -72,8 +72,7 @@ class TrajectoryOptimizer:
             params: The parameters of the trajectory optimizer.
 
         Returns:
-            qs_star (shape=(N + 1, nq) or (?)): The optimized trajectory.
-            vs_star (shape=(N + 1, nv) or (?)): The optimized generalized velocities.
+            xs_star (shape=(N + 1, nq + nv) or (?)): The optimized trajectory.
             us_star (shape=(N, nu) or (?)): The optimized controls.
         """
         raise NotImplementedError
@@ -136,15 +135,20 @@ class CostFunction:
             gcost_params: The gradient of the cost wrt params.
             new_params: The updated parameters of the cost function.
         """
-        return grad(self.cost, argnums=(0, 1, 2))(xs, us, params) + (params,)
+        _fn = lambda xs, us, params: self.cost(xs, us, params)[0]  # only differentiate wrt the cost val
+        return grad(_fn, argnums=(0, 1, 2))(xs, us, params) + (params,)
 
     def hess(
         self, xs: jax.Array, us: jax.Array, params: CostFunctionParams
-    ) -> Tuple[jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
+    ) -> Tuple[
+        jax.Array, jax.Array, CostFunctionParams, jax.Array, CostFunctionParams, CostFunctionParams, CostFunctionParams
+    ]:
         """Computes the Hessian of the cost of a trajectory.
 
         The default implementation of this function uses JAX's autodiff. Simply override this function if you would like
         to supply an analytical Hessian.
+
+        Let t, s be times from 0 to N + 1. Then, d^2H/da_{t,i}db_{s,j} = Hcost_asbs[t, i, s, j].
 
         Args:
             xs (shape=(N + 1, nq + nv)): The state trajectory.
@@ -152,11 +156,17 @@ class CostFunction:
             params: The parameters of the cost function.
 
         Returns:
-            Hcost_xs (shape=(N + 1, nq + nv, N + 1, nq + nv)): The Hessian of the cost wrt xs.
-                Let t, s be times from 0 to N + 1. Then, d^2/dx_{t,i}dx_{s,j} = Hcost_xs[t, i, s, j].
-            Hcost_us (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
-                Let t, s be times from 0 to N. Then, d^2/du_{t,i}du_{s,j} = Hcost_us[t, i, s, j].
-            Hcost_params: The Hessian of the cost wrt params.
+            Hcost_xsxs (shape=(N + 1, nq + nv, N + 1, nq + nv)): The Hessian of the cost wrt xs.
+            Hcost_xsus (shape=(N + 1, nq + nv, N, nu)): The Hessian of the cost wrt xs and us.
+            Hcost_xsparams: The Hessian of the cost wrt xs and params.
+            Hcost_usus (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
+            Hcost_usparams: The Hessian of the cost wrt us and params.
+            Hcost_paramsall: The Hessian of the cost wrt params and everything else.
             new_params: The updated parameters of the cost function.
         """
-        return hessian(self.cost, argnums=(0, 1, 2))(xs, us, params) + (params,)
+        _fn = lambda xs, us, params: self.cost(xs, us, params)[0]  # only differentiate wrt the cost val
+        hessians = hessian(_fn, argnums=(0, 1, 2))(xs, us, params)
+        Hcost_xsxs, Hcost_xsus, Hcost_xsparams = hessians[0]
+        _, Hcost_usus, Hcost_usparams = hessians[1]
+        Hcost_paramsall = hessians[2]
+        return Hcost_xsxs, Hcost_xsus, Hcost_xsparams, Hcost_usus, Hcost_usparams, Hcost_paramsall, params

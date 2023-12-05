@@ -3,6 +3,7 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 from flax import struct
+from jax import lax, vmap
 
 from ambersim.trajopt.base import CostFunction, CostFunctionParams
 
@@ -31,30 +32,6 @@ class StaticGoalQuadraticCost(CostFunction):
         self.Qf = Qf
         self.R = R
         self.xg = xg
-
-    # @staticmethod
-    # def _setup_util(
-    #     xs: jax.Array, qg: jax.Array, vg: jax.Array
-    # ) -> Tuple[jax.Array, jax.Array, jax.Array, jax.Array, int, int, int]:
-    #     """Utility function that sets up the cost function.
-
-    #     Args:
-    #         xs (shape=(N + 1, nq + nv)): The state trajectory
-    #         xg (shape=(nq + nv,)): The goal state.
-
-    #     Returns:
-    #         xs (shape=(N + 1, nx)): The states over the trajectory.
-    #         xg (shape=(nx,)): The goal state.
-    #         xs_err (shape=(N, nx)): The state errors up to the final state.
-    #         xf_err (shape=(nx,)): The state error at the final state.
-    #         nq: The number of generalized coordinates.
-    #         nv: The number of generalized velocities.
-    #     """
-    #     xs = jnp.concatenate((qs, vs), axis=-1)
-    #     xg = jnp.concatenate((qg, vg), axis=-1)
-    #     xs_err = xs[:-1, :] - xg
-    #     xf_err = xs[-1, :] - xg
-    #     return xs, xg, xs_err, xf_err, qs.shape[-1], vs.shape[-1]
 
     @staticmethod
     def batch_quadform(bs: jax.Array, A: jax.Array) -> jax.Array:
@@ -98,8 +75,12 @@ class StaticGoalQuadraticCost(CostFunction):
         """
         xs_err = xs[:-1, :] - self.xg  # errors before the terminal state
         xf_err = xs[-1, :] - self.xg
-        val = 0.5 * (
-            self.batch_quadform(xs_err, self.Q) + self.batch_quadform(xf_err, self.Qf) + self.batch_quadform(us, self.R)
+        val = 0.5 * jnp.squeeze(
+            (
+                jnp.sum(self.batch_quadform(xs_err, self.Q))
+                + self.batch_quadform(xf_err, self.Qf)
+                + jnp.sum(self.batch_quadform(us, self.R))
+            )
         )
         return val, params
 
@@ -126,15 +107,19 @@ class StaticGoalQuadraticCost(CostFunction):
                 self.batch_matmul(xs_err, self.Q),
                 (self.Qf @ xf_err)[None, :],
             ),
-            axis=-1,
+            axis=-2,
         )
         gcost_us = self.batch_matmul(us, self.R)
         return gcost_xs, gcost_us, params, params
 
     def hess(
         self, xs: jax.Array, us: jax.Array, params: CostFunctionParams
-    ) -> Tuple[jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
+    ) -> Tuple[
+        jax.Array, jax.Array, CostFunctionParams, jax.Array, CostFunctionParams, CostFunctionParams, CostFunctionParams
+    ]:
         """Computes the gradient of the cost of a trajectory.
+
+        Let t, s be times from 0 to N + 1. Then, d^2H/da_{t,i}db_{s,j} = Hcost_asbs[t, i, s, j].
 
         Args:
             xs (shape=(N + 1, nq + nv)): The state trajectory.
@@ -142,15 +127,52 @@ class StaticGoalQuadraticCost(CostFunction):
             params: Unused. Included for API compliance.
 
         Returns:
-            Hcost_xs (shape=(N + 1, nq + nv, N + 1, nq + nv)): The Hessian of the cost wrt xs.
-                Let t, s be times from 0 to N + 1. Then, d^2/dx_{t,i}dx_{s,j} = Hcost_xs[t, i, s, j].
-            Hcost_us (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
-                Let t, s be times from 0 to N. Then, d^2/du_{t,i}du_{s,j} = Hcost_us[t, i, s, j].
-            Hcost_params: Unused. Included for API compliance.
-            new_params: Unused. Included for API compliance.
+            Hcost_xsxs (shape=(N + 1, nq + nv, N + 1, nq + nv)): The Hessian of the cost wrt xs.
+            Hcost_xsus (shape=(N + 1, nq + nv, N, nu)): The Hessian of the cost wrt xs and us.
+            Hcost_xsparams: The Hessian of the cost wrt xs and params.
+            Hcost_usus (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
+            Hcost_usparams: The Hessian of the cost wrt us and params.
+            Hcost_paramsall: The Hessian of the cost wrt params and everything else.
+            new_params: The updated parameters of the cost function.
         """
-        N = us.shape[0]
-        Q_tiled = jnp.tile(self.Q[None, :, None, :], (N + 1, 1, N + 1, 1))
-        Hcost_xs = Q_tiled.at[-1, :, -1, :].set(self.Qf)
-        Hcost_us = jnp.tile(self.R[None, :, None, :], (N, 1, N, 1))
-        return Hcost_xs, Hcost_us, params, params
+        # setting up
+        nx = self.Q.shape[0]
+        N, nu = us.shape
+        Q = self.Q
+        Qf = self.Qf
+        R = self.R
+        dummy_params = CostFunctionParams()
+
+        # Hessian for state
+        Hcost_xsxs = jnp.zeros((N + 1, nx, N + 1, nx))
+        Hcost_xsxs = vmap(
+            lambda i: lax.dynamic_update_slice(
+                jnp.zeros((nx, N + 1, nx)),
+                Q[:, None, :],
+                (0, i, 0),
+            )
+        )(
+            jnp.arange(N + 1)
+        )  # only the terms [i, :, i, :] are nonzero
+        Hcost_xsxs = Hcost_xsxs.at[-1, :, -1, :].set(Qf)  # last one is different
+
+        # trivial cross-terms of Hessian
+        Hcost_xsus = jnp.zeros((N + 1, nx, N, nu))
+        Hcost_xsparams = dummy_params
+
+        # Hessian for control inputs
+        Hcost_usus = jnp.zeros((N, nu, N, nu))
+        Hcost_usus = vmap(
+            lambda i: lax.dynamic_update_slice(
+                jnp.zeros((nu, N, nu)),
+                R[:, None, :],
+                (0, i, 0),
+            )
+        )(
+            jnp.arange(N)
+        )  # only the terms [i, :, i, :] are nonzero
+
+        # trivial cross-terms and Hessian for params
+        Hcost_usparams = dummy_params
+        Hcost_paramsall = dummy_params
+        return Hcost_xsxs, Hcost_xsus, Hcost_xsparams, Hcost_usus, Hcost_usparams, Hcost_paramsall, params
