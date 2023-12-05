@@ -119,7 +119,7 @@ class StaticGoalQuadraticCost(CostFunction):
     ]:
         """Computes the gradient of the cost of a trajectory.
 
-        Let t, s be times from 0 to N + 1. Then, d^2H/da_{t,i}db_{s,j} = Hcost_asbs[t, i, s, j].
+        Let t, s be times 0, 1, 2, etc. Then, d^2H/da_{t,i}db_{s,j} = Hcost_asbs[t, i, s, j].
 
         Args:
             xs (shape=(N + 1, nq + nv)): The state trajectory.
