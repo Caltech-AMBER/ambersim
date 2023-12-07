@@ -162,7 +162,7 @@ class CostFunction:
             Hcost_usus (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
             Hcost_usparams: The Hessian of the cost wrt us and cf_params.
             Hcost_paramsall: The Hessian of the cost wrt cf_params and everything else.
-            new_params: The updated parameters of the cost function.
+            new_cf_params: The updated parameters of the cost function.
         """
         _fn = lambda xs, us, cf_params: self.cost(xs, us, cf_params)[0]  # only differentiate wrt the cost val
         hessians = hessian(_fn, argnums=(0, 1, 2))(xs, us, cf_params)
