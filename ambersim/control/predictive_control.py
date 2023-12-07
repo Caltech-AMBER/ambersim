@@ -57,10 +57,10 @@ class PredictiveSamplingController(Controller):
         """Computes a control input using forward prediction.
 
         Args:
-                ctrl_params: Inputs into the controller.
+            ctrl_params: Inputs into the controller.
 
         Returns:
-                u (shape=(nu,)): The control input.
+            u (shape=(nu,)): The control input.
         """
         to_params = VanillaPredictiveSamplerParams(
             key=ctrl_params.key,
