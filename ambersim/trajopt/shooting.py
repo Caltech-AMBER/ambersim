@@ -77,11 +77,11 @@ class ShootingParams(TrajectoryOptimizerParams):
 class ShootingAlgorithm(TrajectoryOptimizer):
     """A trajectory optimization algorithm based on shooting methods."""
 
-    def optimize(self, params: ShootingParams) -> Tuple[jax.Array, jax.Array]:
+    def optimize(self, to_params: ShootingParams) -> Tuple[jax.Array, jax.Array]:
         """Optimizes a trajectory using a shooting method.
 
         Args:
-            params: The parameters of the trajectory optimizer.
+            to_params: The parameters of the trajectory optimizer.
 
         Returns:
             xs_star (shape=(N + 1, nq) or (?)): The optimized trajectory.
@@ -116,11 +116,11 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
     nsamples: int = struct.field(pytree_node=False)
     stdev: float = struct.field(pytree_node=False)  # noise scale, parameters theta_new ~ N(theta, (stdev ** 2) * I)
 
-    def optimize(self, params: VanillaPredictiveSamplerParams) -> Tuple[jax.Array, jax.Array]:
+    def optimize(self, to_params: VanillaPredictiveSamplerParams) -> Tuple[jax.Array, jax.Array]:
         """Optimizes a trajectory using a vanilla predictive sampler.
 
         Args:
-            params: The parameters of the trajectory optimizer.
+            to_params: The parameters of the trajectory optimizer.
 
         Returns:
             xs (shape=(N + 1, nq + nv)): The optimized trajectory.
@@ -131,10 +131,10 @@ class VanillaPredictiveSampler(ShootingAlgorithm):
         nsamples = self.nsamples
         stdev = self.stdev
 
-        x0 = params.x0
-        us_guess = params.us_guess
-        N = params.N
-        key = params.key
+        x0 = to_params.x0
+        us_guess = to_params.us_guess
+        N = to_params.N
+        key = to_params.key
 
         # sample over the control inputs - the first sample is the guess, since it's possible that it's the best one
         noise = jnp.concatenate(
