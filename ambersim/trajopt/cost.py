@@ -10,6 +10,7 @@ from ambersim.trajopt.base import CostFunction, CostFunctionParams
 """A collection of common cost functions."""
 
 
+@struct.dataclass
 class StaticGoalQuadraticCost(CostFunction):
     """A quadratic cost function that penalizes the distance to a static goal.
 
@@ -19,19 +20,10 @@ class StaticGoalQuadraticCost(CostFunction):
     dense.
     """
 
-    def __init__(self, Q: jax.Array, Qf: jax.Array, R: jax.Array, xg: jax.Array) -> None:
-        """Initializes a quadratic cost function.
-
-        Args:
-            Q (shape=(nx, nx)): The state cost matrix.
-            Qf (shape=(nx, nx)): The final state cost matrix.
-            R (shape=(nu, nu)): The control cost matrix.
-            xg (shape=(nq,)): The goal state.
-        """
-        self.Q = Q
-        self.Qf = Qf
-        self.R = R
-        self.xg = xg
+    Q: jax.Array  # shape=(nx, nx) state cost matrix
+    Qf: jax.Array  # shape=(nx, nx) final state cost matrix
+    R: jax.Array  # shape=(nu, nu) control cost matrix
+    xg: jax.Array  # shape=(nq + nv,) goal state
 
     @staticmethod
     def batch_quadform(bs: jax.Array, A: jax.Array) -> jax.Array:
