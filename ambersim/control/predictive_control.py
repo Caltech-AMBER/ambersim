@@ -64,14 +64,7 @@ class PredictiveSamplingController(PredictiveController):
         Returns:
             u (shape=(nu,)): The control input.
         """
-        to_params = VanillaPredictiveSamplerParams(
-            key=ctrl_params.key,
-            x0=ctrl_params.x,
-            us_guess=ctrl_params.us_guess,
-        )
-        _, us_star = self.trajectory_optimizer.optimize(to_params)
-        u = us_star[0, :]  # (nu,)
-        return u
+        return self.compute_with_us_star(ctrl_params)[0]
 
     def compute_with_us_star(self, ctrl_params: PredictiveSamplingControllerParams) -> Tuple[jax.Array, jax.Array]:
         """Computes a control input using forward prediction + the optimal sequence of guesses.
