@@ -12,6 +12,10 @@ from ambersim.trajopt.cost import StaticGoalQuadraticCost
 from ambersim.trajopt.shooting import PDPredictiveSampler
 from ambersim.utils.io_utils import load_mj_model_from_file, mj_to_mjx_model_and_data
 
+"""
+By far the most sensitive parameters for this controller parameterization are the rollout horizon N and the proportional gain.
+"""
+
 # ########## #
 # PARAMETERS #
 # ########## #
@@ -26,7 +30,7 @@ q_goal = jnp.array([0.0, 0.5, 0.5, 0.5, 0.0, 0.5, 0.5, 0.5, 0.0, 0.5, 0.5, 0.5, 
 
 nsamples = 100  # number of samples to draw for predictive sampling
 stdev = 0.1  # standard deviation of control parameters to draw
-N = 10  # number of time steps to predict
+N = 8  # number of time steps to predict
 
 key = jax.random.PRNGKey(1234)
 
@@ -35,7 +39,7 @@ key = jax.random.PRNGKey(1234)
 # ########## #
 
 # loading model
-mj_model = load_mj_model_from_file("models/allegro_hand/right_hand_position.xml")
+mj_model = load_mj_model_from_file("models/allegro_hand/right_hand_motor.xml")
 mj_model.opt.timestep = dt
 
 # defining the predictive controller
@@ -57,8 +61,8 @@ cost_function = StaticGoalQuadraticCost(
 )
 ps = PDPredictiveSampler(model=ctrl_model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
 
-kp = 0.5
-kd = 1.0
+kp = 5.0
+kd = 0.1
 controller = PDPredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
 jit_compute = jit(
     lambda key, x_meas, qgs_guess: controller.compute_with_qs_star(
@@ -92,7 +96,7 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
             for _ in range(num_phys_steps_per_control_step):
                 start = time.time()
                 u = -kp * (mj_data.qpos - qg) - kd * mj_data.qvel
-                u = np.clip(u, mj_model.jnt_range[:, 0], mj_model.jnt_range[:, 1])
+                u = np.clip(u, mj_model.actuator_ctrlrange[:, 0], mj_model.actuator_ctrlrange[:, 1])
                 mj_data.ctrl[:] = u
                 mujoco.mj_step(mj_model, mj_data)
                 viewer.sync()
