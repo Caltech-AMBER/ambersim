@@ -61,7 +61,7 @@ pip install "ambersim @ git+https://github.com/Caltech-AMBER/ambersim.git" --fin
 ```
 This package also installs a script that can help you optionally build and install `mujoco` from source to get the latest and greatest features and bugfixes between official releases.
 ```
-install-mujoco-from-source [--hash <mujoco_commit_hash>] [--mujoco-dir /path/to/local/mujoco]
+install-mujoco-from-src [--hash <mujoco_commit_hash>] [--mujoco-dir /path/to/local/mujoco]
 ```
 Both `--hash` and `--mujoco-dir` are optional arguments. If no hash is supplied, we pull the latest one. If no `mujoco` directory is supplied, we clone `mujoco` into `$HOME/mujoco`. We recommend pointing this to a reasonable location instead of using the default.
 
