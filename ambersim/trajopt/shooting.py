@@ -48,13 +48,13 @@ def shoot(m: mjx.Model, x0: jax.Array, us: jax.Array) -> jax.Array:
     return xs
 
 
-def shoot_pd(m: mjx.Model, x0: jax.Array, xgs: jax.Array, kp: float, kd: float) -> jax.Array:
+def shoot_pd(m: mjx.Model, x0: jax.Array, qgs: jax.Array, kp: float, kd: float) -> jax.Array:
     """Utility function that shoots a model forward given a sequence of goal states + PD gains.
 
     Args:
         m: The model.
         x0 (shape=(nx,)): The initial state.
-        xgs (shape=(N, nx)): The goal trajectory.
+        qgs (shape=(N, nq)): The goal trajectory.
         kp: The proportional gain.
         kd: The derivative gain.
 
@@ -67,12 +67,10 @@ def shoot_pd(m: mjx.Model, x0: jax.Array, xgs: jax.Array, kp: float, kd: float) 
     d = d.replace(qpos=x0[: m.nq], qvel=x0[m.nq :])  # setting the initial state.
     d = mjx.forward(m, d)  # setting other internal states like acceleration without integrating
 
-    def scan_fn(d, xg):
+    def scan_fn(d, qg):
         """Integrates the model forward one step given the control input u."""
         # applying PD controller
-        qg = xg[: m.nq]
-        vg = xg[m.nq :]
-        u = -kp * (d.qpos - qg) - kd * (d.qvel - vg)
+        u = -kp * (d.qpos - qg) - kd * d.qvel
 
         d = d.replace(ctrl=u)
         d = step(m, d)
@@ -81,7 +79,7 @@ def shoot_pd(m: mjx.Model, x0: jax.Array, xgs: jax.Array, kp: float, kd: float) 
         return d, xu
 
     # scan over the control inputs to get the trajectory.
-    _, _xus = lax.scan(scan_fn, d, xgs, length=xgs.shape[0])
+    _, _xus = lax.scan(scan_fn, d, qgs, length=qgs.shape[0])
     _xs = _xus[:, : m.nq + m.nv]
     xs = jnp.concatenate((x0[None, :], _xs), axis=0)  # (N + 1, nq + nv)
     us = _xus[:, m.nq + m.nv :]
@@ -287,12 +285,10 @@ class PDPredictiveSampler(PredictiveSampler):
         limits = m.jnt_range
         clip_fn = partial(jnp.clip, a_min=limits[:, 0], a_max=limits[:, 1])  # clipping function with limits already set
         qgs_samples = vmap(vmap(clip_fn))(_qgs_samples)  # apply limits only to the last dim, need a nested vmap
-        vgs_samples = jnp.zeros_like(qgs_samples)
-        xgs_samples = jnp.concatenate((qgs_samples, vgs_samples), axis=-1)  # (nsamples, N, nq + nv)
 
         # predict many samples, evaluate them, and return the best trajectory tuple
         # vmap over the input data and the control trajectories
-        xs_samples, us_samples = vmap(shoot_pd, in_axes=(None, None, 0, None, None))(m, x0, xgs_samples, kp, kd)
+        xs_samples, us_samples = vmap(shoot_pd, in_axes=(None, None, 0, None, None))(m, x0, qgs_samples, kp, kd)
         costs, _ = vmap(self.cost_function.cost, in_axes=(0, 0, None))(xs_samples, us_samples, None)  # (nsamples,)
         best_idx = jnp.argmin(costs)
         xs_star = lax.dynamic_slice(xs_samples, (best_idx, 0, 0), (1, N + 1, m.nq + m.nv))[0]  # (N + 1, nq + nv)

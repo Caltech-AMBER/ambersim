@@ -7,12 +7,9 @@ import mujoco.viewer
 import numpy as np
 from jax import jit
 
-from ambersim.control.predictive_control import (
-    VanillaPredictiveSamplingController,
-    VanillaPredictiveSamplingControllerParams,
-)
+from ambersim.control.predictive_control import PDPredictiveSamplingController, PDPredictiveSamplingControllerParams
 from ambersim.trajopt.cost import StaticGoalQuadraticCost
-from ambersim.trajopt.shooting import VanillaPredictiveSampler
+from ambersim.trajopt.shooting import PDPredictiveSampler
 from ambersim.utils.io_utils import load_mj_model_from_file, mj_to_mjx_model_and_data
 
 # ########## #
@@ -38,7 +35,7 @@ key = jax.random.PRNGKey(1234)
 # ########## #
 
 # loading model
-mj_model = load_mj_model_from_file("models/allegro_hand/right_hand.xml")
+mj_model = load_mj_model_from_file("models/allegro_hand/right_hand_position.xml")
 mj_model.opt.timestep = dt
 
 # defining the predictive controller
@@ -58,11 +55,14 @@ cost_function = StaticGoalQuadraticCost(
     R=w_ctrl * jnp.eye(ctrl_model.nu),
     xg=jnp.concatenate((q_goal, jnp.zeros(16))),
 )
-ps = VanillaPredictiveSampler(model=ctrl_model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
-controller = VanillaPredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
+ps = PDPredictiveSampler(model=ctrl_model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
+
+kp = 0.5
+kd = 1.0
+controller = PDPredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
 jit_compute = jit(
-    lambda key, x_meas, us_guess: controller.compute_with_us_star(
-        VanillaPredictiveSamplingControllerParams(key=key, x=x_meas, guess=us_guess)
+    lambda key, x_meas, qgs_guess: controller.compute_with_qs_star(
+        PDPredictiveSamplingControllerParams(key=key, x=x_meas, guess=qgs_guess, kp=kp, kd=kd)
     )
 )
 print("Controller created! Simulating...")
@@ -74,10 +74,10 @@ mj_data = mujoco.MjData(mj_model)
 mj_data.qpos[:] = x0[: mj_model.nq]
 mj_data.qvel[:] = x0[mj_model.nq :]
 
-us_guess = jnp.zeros((N, mj_model.nu))
+qgs_guess = jnp.tile(x0[: mj_model.nq], (N, 1))
 
 print("Compiling jit_compute...")
-jit_compute(key, x0, us_guess)
+jit_compute(key, x0, qgs_guess)
 print("Compiled! Beginning simulation...")
 
 with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
@@ -85,12 +85,15 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
         while True:
             start = time.time()
             x_meas = jnp.concatenate((mj_data.qpos, mj_data.qvel))
-            u, _us_guess = jit_compute(key, x_meas, us_guess)
-            us_guess = np.concatenate((_us_guess[1:, :], np.zeros((1, mj_model.nu))))
-            mj_data.ctrl[:] = u
+            qg, _qgs_guess = jit_compute(key, x_meas, qgs_guess)
+            qg.block_until_ready()
+            qgs_guess = _qgs_guess[1:, :]
             print(f"Controller delay: {time.time() - start}")
             for _ in range(num_phys_steps_per_control_step):
                 start = time.time()
+                u = -kp * (mj_data.qpos - qg) - kd * mj_data.qvel
+                u = np.clip(u, mj_model.jnt_range[:, 0], mj_model.jnt_range[:, 1])
+                mj_data.ctrl[:] = u
                 mujoco.mj_step(mj_model, mj_data)
                 viewer.sync()
                 elapsed = time.time() - start

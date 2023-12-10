@@ -121,9 +121,9 @@ class PDPredictiveSamplingController(PredictiveController):
         Returns:
             u (shape=(nu,)): The control input.
         """
-        return self.compute_with_us_star(ctrl_params)[0]
+        return self.compute_with_qs_star(ctrl_params)[0]
 
-    def compute_with_us_star(self, ctrl_params: PDPredictiveSamplingControllerParams) -> Tuple[jax.Array, jax.Array]:
+    def compute_with_qs_star(self, ctrl_params: PDPredictiveSamplingControllerParams) -> Tuple[jax.Array, jax.Array]:
         """Computes a control input using forward prediction + the optimal sequence of guesses.
 
         This is needed in practice because the current optimal sequence is used to warm start the sampling distribution
@@ -144,5 +144,6 @@ class PDPredictiveSamplingController(PredictiveController):
             kd=ctrl_params.kd,
         )
         xs_star, us_star = self.trajectory_optimizer.optimize(to_params)
-        u = us_star[0, :]
-        return u, us_star
+        # u = us_star[0, :]
+        qs_star = xs_star[:, : self.model.nq]  # the 0th index is the current state, so return the 1st index
+        return qs_star[1, :], qs_star
