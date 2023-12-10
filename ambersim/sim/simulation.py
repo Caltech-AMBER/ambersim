@@ -3,14 +3,17 @@ import jax.numpy as jnp
 from jax import jit, lax
 from mujoco import mjx
 
-from ambersim.control.predictive_control import PredictiveSamplingController, PredictiveSamplingControllerParams
+from ambersim.control.predictive_control import (
+    VanillaPredictiveSamplingController,
+    VanillaPredictiveSamplingControllerParams,
+)
 
 """This file contains simulation utils for various controllers."""
 
 
 def simulate_predictive_sampling_controller(
     model: mjx.Model,
-    controller: PredictiveSamplingController,
+    controller: VanillaPredictiveSamplingController,
     x0: jax.Array,
     num_steps: int,
     N: int,
@@ -47,7 +50,7 @@ def simulate_predictive_sampling_controller(
 
     jit_compute = jit(
         lambda key, x_meas, us_guess: controller.compute_with_us_star(
-            PredictiveSamplingControllerParams(key=key, x=x_meas, us_guess=us_guess)
+            VanillaPredictiveSamplingControllerParams(key=key, x=x_meas, guess=us_guess)
         )
     )
     jit_step = jit(lambda data, u: mjx.step(model, data.replace(ctrl=u)))
@@ -135,11 +138,11 @@ if __name__ == "__main__":
     ps = VanillaPredictiveSampler(model=ctrl_model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
 
     N = 10
-    controller = PredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
+    controller = VanillaPredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
     # jit_compute = jit(
     #     shard_map(
     #         lambda key, x_meas, us_guess: controller.compute_with_us_star(
-    #             PredictiveSamplingControllerParams(key=key, x=x_meas, us_guess=us_guess)
+    #             VanillaPredictiveSamplingControllerParams(key=key, x=x_meas, guess=us_guess)
     #         ),
     #         mesh=mesh,
     #         in_specs=(P(), P(), P('i', None)),
@@ -149,7 +152,7 @@ if __name__ == "__main__":
     # )  # [DEBUG]
     jit_compute = jit(
         lambda key, x_meas, us_guess: controller.compute_with_us_star(
-            PredictiveSamplingControllerParams(key=key, x=x_meas, us_guess=us_guess)
+            VanillaPredictiveSamplingControllerParams(key=key, x=x_meas, guess=us_guess)
         )
     )
     print("Controller created! Simulating...")

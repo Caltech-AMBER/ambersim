@@ -7,7 +7,10 @@ import mujoco.viewer
 import numpy as np
 from jax import jit
 
-from ambersim.control.predictive_control import PredictiveSamplingController, PredictiveSamplingControllerParams
+from ambersim.control.predictive_control import (
+    VanillaPredictiveSamplingController,
+    VanillaPredictiveSamplingControllerParams,
+)
 from ambersim.trajopt.cost import StaticGoalQuadraticCost
 from ambersim.trajopt.shooting import VanillaPredictiveSampler
 from ambersim.utils.io_utils import load_mj_model_from_file, mj_to_mjx_model_and_data
@@ -56,10 +59,10 @@ cost_function = StaticGoalQuadraticCost(
     xg=jnp.concatenate((q_goal, jnp.zeros(16))),
 )
 ps = VanillaPredictiveSampler(model=ctrl_model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
-controller = PredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
+controller = VanillaPredictiveSamplingController(trajectory_optimizer=ps, model=ctrl_model)
 jit_compute = jit(
     lambda key, x_meas, us_guess: controller.compute_with_us_star(
-        PredictiveSamplingControllerParams(key=key, x=x_meas, us_guess=us_guess)
+        VanillaPredictiveSamplingControllerParams(key=key, x=x_meas, guess=us_guess)
     )
 )
 print("Controller created! Simulating...")
