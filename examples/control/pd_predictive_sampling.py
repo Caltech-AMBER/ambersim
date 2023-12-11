@@ -39,7 +39,7 @@ key = jax.random.PRNGKey(1234)
 # ########## #
 
 # loading model
-mj_model = load_mj_model_from_file("models/allegro_hand/right_hand_motor.xml")
+mj_model = load_mj_model_from_file("models/allegro_hand/right_hand.xml")
 mj_model.opt.timestep = dt
 
 # defining the predictive controller
@@ -57,7 +57,7 @@ cost_function = StaticGoalQuadraticCost(
     Q=jnp.diag(jnp.array([w_pos] * ctrl_model.nq + [w_vel] * ctrl_model.nv)),
     Qf=jnp.diag(jnp.array([w_pos] * ctrl_model.nq + [w_vel] * ctrl_model.nv)),
     R=w_ctrl * jnp.eye(ctrl_model.nu),
-    xg=jnp.concatenate((q_goal, jnp.zeros(16))),
+    xg=jnp.concatenate((q_goal, jnp.zeros(ctrl_model.nv))),
 )
 ps = PDPredictiveSampler(model=ctrl_model, cost_function=cost_function, nsamples=nsamples, stdev=stdev)
 
