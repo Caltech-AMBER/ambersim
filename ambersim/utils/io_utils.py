@@ -2,17 +2,17 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import coacd
-import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
 from lxml import etree
-from mujoco import mjx
 from packaging import version
 
+import mujoco as mj
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _check_filepath
 from ambersim.utils.conversion_utils import save_model_xml
+from mujoco import mjx
 
 
 def _add_actuators(urdf_filepath: Union[str, Path], xml_filepath: Union[str, Path]) -> None:

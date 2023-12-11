@@ -1,13 +1,12 @@
 from pathlib import Path
 
 import igl
-import mujoco as mj
 import numpy as np
 import trimesh
 from dm_control import mjcf
 from lxml import etree
-from mujoco import mjx
 
+import mujoco as mj
 from ambersim import ROOT
 from ambersim.utils._internal_utils import _rmtree
 from ambersim.utils.conversion_utils import convex_decomposition_file, save_model_xml
@@ -18,6 +17,7 @@ from ambersim.utils.io_utils import (
     load_mjx_model_and_data_from_file,
     mj_to_mjx_model_and_data,
 )
+from mujoco import mjx
 
 
 def test_load_model():
