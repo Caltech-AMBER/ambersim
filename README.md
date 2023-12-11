@@ -103,6 +103,43 @@ Major versioning decisions:
 * `python=3.11.5`. `torch`, `jax`, and `mujoco` all support it and there are major reported speed improvements over `python` 3.10.
 * `cuda==11.8`. Both `torch` and `jax` support `cuda12`; however, they annoyingly support different minor versions which makes them [incompatible in the same environment](https://github.com/google/jax/issues/18032). Once this is resolved, we will upgrade to `cuda-12.2` or later. It seems most likely that `torch` will support `cuda-12.3` once they do upgrade, since that is the most recent release.
 
+### Code Profiling
+The majority of the profiling we do will be on JAX code. Here's a generic template for profiling code using `tensorboard` (you need the test dependencies):
+```
+# create the function you want to profile - we recommend jitting it, since this typically changes the profiling results
+def fn_to_profile():
+    ...
+
+jit_fn = jit(fn_to_profile)
+
+# choose a path to store the profiling results
+with jax.profiler.trace("/dir/to/profiling/results"):
+    jit_fn(inputs)
+```
+To view the profiling results, run
+```
+tensorboard --logdir=/dir/to/profiling/results --port <port>
+```
+where `--port` should be some open port like `8008`. In the top right dropdown menu which should say "Inactive," scroll down and select "Profile." Select the run you'd like to analyze and under tools, the most useful tab will usually be "trace_viewer."
+
+Sometimes, we want to expose certain subroutines to the profiler. We can do so with the following:
+```
+# in one file
+def fn():
+    # stuff that we don't want to profile
+    fn1()
+
+    # stuff we do want to specifically profile
+    with jax.named_scope("name_of_your_choice"):
+        fn2()
+
+# in another file containing the jitted function to profile
+jit_fn = jit(fn)
+with jax.profiler.trace("/dir/to/profiling/results"):
+    jit_fn()
+```
+Now, the traced results will specifically show the time spent in `fn2` under the name you chose. Note that you can also use `jax.profiler.TraceAnnotation` or `jax.profiler.annotate_function()` instead, [as recommended](https://jax.readthedocs.io/en/latest/profiling.html#adding-custom-trace-events).
+
 ### Tooling
 We use various tools to ensure code quality.
 

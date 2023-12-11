@@ -18,15 +18,15 @@ dependencies = [
     "coacd>=1.0.0",
     "dm_control>=1.0.0",
     "flax>=0.7.5",
-    "jax[cuda11_local]>=0.4.1",
+    "jax[cuda12_local]>=0.4.1",
     "jaxlib>=0.4.1",
     "matplotlib>=3.5.2",
     "mujoco>=3.0.0",
     "mujoco-mjx>=3.0.0",
     "numpy>=1.23.1",
     "scipy>=1.10.0",
-    "torch>=1.13.1",
-    "tensorboard>=2.15.1",
+    # "torch>=1.13.1",
+    "tensorboard>=2.13.0",  # [Dec. 4, 2023] https://github.com/tensorflow/tensorflow/issues/62075#issuecomment-1808652131
 ]
 
 [project.optional-dependencies]
@@ -43,10 +43,12 @@ dev = [
 
 # Test-specific packages for verification
 test = [
-    "cvxpy>=1.4.1",
-    "drake>=1.21.0",
+    # "cvxpy>=1.4.1",
+    # "drake>=1.21.0",
     "libigl>=2.4.0",
     "pin>=2.6.20",
+    "tensorflow>=2.13.0",  # [Dec. 4, 2023] https://github.com/tensorflow/tensorflow/issues/62075#issuecomment-1808652131
+    "tensorboard-plugin-profile>=2.13.0",
 ]
 
 # All packages
