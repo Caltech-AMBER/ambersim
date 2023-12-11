@@ -61,7 +61,7 @@ class TrajectoryOptimizer:
     raising a NotImplementedError.
     """
 
-    def optimize(self, params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
+    def optimize(self, to_params: TrajectoryOptimizerParams) -> Tuple[jax.Array, jax.Array, jax.Array]:
         """Optimizes a trajectory.
 
         The shapes of the outputs include (?) because we may choose to return non-zero-order-hold parameterizations of
@@ -69,7 +69,7 @@ class TrajectoryOptimizer:
         control inputs over the trajectory as is done in the gradient-based methods of MJPC).
 
         Args:
-            params: The parameters of the trajectory optimizer.
+            to_params: The parameters of the trajectory optimizer.
 
         Returns:
             xs_star (shape=(N + 1, nq + nv) or (?)): The optimized trajectory.
@@ -102,22 +102,22 @@ class CostFunction:
     (4) histories of higher-order derivatives can be useful for updating their current estimates, e.g., BFGS.
     """
 
-    def cost(self, xs: jax.Array, us: jax.Array, params: CostFunctionParams) -> Tuple[jax.Array, CostFunctionParams]:
+    def cost(self, xs: jax.Array, us: jax.Array, cf_params: CostFunctionParams) -> Tuple[jax.Array, CostFunctionParams]:
         """Computes the cost of a trajectory.
 
         Args:
             xs (shape=(N + 1, nq + nv)): The state trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
-            params: The parameters of the cost function.
+            cf_params: The parameters of the cost function.
 
         Returns:
             val (shape=(,)): The cost of the trajectory.
-            new_params: The updated parameters of the cost function.
+            new_cf_params: The updated parameters of the cost function.
         """
         raise NotImplementedError
 
     def grad(
-        self, xs: jax.Array, us: jax.Array, params: CostFunctionParams
+        self, xs: jax.Array, us: jax.Array, cf_params: CostFunctionParams
     ) -> Tuple[jax.Array, jax.Array, CostFunctionParams, CostFunctionParams]:
         """Computes the gradient of the cost of a trajectory.
 
@@ -127,19 +127,19 @@ class CostFunction:
         Args:
             xs (shape=(N + 1, nq + nv)): The state trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
-            params: The parameters of the cost function.
+            cf_params: The parameters of the cost function.
 
         Returns:
             gcost_xs (shape=(N + 1, nq + nv): The gradient of the cost wrt xs.
             gcost_us (shape=(N, nu)): The gradient of the cost wrt us.
-            gcost_params: The gradient of the cost wrt params.
-            new_params: The updated parameters of the cost function.
+            gcost_params: The gradient of the cost wrt cf_params.
+            new_cf_params: The updated parameters of the cost function.
         """
-        _fn = lambda xs, us, params: self.cost(xs, us, params)[0]  # only differentiate wrt the cost val
-        return grad(_fn, argnums=(0, 1, 2))(xs, us, params) + (params,)
+        _fn = lambda xs, us, cf_params: self.cost(xs, us, cf_params)[0]  # only differentiate wrt the cost val
+        return grad(_fn, argnums=(0, 1, 2))(xs, us, cf_params) + (cf_params,)
 
     def hess(
-        self, xs: jax.Array, us: jax.Array, params: CostFunctionParams
+        self, xs: jax.Array, us: jax.Array, cf_params: CostFunctionParams
     ) -> Tuple[
         jax.Array, jax.Array, CostFunctionParams, jax.Array, CostFunctionParams, CostFunctionParams, CostFunctionParams
     ]:
@@ -153,20 +153,20 @@ class CostFunction:
         Args:
             xs (shape=(N + 1, nq + nv)): The state trajectory.
             us (shape=(N, nu)): The controls over the trajectory.
-            params: The parameters of the cost function.
+            cf_params: The parameters of the cost function.
 
         Returns:
             Hcost_xsxs (shape=(N + 1, nq + nv, N + 1, nq + nv)): The Hessian of the cost wrt xs.
             Hcost_xsus (shape=(N + 1, nq + nv, N, nu)): The Hessian of the cost wrt xs and us.
-            Hcost_xsparams: The Hessian of the cost wrt xs and params.
+            Hcost_xsparams: The Hessian of the cost wrt xs and cf_params.
             Hcost_usus (shape=(N, nu, N, nu)): The Hessian of the cost wrt us.
-            Hcost_usparams: The Hessian of the cost wrt us and params.
-            Hcost_paramsall: The Hessian of the cost wrt params and everything else.
-            new_params: The updated parameters of the cost function.
+            Hcost_usparams: The Hessian of the cost wrt us and cf_params.
+            Hcost_paramsall: The Hessian of the cost wrt cf_params and everything else.
+            new_cf_params: The updated parameters of the cost function.
         """
-        _fn = lambda xs, us, params: self.cost(xs, us, params)[0]  # only differentiate wrt the cost val
-        hessians = hessian(_fn, argnums=(0, 1, 2))(xs, us, params)
+        _fn = lambda xs, us, cf_params: self.cost(xs, us, cf_params)[0]  # only differentiate wrt the cost val
+        hessians = hessian(_fn, argnums=(0, 1, 2))(xs, us, cf_params)
         Hcost_xsxs, Hcost_xsus, Hcost_xsparams = hessians[0]
         _, Hcost_usus, Hcost_usparams = hessians[1]
         Hcost_paramsall = hessians[2]
-        return Hcost_xsxs, Hcost_xsus, Hcost_xsparams, Hcost_usus, Hcost_usparams, Hcost_paramsall, params
+        return Hcost_xsxs, Hcost_xsus, Hcost_xsparams, Hcost_usus, Hcost_usparams, Hcost_paramsall, cf_params
