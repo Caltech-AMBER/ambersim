@@ -1,8 +1,10 @@
 import functools
 
 import jax.numpy as jp
+from brax.io import model
+from brax.training.acme import running_statistics
 from brax.training.agents.ppo import networks as ppo_networks
-from brax.training.agents.ppo import train as ppo_train
+from brax.training.agents.ppo import train as ppo
 from flax import struct
 
 
@@ -11,24 +13,24 @@ class PPOConfig:
     """Config for ppo network param."""
 
     # Configuration for PPO Networks
-    policy_hidden_layer_sizes: tuple = (64, 64, 64)
+    policy_hidden_layer_sizes: tuple = (64, 64, 64, 64)
 
     # Configuration for PPO Training
-    num_timesteps: int = 10000
-    num_evals: int = 10
+    num_timesteps: int = 100_000_000
+    num_evals: int = 5
     reward_scaling: float = 1.0
-    episode_length: int = 500
+    episode_length: int = 1000
     normalize_observations: bool = True
     action_repeat: int = 1
     unroll_length: int = 20
-    num_minibatches: int = 8
+    num_minibatches: int = 32
     gae_lambda: float = 0.95
     num_updates_per_batch: int = 5
     discounting: float = 0.96
     learning_rate: float = 1e-4
     entropy_cost: float = 1e-2
-    num_envs: int = 512
-    batch_size: int = 512
+    num_envs: int = 8192
+    batch_size: int = 1024
     num_resets_per_eval: int = 5
     seed: int = 0
     # Add any additional fields here
@@ -42,7 +44,7 @@ def make_networks_factory(config: PPOConfig):
 def train_fn(config: PPOConfig):
     """Wrapper for constructing training function for ppo."""
     return functools.partial(
-        ppo_train,
+        ppo.train,
         num_timesteps=config.num_timesteps,
         num_evals=config.num_evals,
         reward_scaling=config.reward_scaling,
@@ -62,3 +64,31 @@ def train_fn(config: PPOConfig):
         num_resets_per_eval=config.num_resets_per_eval,
         seed=config.seed,
     )
+
+
+def load_model(environment, network_factory, model_path):
+    """Load the model parameters without training.
+
+    Args:
+      environment: The environment to use for the network.
+      network_factory: Factory function to create networks.
+      model_path: Path to the saved model parameters.
+
+    Returns:
+      A tuple containing the inference function and loaded parameters.
+    """
+    # Create the network (or networks) for the environment
+
+    normalize = running_statistics.normalize
+
+    ppo_network = network_factory(
+        environment.config.history_size * environment.observation_size_single_step,
+        environment.action_size,
+        preprocess_observations_fn=normalize,
+    )
+    make_policy = ppo_networks.make_inference_fn(ppo_network)
+
+    # Load the parameters
+    params = model.load_params(model_path)
+
+    return make_policy, params
