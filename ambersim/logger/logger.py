@@ -1,3 +1,4 @@
+import jax
 import wandb
 from torch.utils.tensorboard import SummaryWriter
 
@@ -34,6 +35,18 @@ class BaseLogger:
             params (dict): A dictionary containing parameter names and their values.
         """
         raise NotImplementedError
+
+    def log_progress(self, step, state_info):
+        """Logs the state of a process using the log_metric method.
+
+        Args:
+            state_info (dict): A dictionary containing state information.
+            step (int, optional): The step number at which the state is logged.
+        """
+        for key, value in state_info.items():
+            if isinstance(value, jax.Array):
+                value = float(value)  # we need floats for logging
+            self.log_metric(key, value, step)
 
 
 class TensorBoardLogger(BaseLogger):

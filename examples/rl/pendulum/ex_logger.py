@@ -56,23 +56,9 @@ if __name__ == "__main__":
     # Define a callback to log progress
     times = [datetime.now()]
 
-    def progress(num_steps, metrics):
-        """Logs progress during RL."""
-        print(f"  Steps: {num_steps}, Reward: {metrics['eval/episode_reward']}")
-        times.append(datetime.now())
-
-        # Write all metrics to tensorboard
-        for key, val in metrics.items():
-            if isinstance(val, jax.Array):
-                val = float(val)  # we need floats for logging
-            logger.log_metric(key, val, num_steps)
-
     # Do the training
     print("Training...")
     make_inference_fn, params, _ = train_fn(
         environment=env,
-        progress_fn=progress,
+        progress_fn=logger.log_progress,
     )
-
-    print(f"Time to jit: {times[1] - times[0]}")
-    print(f"Time to train: {times[-1] - times[1]}")
