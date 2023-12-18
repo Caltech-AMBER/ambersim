@@ -4,13 +4,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class BaseLogger:
-    """Base logger interface that defines common methods for logging metrics and parameters.
+    """Base logger interface that defines common methods for logging metrics and parameters."""
 
-    Attributes:
-        log_dir (str): Directory where logs are stored. If None, default locations are used.
-    """
-
-    def __init__(self, log_dir=None):
+    def __init__(self, log_dir: Union[str, Path]=None):
         """Initializes the BaseLogger with a specified log directory.
 
         Args:
