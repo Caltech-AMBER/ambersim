@@ -252,17 +252,20 @@ class Exo(MjxEnv):
                 self.model, "position", jt_idx, kp=self._p_gains[jt_idx], kd=self._d_gains[jt_idx]
             )
 
-    def reset_bez(self, rng: jp.ndarray, alpha: jp.ndarray, step_dur: float, state: BehavState) -> State:
-        """Reset the environment with the bez for a given trajectory."""
-        self._q_init = self._q_init.at[-self.model.nu :].set(
-            self._forward(self.step_start, self.step_start, step_dur, alpha)
-        )
-        self._dq_init = self._dq_init.at[-self.model.nu :].set(
+    def getBezInitialConfig(self, alpha: jp.ndarray, step_dur: float) -> jp.ndarray:
+        """Get the initial configuration for the bez trajectory."""
+        q_init = self._q_init.at[-self.model.nu :].set(self._forward(self.step_start, self.step_start, step_dur, alpha))
+        dq_init = self._dq_init.at[-self.model.nu :].set(
             self._forward_vel(self.step_start, self.step_start, step_dur, alpha)
         )
+        return q_init, dq_init
+
+    def reset_bez(self, rng: jp.ndarray, alpha: jp.ndarray, step_dur: float, state: BehavState) -> State:
+        """Reset the environment with the bez for a given trajectory."""
+        self._q_init, self._dq_init = self.getBezInitialConfig(alpha, step_dur)
         return self.reset(rng, state)
 
-    def reset(self, rng: jp.ndarray, behavstate: BehavState) -> State:
+    def reset(self, rng: jp.ndarray, behavstate: BehavState = BehavState.Walking) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
 
@@ -928,16 +931,20 @@ class Exo(MjxEnv):
         )
 
         def get_stance_contact(idx, data):
-            return data.efc_force[data.contact.efc_address[idx]]
+            """Get the contact force for the stance leg."""
+            jax.debug.print("hacked get_stance_contact()")
+            return data.efc_force[0:4]
+            # return data.efc_force[data.contact.efc_address[idx]]
 
-        stance_grf = jax.lax.cond(
-            domain_idx == 0,
-            lambda _: get_stance_contact([4, 5, 6, 7], data),
-            lambda _: get_stance_contact([0, 1, 2, 3], data),
-            operand=None,
-        )
+        # stance_grf = jax.lax.cond(
+        #     domain_idx == 0,
+        #     lambda _: get_stance_contact([4, 5, 6, 7], data),
+        #     lambda _: get_stance_contact([0, 1, 2, 3], data),
+        #     operand=None,
+        # )
 
-        grf_penalty = self.config.reward.grf_cost_weight * (1.0 - jp.sum(stance_grf) / (self.mass * 9.81))
+        grf_penalty = 0.0
+        # grf_penalty = self.config.reward.grf_cost_weight * (1.0 - jp.sum(stance_grf) / (self.mass * 9.81))
 
         tracking_pos_reward = self.config.reward.tracking_base_pos * jp.exp(
             -jp.sum(jp.square(base_pos - state_info["base_pos_desire"][0:3])) / self.config.reward.tracking_sigma_pos
@@ -1045,7 +1052,9 @@ class Exo(MjxEnv):
         return self.config.reward.cop_scale * jp.sum(deviation_L + deviation_R)
 
     def _get_contact_force(self, data: mjx.Data) -> jax.Array:
-        contact_force = data.efc_force[data.contact.efc_address]
+        # hacked version
+        jax.debug.print("contact force: hacked version")
+        contact_force = data.efc_force[0:8]
         return contact_force
 
     def _calculate_cop(self, pos: jax.Array, force: jax.Array) -> jax.Array:
@@ -1095,6 +1104,7 @@ class Exo(MjxEnv):
         self.camera = camera
 
         renderer = mj.Renderer(self.model, 480, 640)
+        # renderer = mj.Renderer(self.model)
         renderer._scene_option.flags[_enums.mjtVisFlag.mjVIS_CONTACTPOINT] = 0
         renderer._scene_option.sitegroup[2] = 0
 
