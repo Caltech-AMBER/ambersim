@@ -11,10 +11,16 @@ from jax import numpy as jp
 from jax.example_libraries import optimizers
 
 import wandb
-from ambersim.envs.exo_base import BehavState, Exo
-from ambersim.envs.exo_parallel import CustomVecEnv, ExoParallel, rand_friction, randomizeCoMOffset
+from ambersim.envs.exo_base import BehavState, Exo, ExoConfig
+from ambersim.envs.exo_parallel import (
+    CustomVecEnv,
+    rand_friction,
+    randomizeBoxTerrain,
+    randomizeCoMOffset,
+    randomizeSlope,
+)
 
-# MUJOCO_GL=egl python exo_traj_opt.py
+# XLA_PYTHON_CLIENT_PREALLOCATE=false MUJOCO_GL=egl python exo_traj_opt.py
 NVIDIA_ICD_CONFIG_PATH = "/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
 if not os.path.exists(NVIDIA_ICD_CONFIG_PATH):
     with open(NVIDIA_ICD_CONFIG_PATH, "w") as f:
@@ -35,15 +41,56 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["MUJOCO_GL"] = "egl"
 
 
+def evalCostImpact(rng, jit_env_reset, jit_env_step, env, alpha, timesteps=400, log_file="traj_opt.log"):
+    """Evaluate Costs from standing position."""
+    costs = 0.0
+    # step_dur = 1.0
+    penalty = 10.0
+    survive_reward = 10.0
+    P_values = []
+    t_values = []
+    state = jit_env_reset(rng, BehavState.Walking)
+    state.info["alpha"] = state.info["alpha"].at[:].set(alpha)
+    init_foot_pos = state.pipeline_state.geom_xpos[:, env.foot_geom_idx[0], 0]
+    with open(log_file, "w") as file:
+        for _ in range(timesteps):
+            # state_change = False
+            start_time = time.time()
+            state = jit_env_step(state, jp.zeros((rng.shape[0], env.action_size)))
+            end_time = time.time()
+
+            step_duration = end_time - start_time
+            file.write(f"Step duration: {step_duration}\n")
+            P_values.append(state.info["mechanical_power"])
+            t_values.append(state.pipeline_state.time)
+
+            if state.info["state"][0] == BehavState.WantToStart:
+                state.info["state"] = state.info["state"].at[:].set(BehavState.Walking)
+
+            if sum(state.done):
+                costs = costs + penalty * sum(state.done)
+
+            costs = costs - survive_reward * (state.done.shape[0] - sum(state.done))
+
+        step_length = state.pipeline_state.geom_xpos[:, env.foot_geom_idx[0], 0] - init_foot_pos
+        mcot = jp.sum(env.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T))
+        # set where there's inf or nan mcot to 1000
+        mcot = jp.where(jp.isnan(mcot), 1000, mcot)
+        mcot = jp.where(jp.isinf(mcot), 1000, mcot)
+        costs = costs + mcot
+        jax.debug.print("mcot: {}", env.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T))
+    return jp.sum(jp.array(costs)) / (rng.shape[0])
+
+
 # Function to evaluate cost
-def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=220, log_file="traj_opt.log"):
+def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=300, log_file="traj_opt.log"):
     """Evaluate Costs from standing position."""
     costs = 0.0
     step_dur = 1.0
 
     # periodic_penalty_weight = 1000000.0
     penalty = 1000.0
-    survive_reward = 15.0
+    survive_reward = 30.0
     P_values = []
     t_values = []
 
@@ -66,11 +113,11 @@ def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=220, lo
             t_values.append(state.pipeline_state.time)
 
             if state.info["state"][0] == BehavState.WantToStart:
-                if state.pipeline_state.time[0] > 0.2:
-                    # minTransitionTime = 2 * env.step_dur[BehavState.WantToStart]
-                    # if env.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
-                    state.info["state"] = state.info["state"].at[:].set(BehavState.Walking)
-                    # state_change = True
+                # if state.pipeline_state.time[0] > 0.2:
+                # minTransitionTime = 2 * env.step_dur[BehavState.WantToStart]
+                # if env.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
+                state.info["state"] = state.info["state"].at[:].set(BehavState.Walking)
+                # state_change = True
 
             elif (
                 state.info["state"][0] == BehavState.Walking
@@ -104,7 +151,6 @@ def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=220, lo
 
         step_length = state.pipeline_state.geom_xpos[:, env.foot_geom_idx[0], 0] - init_foot_pos
         costs = costs + jp.sum(env.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T))
-
     return jp.sum(jp.array(costs)) / (state.pipeline_state.time[0] * rng.shape[0])
 
 
@@ -198,15 +244,23 @@ def load_and_simulate(
 train_flag = True
 
 # Environment setup
-env = Exo()
+config = ExoConfig()
+config.slope = True
+config.hip_regulation = True
+env = Exo(config)
 
 num_env = 20
 rng = jax.random.PRNGKey(0)
 rng = jax.random.split(rng, num_env)
-domain_env = CustomVecEnv(env, randomization_fn=functools.partial(rand_friction, rng=rng))
+# domain_env = CustomVecEnv(env, randomization_fn=functools.partial(rand_friction, rng=rng))
+
+domain_env = CustomVecEnv(
+    env, randomization_fn=functools.partial(randomizeSlope, rng=rng, plane_ind=0, max_angle_degrees=3)
+)
 
 # jit_env_reset = jax.jit(domain_env.reset_bez)
-jit_env_step = jax.jit(domain_env.bez_step)
+# jit_env_step = jax.jit(domain_env.bez_step)
+jit_env_step = jax.jit(domain_env.step)
 
 # vecEnv = ExoParallel(rng=rng)
 
@@ -215,25 +269,27 @@ jit_env_reset = jax.jit(domain_env.reset)
 alpha = env.alpha
 step_dur = env.step_dur[BehavState.Walking]
 
-state = jit_env_reset(rng, BehavState.WantToStart)
+# state = jit_env_reset(rng, BehavState.WantToStart)
+state = jit_env_reset(rng, BehavState.Walking)
 # state = domain_env.bez_step(state, alpha, step_dur)
 # state = jit_env_step(state, alpha, step_dur)
 # state = domain_env.bez_step(state, alpha, step_dur)
 
-
+opt_file = "traj_opt/optimized_params_impact.pkl"
 if train_flag:
     alpha = env.alpha
     step_dur = env.step_dur[BehavState.Walking]  # env.step_dur[BehavState.Walking]
 
-    evalCostFunc = functools.partial(evalCostFromStanding, rng, state, jit_env_step, domain_env)
+    evalCostFunc = functools.partial(evalCostImpact, rng, jit_env_reset, jit_env_step, domain_env)
+    # evalCostFunc = functools.partial(evalCostFromStanding, rng, state, jit_env_step, domain_env)
 
     # Initialize optimization
-    step_size = 1e-4
+    step_size = 1e-3
     opt_init, opt_update, get_params = optimizers.adam(step_size)
     opt_state = opt_init(alpha)
 
     # Initialize wandb run
-    num_steps = 100
+    num_steps = 5
     wandb.init(
         project="traj_opt",
         config={
@@ -247,41 +303,47 @@ if train_flag:
         value, opt_state = step(i, opt_state, get_params, opt_update, evalCostFunc)
         alpha = get_params(opt_state)
 
+        with open(opt_file, "wb") as file:
+            pickle.dump(get_params(opt_state), file)
+
+        opt_iter_file = f"traj_opt/optimized_params_impact{i}.pkl"
+        with open(opt_iter_file, "wb") as file:
+            pickle.dump(get_params(opt_state), file)
         # Log results with wandb
         wandb.log({"step": i, "value": value, "alpha": wandb.Histogram(alpha)})
 
     # Save optimized parameters
-    with open("optimized_params.pkl", "wb") as file:
-        pickle.dump(get_params(opt_state), file)
+
 else:
     # Load and simulate with optimized parameters
-    env = Exo()
-    env.getRender()
-    jit_env_reset = jax.jit(env.reset)
-    jit_env_step = jax.jit(env.bez_step)
-    params_file = "optimized_params.pkl"
+
+    env = Exo(config)
+    # env.getRender()
+    # jit_env_reset = jax.jit(env.reset)
+    # jit_env_step = jax.jit(env.step)
+
     print("Loading optimized parameters and simulating...")
     # print alpha
     print(env.alpha)
 
-    filename = "traj_opt_policy_from_standing.mp4"
-    with open(params_file, "rb") as file:
+    # filename = "traj_opt_policy_from_standing_update.mp4"
+    with open(opt_file, "rb") as file:
         optimized_params = pickle.load(file)
 
-    # breakpoint()
-    env.run_bez_sim_from_standing(
-        rng=jax.random.PRNGKey(0),
-        alpha=optimized_params,
-        step_dur=env.step_dur[BehavState.Walking],
-        num_steps=400,
-        output_video=filename,
-    )
+    print(optimized_params)
+    # # breakpoint()
+    # env.run_bez_sim_from_standing(
+    #     rng=jax.random.PRNGKey(0),
+    #     alpha=optimized_params,
+    #     step_dur=env.step_dur[BehavState.Walking],
+    #     num_steps=400,
+    #     output_video=filename,
+    # )
     # load_and_simulate(jax.random.PRNGKey(0), env, jit_env_reset, jit_env_step, params_file, env.step_dur[BehavState.Walking])
-    filename = "traj_opt_policy_from_walking.mp4"
-    env.run_base_bez_sim(
+    filename = "video/traj_opt_impact_Val_inc.mp4"
+    env.run_base_sim(
         rng=jax.random.PRNGKey(0),
         alpha=optimized_params,
-        step_dur=env.step_dur[BehavState.Walking],
-        num_steps=400,
+        num_steps=200,
         output_video=filename,
     )

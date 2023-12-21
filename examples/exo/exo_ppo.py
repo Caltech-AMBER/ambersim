@@ -2,11 +2,11 @@ import os
 from datetime import datetime
 
 import jax
-import wandb
 import yaml
 from brax import envs
 from brax.io import model
 
+import wandb
 from ambersim.envs.exo_base import Exo
 from ambersim.utils import ppo_training_utils
 
