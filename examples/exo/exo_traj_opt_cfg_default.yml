@@ -1,0 +1,13 @@
+project: "traj_opt"
+program: exo_traj_opt.py
+method: bayes
+metric:
+  name: mean_reward_test
+  goal: maximize
+parameters:
+  num_steps:
+    min: 10
+    max: 50
+  step_size:
+    min: 0.00001
+    max: 0.0001
