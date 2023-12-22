@@ -111,7 +111,7 @@ for i in range(len(rollout)):
 
 # media.show_video(images, fps=1.0 / eval_env.dt)
 
-output_file = "../../videos/exo_base_ppo_policy_v3.mp4"
+output_file = "video/exo_base_ppo_policy_new.mp4"
 # Save the video
 media.write_video(output_file, images, fps=1.0 / eval_env.dt)
 breakpoint()

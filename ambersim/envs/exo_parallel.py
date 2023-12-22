@@ -75,7 +75,7 @@ def rand_friction(sys, rng):
     def rand(rng):
         _, key = jax.random.split(rng, 2)
         # friction
-        friction = jax.random.uniform(key, (1,), minval=0.95, maxval=1.05)
+        friction = jax.random.uniform(key, (1,), minval=0.9, maxval=1.1)
         friction = sys.geom_friction.at[:, 0].set(friction)
         return friction
 
@@ -143,7 +143,7 @@ def randomizeCoMOffset(sys, rng):
     return sys_v, in_axes
 
 
-def random_quaternion(key, max_angle_degrees=30):
+def random_quaternion(key, max_angle_degrees=10):
     """Generate a random rotation within a specified maximum angle using JAX."""
     # Generate a random axis (unit vector)
     axis = jax.random.normal(key, (3,))
@@ -163,6 +163,29 @@ def random_quaternion(key, max_angle_degrees=30):
     return jnp.array([w, x, y, z])
 
 
+def random_slope(key, max_angle_degrees=5):
+    """Generate a random rotation within a specified maximum angle using JAX."""
+    # Generate a random axis (unit vector)
+    axis_index = 0  # jax.random.randint(key, (1,1),minval=0, maxval=2)
+
+    # Initialize axis vector
+    axis = jnp.zeros(3)
+    # Set the chosen axis to 1 (either X or Y)
+    axis = axis.at[axis_index].set(1)
+
+    # Generate a random angle within the specified range and convert to radians
+    angle = jax.random.uniform(key, minval=-max_angle_degrees, maxval=max_angle_degrees) * jnp.pi / 180
+
+    # Calculate quaternion components
+    s = jnp.sin(angle / 2)
+    w = jnp.cos(angle / 2)
+    x = axis[0] * s
+    y = axis[1] * s
+    z = axis[2] * s
+
+    return jnp.array([w, x, y, z])
+
+
 def updateGeomsQuat(sys, geom_indices, rngs):
     """Generate random quaternions for all specified geom_indices."""
     rand_quats = jax.vmap(random_quaternion)(rngs)
@@ -170,10 +193,29 @@ def updateGeomsQuat(sys, geom_indices, rngs):
     return geom_quat
 
 
-def randomizeBoxTerrain(sys, geom_indices, rngs):
+def randomizeSlope(sys, plane_ind, rng, max_angle_degrees=0):
+    """Randomizes the plane slope."""
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace({"geom_quat": 0})
+
+    # vmap to get multiple copies
+    @jax.vmap
+    def set_slope(rng):
+        rand_quat = random_slope(rng, max_angle_degrees=max_angle_degrees)
+        rand_plane_geom = sys.geom_quat.at[plane_ind].set(rand_quat)
+        return rand_plane_geom
+
+    rand_geom_quats = set_slope(rng)
+
+    sys_v = sys.tree_replace({"geom_quat": rand_geom_quats})
+
+    return sys_v, in_axes
+
+
+def randomizeBoxTerrain(sys, geom_indices, rng):
     """Randomizes the mjx.Model for geom quat."""
     # Split each of these RNG keys further into 5 parts to get random quaternions for each index
-    rngs_for_indices = jax.vmap(lambda rng_key: jax.random.split(rng_key, len(geom_indices)))(rngs)
+    rngs_for_indices = jax.vmap(lambda rng_key: jax.random.split(rng_key, len(geom_indices)))(rng)
 
     # vmap to get multiple copies
     rand_geom_quats = jax.vmap(updateGeomsQuat, in_axes=(None, None, 0))(sys, geom_indices, rngs_for_indices)

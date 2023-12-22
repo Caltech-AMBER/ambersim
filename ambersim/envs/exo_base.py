@@ -22,6 +22,7 @@ from mujoco.mjx._src.types import DisableBit
 
 from ambersim import ROOT
 from ambersim.base import MjxEnv
+from ambersim.utils.asset_utils import add_geom_to_env, add_heightfield_to_mujoco_xml, generate_boxes_xml
 from ambersim.utils.io_utils import set_actuators_type
 
 
@@ -69,9 +70,9 @@ class ExoRewardConfig:
     tracking_base_ori: float = 1.0
 
     # Penalize the base roll and pitch rate. L2 penalty.
-    tracking_base_pos: float = 1.0
+    tracking_base_pos: float = 10.0
 
-    tracking_joint: float = 0.3
+    tracking_joint: float = 1.0
     # Penalize non-zero roll and pitch angles. L2 penalty.
     # orientation: float = -5.0
     tracking_sigma_vel: float = 0.5
@@ -79,13 +80,13 @@ class ExoRewardConfig:
     tracking_sigma_joint_pos: float = 0.2
 
     # grf penalty
-    grf_cost_weight: float = -0.01
+    grf_cost_weight: float = 0.0
     # L2 regularization of joint torques, |tau|^2.
     ctrl_cost_weight: float = -1e-10
 
-    unhealthy_penalty: float = -100.0
+    unhealthy_penalty: float = -10.0
 
-    healthy_reward: float = 10.0
+    healthy_reward: float = 2.0
 
 
 class ExoConfig:
@@ -103,12 +104,18 @@ class ExoConfig:
     loading_pos_file: str = "sim_config_loadingPos.yaml"
     ctrl_limit_file: str = "limits.yaml"
     rand_terrain: bool = False
+    slope: bool = False
+    hfield: bool = False
     position_ctrl: bool = True
-    residual_action_space: bool = False
+    residual_action_space: bool = True
     physics_steps_per_control_step: int = 10
-    action_scale: float = 0.01
-    custom_action_space: jp.ndarray = jp.array([0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1])
-    custom_act_idx: jp.ndarray = jp.array([4, 5, 10, 11])
+    action_scale: float = 0.05
+    custom_action_space: jp.ndarray = jp.array([1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0])
+    custom_act_idx: jp.ndarray = jp.array([0, 2, 6, 8])
+    impact_threshold: float = 200.0
+    impact_based_switching: bool = True
+    no_noise: bool = False
+    hip_regulation: bool = False
 
 
 class Exo(MjxEnv):
@@ -118,9 +125,20 @@ class Exo(MjxEnv):
         """Initialize the environment."""
         self.config = config
         if config.rand_terrain:
+            # xml_file = "loadedExo_no_terrain.xml"
+            # org_path = os.path.join(ROOT, "..","models", "exo", xml_file)
+
+            # rand_box_xml = generate_boxes_xml()
+            path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_box.xml")
+            # add_geom_to_env(org_path,rand_box_xml,path)
+        elif config.hfield:
             xml_file = "loadedExo_no_terrain.xml"
-            path = os.path.join(ROOT, "models", "exo", xml_file)
-            # path = self.genRandBoxes(path,grid_size = (2,5))
+            org_path = os.path.join(ROOT, "..", "models", "exo", xml_file)
+            path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_hfield.xml")
+            add_heightfield_to_mujoco_xml(org_path, path)
+        elif config.slope:
+            path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_slope.xml")
+
         else:
             path = os.path.join(ROOT, "..", "models", "exo", config.xml_file)
 
@@ -141,6 +159,7 @@ class Exo(MjxEnv):
         self.observation_size_single_step = self.model.nq + self.model.nv + 8 + self.model.nu + 3
 
         super().__init__(mj_model=self.model, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
+        self.efc_address = jp.array([0, 4, 8, 12, 16, 20, 24, 28])
 
     @property
     def action_size(self) -> int:
@@ -155,6 +174,14 @@ class Exo(MjxEnv):
             mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "left_sole"),
         ]
         self.foot_geom_idx = jp.array(foot_geom_idx)
+
+        if self.config.rand_terrain:
+            terrain_geom_idx = jp.zeros(10, dtype=int)
+            for i in range(10):
+                terrain_geom_idx = terrain_geom_idx.at[i].set(
+                    mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "box_" + str(i))
+                )
+            self.terrain_geom_idx = terrain_geom_idx
 
     def load_traj(self) -> None:
         """Load default trajectory from yaml file specfied in the config."""
@@ -274,6 +301,12 @@ class Exo(MjxEnv):
         qpos = self._q_default[behavstate, :] + jax.random.uniform(rng1, (self.sys.nq,), minval=low, maxval=hi)
         qvel = self._dq_default[behavstate, :] + jax.random.uniform(rng2, (self.sys.nv,), minval=low, maxval=hi)
 
+        if self.config.no_noise:
+            qpos = self._q_default[behavstate, :]
+            qvel = self._dq_default[behavstate, :]
+
+        if self.config.rand_terrain or self.config.slope:
+            qpos = qpos.at[2].set(qpos[2] + 0.02)
         data = self.pipeline_init(qpos, qvel)
 
         reward, done, zero = jp.zeros(3)
@@ -283,7 +316,7 @@ class Exo(MjxEnv):
             "offset": jp.zeros(12),
             "domain_info": {
                 "step_start": 0.0,
-                "domain_idx": 0.0,
+                "domain_idx": StanceState.Right.value,
             },
             "mechanical_power": zero,
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
@@ -292,7 +325,7 @@ class Exo(MjxEnv):
             "base_pos_desire": jp.zeros(6),
             "base_vel_desire": jp.zeros(6),
             "joint_desire": jp.zeros(12),
-            "last_action": jp.zeros(12),
+            "last_action": jp.zeros(self.custom_act_space_size),
             "tracking_err": jp.zeros(12),
             "reward_tuple": {
                 "ctrl_cost": zero,
@@ -303,6 +336,8 @@ class Exo(MjxEnv):
                 "trtacking_joint_reward": zero,
                 "grf_penalty": zero,
             },
+            "alpha": self.alpha,
+            "alpha_base": self.alpha_base,
         }
 
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
@@ -346,11 +381,12 @@ class Exo(MjxEnv):
 
         # observation data
         obs = self._get_obs(data, action, state.info)
-        reward_tuple = self.evaluate_reward(data0, data, jp.zeros(12), state.info)
+
+        reward_tuple = self.evaluate_reward(data0, data, jp.zeros(self.custom_act_space_size), state.info)
 
         # state management
         state.info["reward_tuple"] = reward_tuple
-        state.info["last_action"] = jp.zeros(12)
+        state.info["last_action"] = jp.zeros(self.custom_act_space_size)
         state.info["blended_action"] = blended_action
         state.info["mechanical_power"] = self.mechanical_power(data)
         state.info["tracking_err"] = (
@@ -412,23 +448,41 @@ class Exo(MjxEnv):
         def update_step(step_start, domain_idx):
             new_step_start = data0.time
             new_domain_idx = 1 - domain_idx  # Switch domain_idx between 0 and 1
-
             return new_step_start, new_domain_idx
 
         def no_update(step_start, domain_idx):
             return step_start, domain_idx
 
         condition = (data0.time - step_start) / self.step_dur[BehavState.Walking] >= 1
+        if self.config.impact_based_switching:
+            # jax.debug.print("impact: {}",self.checkImpact(data0,state.info))
+            # jax.debug.print("time: {}",(data0.time - step_start) / self.step_dur[BehavState.Walking] >= 0.8)
+            condition = jp.logical_and(
+                self.checkImpact(data0, state.info),
+                (data0.time - step_start) / self.step_dur[BehavState.Walking] >= 0.8,
+            )
+
         new_step_start, domain_idx = lax.cond(
             condition, lambda args: update_step(*args), lambda args: no_update(*args), (step_start, domain_idx)
         )
 
         step_start = new_step_start
-        alpha = lax.cond(domain_idx == 0, lambda _: self.alpha, lambda _: jp.dot(self.R, self.alpha), None)
+        alpha = lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: state.info["alpha"],
+            lambda _: jp.dot(self.R, state.info["alpha"]),
+            None,
+        )
         alpha_base = lax.cond(
-            domain_idx == 0, lambda _: self.alpha_base, lambda _: jp.dot(self.R_base, self.alpha_base), None
+            domain_idx == 0,
+            lambda _: state.info["alpha_base"],
+            lambda _: jp.dot(self.R_base, state.info["alpha_base"]),
+            None,
         )
         q_desire = self._forward(data0.time, step_start, self.step_dur[BehavState.Walking], alpha)
+
+        q_actual = data0.qpos[-self.model.nu :]
+        new_offset = lax.cond(condition, lambda _: q_actual - q_desire, lambda _: state.info["offset"], None)
 
         state.info["nominal_action"] = q_desire
         state.info["base_pos_desire"] = self._forward(
@@ -439,8 +493,63 @@ class Exo(MjxEnv):
         )
         state.info["domain_info"]["domain_idx"] = domain_idx
         state.info["domain_info"]["step_start"] = step_start
-
+        state.info["offset"] = new_offset
         return q_desire, state
+
+    def getHipTargets(self, state) -> jp.ndarray:
+        """Get the hip targets for the current state."""
+
+        def regulate_hip(K_nsh, K_sh, si_nsh, si_sh, ya, yd):
+            delta_qi_nshr = -si_nsh * K_nsh * (ya - yd)
+            delta_qi_shr = -si_sh * K_sh * (ya - yd)
+            return delta_qi_nshr, delta_qi_shr
+
+        base_act = self.quat2eulXYZ(state.pipeline_state.qpos[3:7])
+        phaseVar = (state.info["domain_info"]["step_start"] - state.pipeline_state.time) / self.step_dur[
+            BehavState.Walking
+        ]
+        # Regulate hips based on current and desired waist roll, and blending factors
+        nst_roll, st_roll = regulate_hip(
+            si_nsh=1 - phaseVar,
+            si_sh=phaseVar,
+            K_nsh=0.15,
+            K_sh=0.15,
+            ya=base_act[0],
+            yd=state.info["base_pos_desire"][3],
+        )
+
+        nst_pitch, st_pitch = regulate_hip(
+            si_nsh=1 - phaseVar,
+            si_sh=phaseVar,
+            K_nsh=0.1,
+            K_sh=0.1,
+            ya=base_act[1],
+            yd=state.info["base_pos_desire"][4],
+        )
+
+        hip_targets = jp.array([nst_roll, nst_pitch, st_roll, st_pitch])
+
+        # if nan or inf, set to zero
+        hip_targets = jp.where(jp.isnan(hip_targets), 0, hip_targets)
+        hip_targets = jp.where(jp.isinf(hip_targets), 0, hip_targets)
+
+        # return order and indices based on domain
+        domain = state.info["domain_info"]["domain_idx"]
+
+        # use lax.cond to avoid jax error; roll(frontal;0) pitch(sagittal;2)
+        def true_fun(_):  # right stance: left hip
+            return jp.array([0, 2, 6, 8])
+
+        def false_fun(_):
+            return jp.array([6, 8, 0, 2])
+
+        hip_index = lax.cond(domain == StanceState.Right.value, true_fun, false_fun, None)
+        jax.debug.print("hip_targets: {}", hip_targets)
+        jax.debug.print("hip_index: {}", hip_index)
+        jax.debug.print("desire: {}", state.info["base_pos_desire"][3:6])
+        jax.debug.print("actual: {}", base_act)
+        # jax.debug.breakpoint()
+        return hip_targets, hip_index
 
     def step(self, state: State, action: jp.ndarray) -> State:
         """Runs one timestep of the environment's dynamics."""
@@ -450,7 +559,12 @@ class Exo(MjxEnv):
 
         q_desire, state = self.getNominalDesire(state)
 
-        action = self.config.action_scale * action + q_desire
+        scaled_action = self.config.action_scale * action
+        if self.config.residual_action_space:
+            action = q_desire.at[self.config.custom_act_idx].set(q_desire[self.config.custom_act_idx] + scaled_action)
+        else:
+            action = q_desire + scaled_action
+        # action = self.config.action_scale * action + q_desire
         state.info["joint_desire"] = action
 
         if self.config.position_ctrl:
@@ -458,6 +572,10 @@ class Exo(MjxEnv):
             blended_action = self.jt_blending(data0.time, self.step_dur[state.info["state"]], action, state.info)
             # jax.debug.print("blended action: {}", blended_action)
             motor_targets = jp.clip(blended_action, self._jt_lb, self._jt_ub)
+
+            if self.config.hip_regulation:
+                hip_targets, hip_index = self.getHipTargets(state)
+                motor_targets = motor_targets.at[hip_index].set(motor_targets[hip_index] + hip_targets)
         else:
             motor_targets = jp.clip(action, self._torque_lb, self._torque_ub)
 
@@ -683,7 +801,7 @@ class Exo(MjxEnv):
         return
 
     def run_base_sim(
-        self, rng, num_steps=400, log_file="simulation_times.log", output_video="nominal_policy_video.mp4"
+        self, rng, alpha, num_steps=400, log_file="simulation_times.log", output_video="nominal_policy_video.mp4"
     ):
         """Run the simulation basic version."""
         self.getRender()
@@ -691,25 +809,16 @@ class Exo(MjxEnv):
         jit_step = jax.jit(self.step)
 
         state = jit_reset(rng, BehavState.Walking)
-        prev_state = state.info["state"]
-        prev_domain = state.info["domain_info"]["domain_idx"]
+        state.info["alpha"] = alpha
+        # init_foot_pos = state.pipeline_state.geom_xpos[self.foot_geom_idx[0], 0]
         images = []
 
+        P_values = []
+        t_values = []
         with open(log_file, "w") as file:
             for _ in range(num_steps):
                 start_time = time.time()
-                state = jit_step(state, jp.zeros(12))  # Replace with your control strategy
-                state.info["state"] = BehavState.Walking
-
-                # check previous state
-                if state.info["state"] != prev_state or state.info["domain_info"]["domain_idx"] != prev_domain:
-                    state.info["offset"] = state.info["tracking_err"]
-                    # jax.debug.print("offset: {}", state.info['offset'])
-                    prev_state = state.info["state"]
-                    prev_domain = state.info["domain_info"]["domain_idx"]
-                    # jax.debug.print("state changed to {}", state.info["state"])
-                    # jax.debug.print("domain changed to {}", state.info["domain_info"]["domain_idx"])
-                    # domain update should be handled inside
+                state = jit_step(state, jp.zeros(self.action_size))  # Replace with your control strategy
 
                 end_time = time.time()
 
@@ -719,7 +828,11 @@ class Exo(MjxEnv):
                 file.write(f"Step duration: {step_duration}\n")
 
                 images.append(self.get_image(state.pipeline_state))
+                P_values.append(state.info["mechanical_power"])
+                t_values.append(state.pipeline_state.time)
 
+        # step_length = state.pipeline_state.geom_xpos[self.foot_geom_idx[0], 0] - init_foot_pos
+        # mcot = self.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T)
         media.write_video(output_video, images, fps=1.0 / self.dt)
         return
 
@@ -849,71 +962,75 @@ class Exo(MjxEnv):
                 # Log the time taken for each step
                 file.write(f"Step duration: {step_duration}\n")
 
-                if (state.pipeline_state.time - state.info["domain_info"]["step_start"]) / step_dur > 1:
+                if self.checkImpact(state.pipeline_state, state.info):
+                    # if (state.pipeline_state.time - state.info["domain_info"]["step_start"]) / step_dur > 1:
                     state.info["domain_info"]["step_start"] = state.pipeline_state.time
-
+                    state.info["domain_info"]["domain_idx"] = 1 - state.info["domain_info"]["domain_idx"]
                     alpha = jp.dot(self.R, alpha)
                     print("update step_start")
+                    jax.debug.print(
+                        "actual phase var: {}",
+                        (state.pipeline_state.time - state.info["domain_info"]["step_start"]) / step_dur,
+                    )
 
                 images.append(self.get_image(state.pipeline_state))
 
         media.write_video(output_video, images, fps=1.0 / self.dt)
         return
 
+    def eulRates2omega(self, eulRates, orientation):
+        """Convert euler rates to omega."""
+        # Input processing
+        assert len(eulRates) == 3, "The omega must be a numerical vector of length 3."
+
+        x, y, z = orientation
+
+        M = jp.array([[jp.cos(y) * jp.cos(z), jp.sin(z), 0], [-jp.cos(y) * jp.sin(z), jp.cos(z), 0], [jp.sin(y), 0, 1]])
+
+        omega = jp.dot(M, eulRates)
+
+        return omega
+
+    def quat2eulXYZ(self, quat):
+        """Convert quaternion to euler angles."""
+        # Should assume wxyz convention
+        # z1_2 should be qy, 1 should be x, w should be 0
+
+        eul = jp.zeros(3, dtype=jp.float32)
+        b = 1.0 / jp.sqrt(((quat[0] * quat[0] + quat[1] * quat[1]) + quat[2] * quat[2]) + quat[3] * quat[3])
+        z1_idx_0 = quat[0] * b
+        z1_idx_1 = quat[1] * b
+        z1_idx_2 = quat[2] * b
+        b *= quat[3]
+        aSinInput = 2.0 * (z1_idx_1 * b + z1_idx_2 * z1_idx_0)
+
+        # Ensure aSinInput is within [-1.0, 1.0]
+        aSinInput = jp.clip(aSinInput, -1.0, 1.0)
+
+        eul_tmp = z1_idx_0 * z1_idx_0
+        b_eul_tmp = z1_idx_1 * z1_idx_1
+        c_eul_tmp = z1_idx_2 * z1_idx_2
+        d_eul_tmp = b * b
+
+        eul = jp.array(
+            [
+                jp.arctan2(
+                    -2.0 * (z1_idx_2 * b - z1_idx_1 * z1_idx_0), ((eul_tmp - b_eul_tmp) - c_eul_tmp) + d_eul_tmp
+                ),
+                jp.arcsin(aSinInput),
+                jp.arctan2(
+                    -2.0 * (z1_idx_1 * z1_idx_2 - b * z1_idx_0), ((eul_tmp + b_eul_tmp) - c_eul_tmp) - d_eul_tmp
+                ),
+            ]
+        )
+
+        return eul
+
     def evaluate_reward(self, data0: mjx.Data, data: mjx.Data, action: jp.ndarray, state_info: Dict[str, Any]) -> dict:
         """Evaluate the reward function."""
-
-        def eulRates2omega(eulRates, orientation):
-            # Input processing
-            assert len(eulRates) == 3, "The omega must be a numerical vector of length 3."
-
-            x, y, z = orientation
-
-            M = jp.array(
-                [[jp.cos(y) * jp.cos(z), jp.sin(z), 0], [-jp.cos(y) * jp.sin(z), jp.cos(z), 0], [jp.sin(y), 0, 1]]
-            )
-
-            omega = jp.dot(M, eulRates)
-
-            return omega
-
-        def quat2eulXYZ(quat):
-            # Should assume wxyz convention
-            # z1_2 should be qy, 1 should be x, w should be 0
-
-            eul = jp.zeros(3, dtype=jp.float32)
-            b = 1.0 / jp.sqrt(((quat[0] * quat[0] + quat[1] * quat[1]) + quat[2] * quat[2]) + quat[3] * quat[3])
-            z1_idx_0 = quat[0] * b
-            z1_idx_1 = quat[1] * b
-            z1_idx_2 = quat[2] * b
-            b *= quat[3]
-            aSinInput = 2.0 * (z1_idx_1 * b + z1_idx_2 * z1_idx_0)
-
-            # Ensure aSinInput is within [-1.0, 1.0]
-            aSinInput = jp.clip(aSinInput, -1.0, 1.0)
-
-            eul_tmp = z1_idx_0 * z1_idx_0
-            b_eul_tmp = z1_idx_1 * z1_idx_1
-            c_eul_tmp = z1_idx_2 * z1_idx_2
-            d_eul_tmp = b * b
-
-            eul = jp.array(
-                [
-                    jp.arctan2(
-                        -2.0 * (z1_idx_2 * b - z1_idx_1 * z1_idx_0), ((eul_tmp - b_eul_tmp) - c_eul_tmp) + d_eul_tmp
-                    ),
-                    jp.arcsin(aSinInput),
-                    jp.arctan2(
-                        -2.0 * (z1_idx_1 * z1_idx_2 - b * z1_idx_0), ((eul_tmp + b_eul_tmp) - c_eul_tmp) - d_eul_tmp
-                    ),
-                ]
-            )
-
-            return eul
-
         # convert relevant fields
-        eul = quat2eulXYZ(data.qpos[3:7])
-        eul_rate = eulRates2omega(data.qvel[3:6], eul)
+        eul = self.quat2eulXYZ(data.qpos[3:7])
+        eul_rate = self.eulRates2omega(data.qvel[3:6], eul)
 
         # base coordinate tracking
         domain_idx = state_info["domain_info"]["domain_idx"]
@@ -932,19 +1049,18 @@ class Exo(MjxEnv):
 
         def get_stance_contact(idx, data):
             """Get the contact force for the stance leg."""
-            jax.debug.print("hacked get_stance_contact()")
-            return data.efc_force[0:4]
-            # return data.efc_force[data.contact.efc_address[idx]]
+            # jax.debug.print("hacked get_stance_contact()")
+            # return data.efc_force[0:4]
+            return data.efc_force[self.efc_address[idx]]
 
-        # stance_grf = jax.lax.cond(
-        #     domain_idx == 0,
-        #     lambda _: get_stance_contact([4, 5, 6, 7], data),
-        #     lambda _: get_stance_contact([0, 1, 2, 3], data),
-        #     operand=None,
-        # )
+        stance_grf = jax.lax.cond(
+            domain_idx == StanceState.Left.value,
+            lambda _: get_stance_contact(jp.array([0, 1, 2, 3]), data),
+            lambda _: get_stance_contact(jp.array([4, 5, 6, 7]), data),
+            operand=None,
+        )
 
-        grf_penalty = 0.0
-        # grf_penalty = self.config.reward.grf_cost_weight * (1.0 - jp.sum(stance_grf) / (self.mass * 9.81))
+        grf_penalty = self.config.reward.grf_cost_weight * (1.0 - jp.sum(stance_grf) / (self.mass * 9.81))
 
         tracking_pos_reward = self.config.reward.tracking_base_pos * jp.exp(
             -jp.sum(jp.square(base_pos - state_info["base_pos_desire"][0:3])) / self.config.reward.tracking_sigma_pos
@@ -981,6 +1097,25 @@ class Exo(MjxEnv):
             "trtacking_joint_reward": tracking_joint_reward,
             "grf_penalty": grf_penalty,
         }
+
+    def checkImpact(self, data, state_info):
+        """Check if the robot is in impact."""
+
+        def get_swing_contact(idx, data):
+            """Get the contact force for the stance leg."""
+            # jax.debug.print("hacked get_stance_contact()")
+            # return data.efc_force[0:4]
+            return data.efc_force[self.efc_address[idx]]
+
+        domain_idx = state_info["domain_info"]["domain_idx"]
+        swing_grf = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: get_swing_contact(jp.array([0, 1, 2, 3]), data),
+            lambda _: get_swing_contact(jp.array([4, 5, 6, 7]), data),
+            operand=None,
+        )
+        # jax.debug.print("swing_grf: {}", swing_grf)
+        return jp.sum(swing_grf) > self.config.impact_threshold
 
     def jt_blending(self, t: float, step_dur: float, action: jp.ndarray, state_info: Dict[str, Any]):
         """Blend the action with the offset."""
@@ -1053,8 +1188,8 @@ class Exo(MjxEnv):
 
     def _get_contact_force(self, data: mjx.Data) -> jax.Array:
         # hacked version
-        jax.debug.print("contact force: hacked version")
-        contact_force = data.efc_force[0:8]
+        contact_force = data.efc_force[self.efc_address]
+        # jax.debug.print("contact force: {}", contact_force)
         return contact_force
 
     def _calculate_cop(self, pos: jax.Array, force: jax.Array) -> jax.Array:
