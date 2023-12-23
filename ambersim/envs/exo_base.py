@@ -97,7 +97,7 @@ class ExoConfig:
     reset_2_stand: bool = False
     healthy_z_range: tuple = (0.85, 1)
     desired_cop_range: tuple = (-0.1, 0.1)
-    reset_noise_scale: float = 1e-5
+    reset_noise_scale: float = 1e-4
     history_size: float = 5
     xml_file: str = "loadedExo.xml"
     jt_traj_file: str = "jt_bez_2023-09-10.yaml"
@@ -113,9 +113,10 @@ class ExoConfig:
     custom_action_space: jp.ndarray = jp.array([1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0])
     custom_act_idx: jp.ndarray = jp.array([0, 2, 6, 8])
     impact_threshold: float = 200.0
-    impact_based_switching: bool = True
+    impact_based_switching: bool = False
     no_noise: bool = False
     hip_regulation: bool = False
+    hip_regulator_gain: jp.ndarray = jp.array([1.0, 1.0, 0.15, 0.15, 1.0, 1.0, 0.1, 0.1])
 
 
 class Exo(MjxEnv):
@@ -338,6 +339,7 @@ class Exo(MjxEnv):
             },
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
+            "hip_regulator_gain": self.config.hip_regulator_gain,
         }
 
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
@@ -508,21 +510,23 @@ class Exo(MjxEnv):
         phaseVar = (state.info["domain_info"]["step_start"] - state.pipeline_state.time) / self.step_dur[
             BehavState.Walking
         ]
+
+        hip_gain = state.info["hip_regulator_gain"]
         # Regulate hips based on current and desired waist roll, and blending factors
         nst_roll, st_roll = regulate_hip(
-            si_nsh=1 - phaseVar,
-            si_sh=phaseVar,
-            K_nsh=0.15,
-            K_sh=0.15,
+            si_nsh=hip_gain[0] * (1 - phaseVar),
+            si_sh=hip_gain[1] * phaseVar,
+            K_nsh=hip_gain[2],
+            K_sh=hip_gain[3],
             ya=base_act[0],
             yd=state.info["base_pos_desire"][3],
         )
 
         nst_pitch, st_pitch = regulate_hip(
-            si_nsh=1 - phaseVar,
-            si_sh=phaseVar,
-            K_nsh=0.1,
-            K_sh=0.1,
+            si_nsh=hip_gain[4] * (1 - phaseVar),
+            si_sh=hip_gain[5] * phaseVar,
+            K_nsh=hip_gain[6],
+            K_sh=hip_gain[7],
             ya=base_act[1],
             yd=state.info["base_pos_desire"][4],
         )
@@ -544,10 +548,10 @@ class Exo(MjxEnv):
             return jp.array([6, 8, 0, 2])
 
         hip_index = lax.cond(domain == StanceState.Right.value, true_fun, false_fun, None)
-        jax.debug.print("hip_targets: {}", hip_targets)
-        jax.debug.print("hip_index: {}", hip_index)
-        jax.debug.print("desire: {}", state.info["base_pos_desire"][3:6])
-        jax.debug.print("actual: {}", base_act)
+        # jax.debug.print("hip_targets: {}", hip_targets)
+        # jax.debug.print("hip_index: {}", hip_index)
+        # jax.debug.print("desire: {}", state.info["base_pos_desire"][3:6])
+        # jax.debug.print("actual: {}", base_act)
         # jax.debug.breakpoint()
         return hip_targets, hip_index
 
@@ -1232,8 +1236,8 @@ class Exo(MjxEnv):
     def getRender(self):
         """Get the renderer and camera for rendering."""
         camera = mj.MjvCamera()
-        camera.azimuth = 0
-        camera.elevation = 0
+        camera.azimuth = 45
+        camera.elevation = 0.3
         camera.distance = 3
         camera.lookat = jp.array([0, 0, 0.5])
         self.camera = camera
