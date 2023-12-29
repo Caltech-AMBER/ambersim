@@ -89,7 +89,7 @@ class WandbLogger(BaseLogger):
     Inherits from BaseLogger and implements its methods for wandb specific logging.
     """
 
-    def __init__(self, log_dir=None, project_name=None):
+    def __init__(self, log_dir=None, project_name=None, config_dict=None):
         """Initializes the WandbLogger with a specified log directory and project name.
 
         Args:
@@ -97,7 +97,7 @@ class WandbLogger(BaseLogger):
             project_name (str): Name of the wandb project. If None, a default project is used.
         """
         super().__init__(log_dir)
-        wandb.init(dir=log_dir, project=project_name)
+        wandb.init(dir=log_dir, project=project_name, config=config_dict)
 
     def log_metric(self, key, value, step=None):
         """Logs a metric to wandb.
@@ -107,7 +107,7 @@ class WandbLogger(BaseLogger):
             value (float): The value of the metric.
             step (int, optional): The step number at which the metric is logged.
         """
-        wandb.log({key: value}, step=step)
+        wandb.log({key: value})
 
     def log_params(self, params):
         """Logs parameters to wandb.

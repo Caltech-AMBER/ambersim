@@ -19,6 +19,7 @@ from ambersim.envs.exo_parallel import (
     randomizeCoMOffset,
     randomizeSlope,
 )
+from ambersim.logger.logger import WandbLogger
 
 # XLA_PYTHON_CLIENT_PREALLOCATE=false MUJOCO_GL=egl python exo_traj_opt.py
 NVIDIA_ICD_CONFIG_PATH = "/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
@@ -41,7 +42,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["MUJOCO_GL"] = "egl"
 
 
-def evalCostImpact(rng, jit_env_reset, jit_env_step, env, alpha, timesteps=400, log_file="traj_opt.log"):
+def evalCostImpact(rng, jit_env_reset, jit_env_step, env, alpha, timesteps=400, log_file="traj_opt.log", logger=None):
     """Evaluate Costs from standing position."""
     costs = 0.0
     # step_dur = 1.0
@@ -79,11 +80,18 @@ def evalCostImpact(rng, jit_env_reset, jit_env_step, env, alpha, timesteps=400, 
         mcot = jp.where(jp.isinf(mcot), 1000, mcot)
         costs = costs + mcot
         jax.debug.print("mcot: {}", env.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T))
-    return jp.sum(jp.array(costs)) / (rng.shape[0])
+
+        value = jp.sum(jp.array(costs)) / (rng.shape[0])
+
+        #print("Value:", value)
+        #logger.log_metric("value", value)
+        #logger.log_metric("alpha", wandb.Histogram(alpha))
+
+    return value
 
 
 # Function to evaluate cost
-def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=300, log_file="traj_opt.log"):
+def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=300, log_file="traj_opt.log", logger=None):
     """Evaluate Costs from standing position."""
     costs = 0.0
     step_dur = 1.0
@@ -151,10 +159,15 @@ def evalCostFromStanding(rng, state, jit_env_step, env, alpha, timesteps=300, lo
 
         step_length = state.pipeline_state.geom_xpos[:, env.foot_geom_idx[0], 0] - init_foot_pos
         costs = costs + jp.sum(env.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T))
-    return jp.sum(jp.array(costs)) / (state.pipeline_state.time[0] * rng.shape[0])
+        value = jp.sum(jp.array(costs)) / (state.pipeline_state.time[0] * rng.shape[0])
+
+        logger.log_metric("value", value)
+        logger.log_metric("alpha", wandb.Histogram(alpha))
+        
+    return value
 
 
-def evalCost(rng, jit_env_reset, jit_env_step, env, alpha, step_dur, timesteps=110, log_file="traj_opt.log"):
+def evalCost(rng, jit_env_reset, jit_env_step, env, alpha, step_dur, timesteps=110, log_file="traj_opt.log", logger=None):
     """Evaluate Costs Walking Only."""
     state = jit_env_reset(rng, alpha, step_dur)
     costs = 0.0
@@ -198,8 +211,12 @@ def evalCost(rng, jit_env_reset, jit_env_step, env, alpha, step_dur, timesteps=1
             # else:
         step_length = env.getFootPos(state) - init_foot_pos
         costs = costs + env.mcot(state, t_values, step_length, P_values)
+        value = jp.sum(jp.array(costs)) / (i * rng.shape[0])
 
-    return jp.sum(jp.array(costs)) / (i * rng.shape[0])
+        logger.log_metric("value", value)
+        logger.log_metric("alpha", wandb.Histogram(alpha))
+
+    return value
 
 
 # Step function for optimization
@@ -280,7 +297,6 @@ if train_flag:
     alpha = env.alpha
     step_dur = env.step_dur[BehavState.Walking]  # env.step_dur[BehavState.Walking]
 
-    evalCostFunc = functools.partial(evalCostImpact, rng, jit_env_reset, jit_env_step, domain_env)
     # evalCostFunc = functools.partial(evalCostFromStanding, rng, state, jit_env_step, domain_env)
 
     # Initialize optimization
@@ -288,30 +304,34 @@ if train_flag:
     opt_init, opt_update, get_params = optimizers.adam(step_size)
     opt_state = opt_init(alpha)
 
-    # Initialize wandb run
     num_steps = 5
-    wandb.init(
-        project="traj_opt",
-        config={
-            "num_steps": num_steps,
-            "step_size": step_size,
-        },
-    )
+
+    # Initialize wandb logger
+    log_dir = None
+    project_name = "traj_opt"
+    cfg_dict = {
+                "num_steps": num_steps,
+                "step_size": step_size,
+                }
+    logger = WandbLogger(log_dir, project_name, cfg_dict)
+
+    evalCostFunc = functools.partial(evalCostImpact, rng, jit_env_reset, jit_env_step, domain_env, logger=logger)
 
     # Optimization loop
     for i in range(num_steps):  # Number of optimization steps
         value, opt_state = step(i, opt_state, get_params, opt_update, evalCostFunc)
         alpha = get_params(opt_state)
 
-        with open(opt_file, "wb") as file:
-            pickle.dump(get_params(opt_state), file)
+        #with open(opt_file, "wb") as file:
+        #    pickle.dump(get_params(opt_state), file)
 
-        opt_iter_file = f"traj_opt/optimized_params_impact{i}.pkl"
-        with open(opt_iter_file, "wb") as file:
-            pickle.dump(get_params(opt_state), file)
-        # Log results with wandb
-        wandb.log({"step": i, "value": value, "alpha": wandb.Histogram(alpha)})
+        #opt_iter_file = f"traj_opt/optimized_params_impact{i}.pkl"
+        #with open(opt_iter_file, "wb") as file:
+        #    pickle.dump(get_params(opt_state), file)
 
+        logger.log_metric("value", value)
+        logger.log_metric("alpha", wandb.Histogram(alpha))
+    
     # Save optimized parameters
 
 else:
