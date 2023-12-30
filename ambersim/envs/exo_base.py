@@ -88,6 +88,10 @@ class ExoRewardConfig:
 
     healthy_reward: float = 2.0
 
+    # smoothness reward
+    base_smoothness_weight: float = 0.001
+    jt_smoothness_weight: float = 0.001
+
 
 class ExoConfig:
     """config dataclass that specified the reward coefficient and other custom setting for exo env."""
@@ -157,7 +161,7 @@ class Exo(MjxEnv):
             self.custom_act_space_size = self.model.nu
         # calculate observation size
         # TODO: fix hard code here
-        self.observation_size_single_step = self.model.nq + self.model.nv + 8 + self.model.nu + 3
+        self.observation_size_single_step = self.model.nq + self.model.nv + 8 + 3 + 3
 
         super().__init__(mj_model=self.model, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
         self.efc_address = jp.array([0, 4, 8, 12, 16, 20, 24, 28])
@@ -319,7 +323,6 @@ class Exo(MjxEnv):
                 "step_start": 0.0,
                 "domain_idx": StanceState.Right.value,
             },
-            "mechanical_power": zero,
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
             "nominal_action": jp.zeros(12),
             "blended_action": jp.zeros(12),
@@ -336,6 +339,9 @@ class Exo(MjxEnv):
                 "tracking_orientation_reward": zero,
                 "trtacking_joint_reward": zero,
                 "grf_penalty": zero,
+                "mechanical_power": zero,
+                "jt_smoothness_reward": zero,
+                "base_smoothness_reward": zero,
             },
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
@@ -390,7 +396,7 @@ class Exo(MjxEnv):
         state.info["reward_tuple"] = reward_tuple
         state.info["last_action"] = jp.zeros(self.custom_act_space_size)
         state.info["blended_action"] = blended_action
-        state.info["mechanical_power"] = self.mechanical_power(data)
+
         state.info["tracking_err"] = (
             data.qpos[-self.model.nu :] - motor_targets
         )  # currently assuming motor_targets is the desired joint angles; TODO handle torque case
@@ -1092,6 +1098,13 @@ class Exo(MjxEnv):
         ctrl_cost = self.config.reward.ctrl_cost_weight * jp.sum(jp.square(data.qfrc_actuator[-self.model.nu :]))
         ctrl_cost = jp.clip(ctrl_cost, -1.0, 1.0)
 
+        # mechanical power
+        mechanical_power = self.mechanical_power(data)
+
+        # smoothness
+        jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
+        base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
+
         return {
             "ctrl_cost": ctrl_cost,
             "tracking_lin_vel_reward": tracking_lin_vel_reward,
@@ -1100,6 +1113,9 @@ class Exo(MjxEnv):
             "tracking_orientation_reward": tracking_orientation_reward,
             "trtacking_joint_reward": tracking_joint_reward,
             "grf_penalty": grf_penalty,
+            "mechanical_power": mechanical_power,
+            "jt_smoothness_reward": jt_smoothness_reward,
+            "base_smoothness_reward": base_smoothness_reward,
         }
 
     def checkImpact(self, data, state_info):
@@ -1214,14 +1230,14 @@ class Exo(MjxEnv):
         obs_list = []
         domain_idx = state_info["domain_info"]["domain_idx"]
         step_start = state_info["domain_info"]["step_start"]
-        nominal_action = state_info["nominal_action"]
+        nominal_base_desire = state_info["base_vel_desire"][0:3]
         phase_var = (data.time - step_start) / self.step_dur[state_info["state"]]
 
         # last action
         obs_list.append(position)  # 19
         obs_list.append(velocity)  # 18
         obs_list.append(self._get_contact_force(data))  # 8
-        obs_list.append(nominal_action)  # 12
+        obs_list.append(nominal_base_desire)  # 3
         obs_list.append(jp.array([domain_idx, step_start, phase_var]))
 
         obs = jp.clip(jp.concatenate(obs_list), -100.0, 2000.0)
