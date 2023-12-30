@@ -297,25 +297,26 @@ if train_flag:
     alpha = env.alpha
     step_dur = env.step_dur[BehavState.Walking]  # env.step_dur[BehavState.Walking]
 
-    # evalCostFunc = functools.partial(evalCostFromStanding, rng, state, jit_env_step, domain_env)
-
     # Initialize optimization
     step_size = 1e-3
     opt_init, opt_update, get_params = optimizers.adam(step_size)
     opt_state = opt_init(alpha)
 
     num_steps = 5
+    cost_func = "evalCostImpact"
 
     # Initialize wandb logger
     log_dir = None
     project_name = "traj_opt"
     cfg_dict = {
+                "cost_func": cost_func,
                 "num_steps": num_steps,
                 "step_size": step_size,
                 }
     logger = WandbLogger(log_dir, project_name, cfg_dict)
 
-    evalCostFunc = functools.partial(evalCostImpact, rng, jit_env_reset, jit_env_step, domain_env, logger=logger)
+    costFuncs = {"evalCostImpact": evalCostImpact, "evalCostFromStanding": evalCostFromStanding, "evalCost": evalCost}
+    evalCostFunc = functools.partial(costFuncs[cost_func], rng, jit_env_reset, jit_env_step, domain_env, logger=logger)
 
     # Optimization loop
     for i in range(num_steps):  # Number of optimization steps
@@ -329,7 +330,7 @@ if train_flag:
         #with open(opt_iter_file, "wb") as file:
         #    pickle.dump(get_params(opt_state), file)
 
-        logger.log_metric("value", value)
+        logger.log_metric("value", cost_func)
         logger.log_metric("alpha", wandb.Histogram(alpha))
     
     # Save optimized parameters
