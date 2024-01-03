@@ -13,6 +13,7 @@ from jax import grad, jacfwd, jit
 from jax.example_libraries import optimizers
 
 import wandb
+from ambersim import ROOT
 from ambersim.envs.exo_base import BehavState, Exo, ExoConfig
 from ambersim.envs.exo_parallel import (
     CustomVecEnv,
@@ -20,6 +21,7 @@ from ambersim.envs.exo_parallel import (
     randomizeBoxTerrain,
     randomizeCoMOffset,
     randomizeSlope,
+    randomizeSlopeGain,
 )
 from ambersim.logger.logger import LoggerFactory
 
@@ -34,7 +36,7 @@ class TrajectoryOptimizer:
     """Class to optimize trajectory parameters."""
 
     def __init__(
-        self, config, param_keys, param_values, cost_terms, cost_weights=None, num_env=20, seed=0, time_steps=220
+        self, config, param_keys, param_values, cost_terms, cost_weights=None, num_env=200, seed=0, time_steps=400
     ):
         """Initialize the trajectory optimizer."""
         self.config = config
@@ -54,7 +56,7 @@ class TrajectoryOptimizer:
     def init_vec_env(self):
         """Initialize the vectorized environment."""
         # self.randomization_fn=partial(rand_friction, rng=self.rng)
-        self.randomize_func = partial(randomizeSlope, rng=self.rng, plane_ind=0, max_angle_degrees=3)
+        self.randomize_func = partial(randomizeSlopeGain, rng=self.rng, plane_ind=0, max_angle_degrees=5)
         self.domain_env = CustomVecEnv(self.env, randomization_fn=self.randomize_func)
         self.jit_env_reset = jit(self.domain_env.reset)
         self.jit_env_step = jit(self.domain_env.step)
@@ -78,7 +80,17 @@ class TrajectoryOptimizer:
     def eval_cost(self, params):
         """Evaluate the cost function."""
         costs_dict = {term: [] for term in self.cost_terms}
-        state = self.jit_env_reset(self.rng, BehavState.Walking)
+        if "alpha" in params and "alpha_base" in params:
+            q_init, dq_init = self.env.getBezInitialConfig(
+                params["alpha"], params["alpha_base"], self.env.step_dur[BehavState.Walking]
+            )
+
+        elif "alpha" in params:
+            q_init, dq_init = self.env.getBezInitialConfig(
+                params["alpha"], self.env.alpha_base, self.env.step_dur[BehavState.Walking]
+            )
+
+        state = self.jit_env_reset(self.rng, q_init, dq_init, BehavState.Walking)
         state = self.updateParams(state, params)
         init_pos_x = state.pipeline_state.qpos[:, 0]
         t_values = []
@@ -87,7 +99,10 @@ class TrajectoryOptimizer:
             t_values.append(state.pipeline_state.time)
 
             for term in self.cost_terms:
-                costs_dict[term].append(state.info["reward_tuple"][term])
+                if term != "survival":
+                    costs_dict[term].append(-state.info["reward_tuple"][term])
+                else:
+                    costs_dict[term].append(sum(state.done))
 
         # Post-process specific metrics
         step_length = state.pipeline_state.qpos[:, 0] - init_pos_x
@@ -118,7 +133,7 @@ class TrajectoryOptimizer:
         for i in range(num_steps):
             print("Optimized parameters: ", self.get_params(opt_state))
             value, opt_state = self.optimization_step(i, opt_state)
-            wandb.log({"step": i, "value": value})
+            wandb.log({"step": i, "value": float(jax.device_get(value))})
 
         full_file = os.path.join(self.save_dir, file_name)
         print(f"Saving optimized params to: {full_file}")
@@ -132,16 +147,132 @@ class TrajectoryOptimizer:
         opt_state = self.opt_update(step_num, grads, opt_state)
         return self.eval_cost(self.get_params(opt_state)), opt_state
 
-    def simulate(self, optimized_params, num_steps=200, output_video="sim_video.mp4"):
+    def simulate(self, env, optimized_params, num_steps=200, output_video="sim_video.mp4"):
         """Simulate the trajectory using the optimized parameters."""
-        state = self.ind_jit_env_reset(jax.random.PRNGKey(1), BehavState.Walking)
+        if "alpha" in optimized_params and "alpha_base" in optimized_params:
+            q_init, dq_init = env.getBezInitialConfig(
+                optimized_params["alpha"], optimized_params["alpha_base"], self.env.step_dur[BehavState.Walking]
+            )
+
+        elif "alpha" in optimized_params:
+            q_init, dq_init = env.getBezInitialConfig(
+                optimized_params["alpha"], self.env.alpha_base, self.env.step_dur[BehavState.Walking]
+            )
+
+        jit_env_reset = jit(env.reset)
+        jit_env_step = jit(env.step)
+        state = jit_env_reset(jax.random.PRNGKey(1), q_init, dq_init, BehavState.Walking)
         state = self.updateParams(state, optimized_params)
         images = []
+        env.getRender()
+        for _ in range(num_steps):
+            state = jit_env_step(state, jp.zeros(self.env.action_size))
+            images.append(env.get_image(state.pipeline_state))
+        media.write_video(os.path.join(self.save_dir, output_video), images, fps=1.0 / self.env.dt)
+
+    def run_base_sim(self, rng, alpha, num_steps=400, output_video="nominal_policy_video.mp4"):
+        """Run the simulation basic version."""
         self.env.getRender()
+
+        state = self.ind_jit_env_reset(rng, BehavState.Walking)
+        state.info["alpha"] = alpha
+        images = []
+
         for _ in range(num_steps):
             state = self.ind_jit_env_step(state, jp.zeros(self.env.action_size))
             images.append(self.env.get_image(state.pipeline_state))
-        media.write_video(os.path.join(self.save_dir, output_video), images, fps=1.0 / self.env.dt)
+        media.write_video(output_video, images, fps=1.0 / self.env.dt)
+        return
+
+    def run_sim_from_standing(self, rng, num_steps=400, output_video="nominal_policy_from_standing_video.mp4"):
+        """Run the simulation from standing position."""
+        # start from standing, wait for 0.5 second, go to startingpos, wait for 0.5 second, start walking, walk 2 steps, and then go to stopping pos
+        self.env.getRender()
+        # currentState = BehavState.ToLoading
+        state = self.ind_jit_env_reset(rng, BehavState.WantToStart)
+        images = []
+
+        maxErrorTrigger = 0.01
+        minTransitionTime = 0.05
+
+        log_items = ["qpos", "qvel", "qfrc_actuator"]
+        logged_data_per_step = []
+
+        prev_domain = state.info["domain_info"]["domain_idx"]
+
+        rollouts = []
+
+        for _ in range(num_steps):
+            state = self.env.ind_jit_env_step(state, jp.zeros(12))  # Replace with your control strategy
+
+            # Log the time taken for each step
+            logged_data = {}
+            logged_data = self.log_data(state.pipeline_state, log_items, logged_data)
+            logged_data = self.log_state_info(
+                state.info, ["state", "domain_info", "tracking_err", "joint_desire"], logged_data
+            )
+            logged_data_per_step.append(logged_data)
+            # Log the time taken for each step
+
+            state_change = False
+            # #check state transition
+            if state.info["state"] == BehavState.ToLoading:
+                jax.debug.print("state: ToLoading")
+                if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
+                    state.info["state"] = BehavState.Loading
+
+                    state_change = True
+
+            elif state.info["state"] == BehavState.Loading:
+                jax.debug.print("state: Loading")
+                if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
+                    state.info["state"] = BehavState.WantToStart
+                    state_change = True
+
+            elif state.info["state"] == BehavState.WantToStart:
+                jax.debug.print("state: WantToStart")
+                jax.debug.print("blended_action: {}", state.info["blended_action"])
+                jax.debug.print("joint_desire: {}", state.info["joint_desire"])
+                jax.debug.print("current joint config: {}", state.pipeline_state.qpos[-self.model.nu :])
+                minTransitionTime = 2 * self.step_dur[BehavState.WantToStart]
+                if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
+                    state.info["state"] = BehavState.Walking
+                    jax.debug.print("tracking_err: {}", state.info["tracking_err"])
+                    jax.debug.print("starting pos: {}", self._q_default[BehavState.WantToStart.value, -self.model.nu :])
+                    state_change = True
+
+            elif state.info["state"] == BehavState.Walking:
+                jax.debug.print("state: Walking")
+                jax.debug.print("blended_action: {}", state.info["blended_action"])
+                jax.debug.print("joint_desire: {}", state.info["joint_desire"])
+                if state.info["domain_info"]["domain_idx"] != prev_domain:
+                    state.info["offset"] = state.pipeline_state.qpos[-self.model.nu :] - self.getNominalDesire(state)[0]
+                    jax.debug.print("offset: {}", state.info["offset"])
+                    prev_domain = state.info["domain_info"]["domain_idx"]
+                    jax.debug.print("domain changed to {}", state.info["domain_info"]["domain_idx"])
+                    # state_change = True
+
+            if state_change:
+                state.info["domain_info"]["step_start"] = state.pipeline_state.time
+                state.info["offset"] = state.pipeline_state.qpos[-self.model.nu :] - self.getNominalDesire(state)[0]
+
+                jax.debug.print("offset: {}", state.info["offset"])
+
+            rollouts.append(state)
+            images.append(self.env.get_image(state.pipeline_state))
+
+        media.write_video(output_video, images, fps=1.0 / self.dt)
+
+        log_file = "logged_data.json"
+        rollout_file = "rollout_data.pkl"
+        with open(log_file, "wb") as f:
+            pickle.dump(logged_data_per_step, f)
+
+        with open(rollout_file, "wb") as f:
+            pickle.dump(rollouts, f)
+        self.plot_logged_data(logged_data_per_step)
+
+        return
 
     def generate_hash(self, date=None):
         """Generate a unique hash based on the param_keys, cost_terms, and a given date."""
@@ -171,7 +302,7 @@ class TrajectoryOptimizer:
 
         return full_path
 
-    def load_config(self, date, base_dir="configurations", file_name="optimized_params.pkl"):
+    def load_config(self, date, base_dir="configurations", file_name="optimized_params.pkl", export_yaml=True):
         """Load configuration parameters from a file identified by the hash generated with a specific date."""
         hash_path = self.generate_hash(date=date)
         full_path = os.path.join(base_dir, hash_path)
@@ -188,29 +319,72 @@ class TrajectoryOptimizer:
 
         if os.path.exists(file_name):
             print(f"File:{file_name} exists")
+
+        if export_yaml:
+            gait_params_file = os.path.join(ROOT, "..", "models", "exo", env.config.jt_traj_file)
+            with open(gait_params_file, "r") as file:
+                gait_params = yaml.safe_load(file)
+            gait_params["coeff_jt"] = config["optimized_params"]["alpha"].T.ravel().astype(float).tolist()
+            output_file = os.path.join(full_path, "optimized_params.yaml")
+            with open(output_file, "w") as file:
+                yaml.dump(gait_params, file, default_flow_style=None)
+
         return config
+
+    def export_yaml(self, filename):
+        """Export the optimized parameters to a yaml file."""
+        config = {}
+        with open(filename, "rb") as optimized_File:
+            config["optimized_params"] = pickle.load(optimized_File)
+        gait_params_file = os.path.join(ROOT, "..", "models", "exo", env.config.jt_traj_file)
+        with open(gait_params_file, "r") as file:
+            gait_params = yaml.safe_load(file)
+        gait_params["coeff_jt"] = config["optimized_params"]["alpha"].T.ravel().astype(float).tolist()
+        output_file = os.path.join("multi_merged_optimized_params.yaml")
+        with open(output_file, "w") as file:
+            yaml.dump(gait_params, file, default_flow_style=None)
 
 
 if __name__ == "__main__":
     # Example usage:
     config = ExoConfig()
-    config.slope = False
+    config.slope = True
     config.impact_based_switching = False
     config.jt_traj_file = "merged_multicontact.yaml"
     config.no_noise = False
     config.hip_regulation = False
     env = Exo(config)
     param_keys = ["alpha"]
-    with open("multi_no_pos_optimized_params_update.pkl", "rb") as file:
-        init_guess = pickle.load(file)
-    param_values = [init_guess["alpha"]]  # Example initial conditions
-    cost_terms = ["base_smoothness_reward", "jt_smoothness_reward", "tracking_lin_vel_reward", "mechanical_power"]
+    # with open("multi_no_pos_optimized_params_update.pkl", "rb") as file:
+    #     init_guess = pickle.load(file)
+    # param_values = [init_guess["alpha"]]  # Example initial conditions
+    param_values = [env.alpha]  # Example initial conditions
+    cost_terms = [
+        "base_smoothness_reward",
+        "jt_smoothness_reward",
+        "tracking_lin_vel_reward",
+        "mechanical_power",
+        "survival",
+    ]
     # param_keys = ['hip_regulator_gain']
     # param_values = [config.hip_regulator_gain]  # Example initial conditions
     # param_keys = ['alpha','hip_regulator_gain']
     # param_values = [env.alpha,config.hip_regulator_gain]  # Example initial conditions
-    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, time_steps=120)
+    cost_weights = {
+        "base_smoothness_reward": 1.0,
+        "jt_smoothness_reward": 1.0,
+        "tracking_lin_vel_reward": 1.0,
+        "mechanical_power": 1.0,
+        "survival": 100.0,
+    }
+    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, cost_weights, time_steps=300)
     # filename = "multi_no_pos_optimized_params_update_v2.pkl" #either this or without v2 is the old result
+
+    # optimizer.run_base_sim(jax.random.PRNGKey(0),init_guess["alpha"],output_video="mjx_version.mp4")
+    # breakpoint()
+
+    # filename = "/home/kli5/ambersim/ambersim/envs/multi_no_pos_optimized_params_update.pkl"
+    # optimizer.export_yaml(filename)
 
     # To load a config with a specific old date
     # old_date = '20230101'  # example old date
@@ -226,7 +400,7 @@ if __name__ == "__main__":
     if train:
         path = optimizer.save_config()
         print(f"Config saved at: {path}")
-        optimizer.train(num_steps=1, opt_step_size=1e-7)
+        optimizer.train(num_steps=15, opt_step_size=1e-4)
     else:
         config = ExoConfig()
         config.slope = False
@@ -236,5 +410,10 @@ if __name__ == "__main__":
         config.hip_regulation = False
         env = Exo(config)
 
-        opt_config = optimizer.load_config(date="20231228")
-        # optimizer.simulate(opt_config["optimized_params"], num_steps=1000, output_video="multi_no_pos_traj_opt_update_v2.mp4")
+        param_date = "20240102"
+        opt_config = optimizer.load_config(date=param_date)
+        # nominal = {"alpha": optimizer.env.alpha}
+        optimizer.simulate(
+            env, opt_config["optimized_params"], num_steps=1000, output_video="multi_traj_opt_" + param_date + ".mp4"
+        )
+        # optimizer.simulate(nominal, num_steps=1000, output_video="nominal.mp4")

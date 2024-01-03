@@ -1,7 +1,5 @@
 import enum
 import os
-import pickle
-import time
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -12,6 +10,7 @@ import mediapy as media
 import mujoco as mj
 import numpy as np
 import yaml
+from brax import math
 from brax.base import Base, Motion, Transform
 from brax.envs.base import PipelineEnv, State
 from jax import lax
@@ -93,10 +92,21 @@ class ExoRewardConfig:
     jt_smoothness_weight: float = 0.001
 
 
+class ExoControllerConfig:
+    """config dataclass that specified the controller related setting for exo env."""
+
+    hip_regulation: bool = False
+    hip_regulator_gain: jp.ndarray = jp.array([1.0, 1.0, 0.15, 0.15, 1.0, 1.0, 0.1, 0.1])
+    yaw_control: bool = False
+    yaw_gain: jp.ndarray = jp.array([1, -1])
+    yaw_index: jp.ndarray = jp.array([1, 7])
+
+
 class ExoConfig:
     """config dataclass that specified the reward coefficient and other custom setting for exo env."""
 
     reward: ExoRewardConfig = ExoRewardConfig()
+    controller: ExoControllerConfig = ExoControllerConfig()
     terminate_when_unhealthy: bool = True
     reset_2_stand: bool = False
     healthy_z_range: tuple = (0.85, 1)
@@ -119,8 +129,6 @@ class ExoConfig:
     impact_threshold: float = 200.0
     impact_based_switching: bool = False
     no_noise: bool = False
-    hip_regulation: bool = False
-    hip_regulator_gain: jp.ndarray = jp.array([1.0, 1.0, 0.15, 0.15, 1.0, 1.0, 0.1, 0.1])
 
 
 class Exo(MjxEnv):
@@ -284,20 +292,36 @@ class Exo(MjxEnv):
                 self.model, "position", jt_idx, kp=self._p_gains[jt_idx], kd=self._d_gains[jt_idx]
             )
 
-    def getBezInitialConfig(self, alpha: jp.ndarray, step_dur: float) -> jp.ndarray:
+    def getBezInitialConfig(self, alpha: jp.ndarray, alpha_base: jp.ndarray, step_dur: float) -> jp.ndarray:
         """Get the initial configuration for the bez trajectory."""
         q_init = self._q_init.at[-self.model.nu :].set(self._forward(self.step_start, self.step_start, step_dur, alpha))
         dq_init = self._dq_init.at[-self.model.nu :].set(
             self._forward_vel(self.step_start, self.step_start, step_dur, alpha)
         )
+
+        q_base = self._forward(self.step_start, self.step_start, step_dur, alpha_base)
+        dq_base = self._forward_vel(self.step_start, self.step_start, step_dur, alpha_base)
+
+        q_base_quat = jp.zeros(7)
+        q_base_quat = q_base_quat.at[:3].set(q_base[0:3])
+        q_base_quat = q_base_quat.at[3:].set(self.eulerXYZ2quat(q_base[3:6]))
+        dq_base = dq_base.at[:3].set(math.rotate(dq_base[:3], math.quat_inv(q_base_quat[3:7])))
+        # dq_base= dq_base.at[:3].set(math.quat_inv(q_base_quat[3:7])@dq_base[:3])
+        q_init = q_init.at[:7].set(q_base_quat)
+        dq_init = dq_init.at[:6].set(dq_base)
+
         return q_init, dq_init
 
-    def reset_bez(self, rng: jp.ndarray, alpha: jp.ndarray, step_dur: float, state: BehavState) -> State:
+    def reset_bez(
+        self, rng: jp.ndarray, alpha: jp.ndarray, alpha_base: jp.ndarray, step_dur: float, state: BehavState
+    ) -> State:
         """Reset the environment with the bez for a given trajectory."""
-        self._q_init, self._dq_init = self.getBezInitialConfig(alpha, step_dur)
+        self._q_init, self._dq_init = self.getBezInitialConfig(alpha, alpha_base, step_dur)
         return self.reset(rng, state)
 
-    def reset(self, rng: jp.ndarray, behavstate: BehavState = BehavState.Walking) -> State:
+    def reset(
+        self, rng: jp.ndarray, q_init: jp.ndarray, dq_init: jp.ndarray, behavstate: BehavState = BehavState.Walking
+    ) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
 
@@ -306,12 +330,22 @@ class Exo(MjxEnv):
         qpos = self._q_default[behavstate, :] + jax.random.uniform(rng1, (self.sys.nq,), minval=low, maxval=hi)
         qvel = self._dq_default[behavstate, :] + jax.random.uniform(rng2, (self.sys.nv,), minval=low, maxval=hi)
 
+        # if BehaveState is walking, then override the qpos and qvel with the desired values
+        # using lax.cond to avoid jax error
+        def true_fun(_):
+            return q_init, dq_init
+
+        def false_fun(_):
+            return qpos, qvel
+
+        qpos, qvel = lax.cond(behavstate == BehavState.Walking, true_fun, false_fun, None)
+
         if self.config.no_noise:
             qpos = self._q_default[behavstate, :]
             qvel = self._dq_default[behavstate, :]
 
         if self.config.rand_terrain or self.config.slope:
-            qpos = qpos.at[2].set(qpos[2] + 0.02)
+            qpos = qpos.at[2].set(qpos[2] + 0.01)
         data = self.pipeline_init(qpos, qvel)
 
         reward, done, zero = jp.zeros(3)
@@ -345,7 +379,7 @@ class Exo(MjxEnv):
             },
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
-            "hip_regulator_gain": self.config.hip_regulator_gain,
+            "hip_regulator_gain": self.config.controller.hip_regulator_gain,
         }
 
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
@@ -361,54 +395,6 @@ class Exo(MjxEnv):
         data = state.pipeline_state
         foot_pos = data.geom_xpos[self.foot_geom_idx, 0:3]
         return foot_pos
-
-    def bez_step(self, state: State, alpha: jp.ndarray, step_dur: float) -> State:
-        """Run one step of the environment with the bez trajectory."""
-        data0 = state.pipeline_state
-        step_start = state.info["domain_info"]["step_start"]
-        # action = self._forward(data0.time, step_start, step_dur, alpha)
-
-        behavstate = state.info["state"]
-
-        def true_fun(_):
-            return self._forward(data0.time, step_start, step_dur, alpha)
-
-        def false_fun(_):
-            return self._q_default[behavstate, -self.model.nu :]
-
-        # behavstate = BehavState.Walking
-        action = lax.cond(behavstate == BehavState.Walking, true_fun, false_fun, None)
-        state.info["joint_desire"] = action
-
-        if self.config.position_ctrl:
-            blended_action = self.jt_blending(data0.time, self.step_dur[behavstate], action, state.info)
-            motor_targets = jp.clip(blended_action, self._jt_lb, self._jt_ub)
-        else:
-            Warning("torque control is not implemented yet")
-        data = self.pipeline_step(data0, motor_targets)
-
-        # observation data
-        obs = self._get_obs(data, action, state.info)
-
-        reward_tuple = self.evaluate_reward(data0, data, jp.zeros(self.custom_act_space_size), state.info)
-
-        # state management
-        state.info["reward_tuple"] = reward_tuple
-        state.info["last_action"] = jp.zeros(self.custom_act_space_size)
-        state.info["blended_action"] = blended_action
-
-        state.info["tracking_err"] = (
-            data.qpos[-self.model.nu :] - motor_targets
-        )  # currently assuming motor_targets is the desired joint angles; TODO handle torque case
-
-        # resetting logic if joint limits are reached or robot is falling
-        # violate joint limit
-        done = self.checkDone(data)
-
-        reward = jp.sum(jp.array(list(reward_tuple.values())))
-        reward = reward + (1 - done) * self.config.reward.healthy_reward
-
-        return state.replace(pipeline_state=data, obs=obs, reward=reward, done=done)
 
     def checkDone(self, data: mjx.Data) -> float:
         """Check if the robot is falling or joint limits are reached."""
@@ -568,7 +554,6 @@ class Exo(MjxEnv):
         data0 = state.pipeline_state
 
         q_desire, state = self.getNominalDesire(state)
-
         scaled_action = self.config.action_scale * action
         if self.config.residual_action_space:
             action = q_desire.at[self.config.custom_act_idx].set(q_desire[self.config.custom_act_idx] + scaled_action)
@@ -583,7 +568,7 @@ class Exo(MjxEnv):
             # jax.debug.print("blended action: {}", blended_action)
             motor_targets = jp.clip(blended_action, self._jt_lb, self._jt_ub)
 
-            if self.config.hip_regulation:
+            if self.config.controller.hip_regulation:
                 hip_targets, hip_index = self.getHipTargets(state)
                 motor_targets = motor_targets.at[hip_index].set(motor_targets[hip_index] + hip_targets)
         else:
@@ -703,291 +688,6 @@ class Exo(MjxEnv):
                 print(f"Processing {filename}...")
                 self.load_and_plot_data(log_file_path, plot_save_dir)
 
-    def run_sim_from_standing(
-        self, rng, num_steps=400, log_file="simulation_times.log", output_video="nominal_policy_from_standing_video.mp4"
-    ):
-        """Run the simulation from standing position."""
-        # start from standing, wait for 0.5 second, go to startingpos, wait for 0.5 second, start walking, walk 2 steps, and then go to stopping pos
-        self.getRender()
-
-        jit_reset = jax.jit(self.reset)
-        jit_step = jax.jit(self.step)
-
-        # currentState = BehavState.ToLoading
-        state = jit_reset(rng, BehavState.WantToStart)
-        images = []
-
-        maxErrorTrigger = 0.01
-        minTransitionTime = 0.05
-
-        log_items = ["qpos", "qvel", "qfrc_actuator"]
-        logged_data_per_step = []
-
-        prev_domain = state.info["domain_info"]["domain_idx"]
-
-        rollouts = []
-
-        with open(log_file, "w") as file:
-            for _ in range(num_steps):
-                start_time = time.time()
-                state = jit_step(state, jp.zeros(12))  # Replace with your control strategy
-                end_time = time.time()
-
-                step_duration = end_time - start_time
-
-                # Log the time taken for each step
-                logged_data = {}
-                logged_data = self.log_data(state.pipeline_state, log_items, logged_data)
-                logged_data = self.log_state_info(
-                    state.info, ["state", "domain_info", "tracking_err", "joint_desire"], logged_data
-                )
-                logged_data_per_step.append(logged_data)
-                # Log the time taken for each step
-                file.write(f"Step duration: {step_duration}\n")
-
-                state_change = False
-                # #check state transition
-                if state.info["state"] == BehavState.ToLoading:
-                    jax.debug.print("state: ToLoading")
-                    if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
-                        state.info["state"] = BehavState.Loading
-
-                        state_change = True
-
-                elif state.info["state"] == BehavState.Loading:
-                    jax.debug.print("state: Loading")
-                    if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
-                        state.info["state"] = BehavState.WantToStart
-                        state_change = True
-
-                elif state.info["state"] == BehavState.WantToStart:
-                    jax.debug.print("state: WantToStart")
-                    jax.debug.print("blended_action: {}", state.info["blended_action"])
-                    jax.debug.print("joint_desire: {}", state.info["joint_desire"])
-                    jax.debug.print("current joint config: {}", state.pipeline_state.qpos[-self.model.nu :])
-                    minTransitionTime = 2 * self.step_dur[BehavState.WantToStart]
-                    if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
-                        state.info["state"] = BehavState.Walking
-                        jax.debug.print("tracking_err: {}", state.info["tracking_err"])
-                        jax.debug.print(
-                            "starting pos: {}", self._q_default[BehavState.WantToStart.value, -self.model.nu :]
-                        )
-                        state_change = True
-
-                elif state.info["state"] == BehavState.Walking:
-                    jax.debug.print("state: Walking")
-                    jax.debug.print("blended_action: {}", state.info["blended_action"])
-                    jax.debug.print("joint_desire: {}", state.info["joint_desire"])
-                    if state.info["domain_info"]["domain_idx"] != prev_domain:
-                        state.info["offset"] = (
-                            state.pipeline_state.qpos[-self.model.nu :] - self.getNominalDesire(state)[0]
-                        )
-                        jax.debug.print("offset: {}", state.info["offset"])
-                        prev_domain = state.info["domain_info"]["domain_idx"]
-                        jax.debug.print("domain changed to {}", state.info["domain_info"]["domain_idx"])
-                        # state_change = True
-
-                if state_change:
-                    state.info["domain_info"]["step_start"] = state.pipeline_state.time
-                    state.info["offset"] = state.pipeline_state.qpos[-self.model.nu :] - self.getNominalDesire(state)[0]
-
-                    jax.debug.print("offset: {}", state.info["offset"])
-
-                rollouts.append(state)
-                images.append(self.get_image(state.pipeline_state))
-
-        media.write_video(output_video, images, fps=1.0 / self.dt)
-
-        log_file = "logged_data.json"
-        rollout_file = "rollout_data.pkl"
-        with open(log_file, "wb") as f:
-            pickle.dump(logged_data_per_step, f)
-
-        with open(rollout_file, "wb") as f:
-            pickle.dump(rollouts, f)
-        self.plot_logged_data(logged_data_per_step)
-        # check if
-
-        return
-
-    def run_base_sim(
-        self, rng, alpha, num_steps=400, log_file="simulation_times.log", output_video="nominal_policy_video.mp4"
-    ):
-        """Run the simulation basic version."""
-        self.getRender()
-        jit_reset = jax.jit(self.reset)
-        jit_step = jax.jit(self.step)
-
-        state = jit_reset(rng, BehavState.Walking)
-        state.info["alpha"] = alpha
-        # init_foot_pos = state.pipeline_state.geom_xpos[self.foot_geom_idx[0], 0]
-        images = []
-
-        P_values = []
-        t_values = []
-        with open(log_file, "w") as file:
-            for _ in range(num_steps):
-                start_time = time.time()
-                state = jit_step(state, jp.zeros(self.action_size))  # Replace with your control strategy
-
-                end_time = time.time()
-
-                step_duration = end_time - start_time
-
-                # Log the time taken for each step
-                file.write(f"Step duration: {step_duration}\n")
-
-                images.append(self.get_image(state.pipeline_state))
-                P_values.append(state.info["mechanical_power"])
-                t_values.append(state.pipeline_state.time)
-
-        # step_length = state.pipeline_state.geom_xpos[self.foot_geom_idx[0], 0] - init_foot_pos
-        # mcot = self.mcot(jp.array(t_values).T, step_length, jp.array(P_values).T)
-        media.write_video(output_video, images, fps=1.0 / self.dt)
-        return
-
-    def run_bez_sim_from_standing(
-        self,
-        rng,
-        alpha,
-        step_dur,
-        num_steps=400,
-        log_file="simulation_times.log",
-        output_video="bez_policy_from_standing_video.mp4",
-    ):
-        """Run the simulation from standing position with given bezier trajectory."""
-        # start from standing, wait for 0.5 second, go to startingpos, wait for 0.5 second, start walking, walk 2 steps, and then go to stopping pos
-        self.getRender()
-
-        jit_reset = jax.jit(self.reset)
-        jit_step = jax.jit(self.bez_step)
-
-        # currentState = BehavState.ToLoading
-        state = jit_reset(rng, BehavState.WantToStart)
-        images = []
-
-        maxErrorTrigger = 0.01
-        minTransitionTime = 0.05
-
-        log_items = ["qpos", "qvel", "qfrc_actuator"]
-        logged_data_per_step = []
-
-        # prev_domain = state.info["domain_info"]["domain_idx"]
-
-        rollouts = []
-
-        with open(log_file, "w") as file:
-            for _ in range(num_steps):
-                start_time = time.time()
-                state = jit_step(state, alpha, step_dur)
-                end_time = time.time()
-
-                step_duration = end_time - start_time
-
-                # Log the time taken for each step
-                logged_data = {}
-                logged_data = self.log_data(state.pipeline_state, log_items, logged_data)
-                logged_data = self.log_state_info(
-                    state.info, ["state", "domain_info", "tracking_err", "joint_desire"], logged_data
-                )
-                logged_data_per_step.append(logged_data)
-                # Log the time taken for each step
-                file.write(f"Step duration: {step_duration}\n")
-
-                state_change = False
-
-                # #check state transition
-
-                if state.info["state"] == BehavState.WantToStart:
-                    minTransitionTime = 2 * self.step_dur[BehavState.WantToStart]
-                    if self.state_condition_met(maxErrorTrigger, minTransitionTime, state.pipeline_state, state.info):
-                        state.info["state"] = BehavState.Walking
-                        state_change = True
-
-                elif state.info["state"] == BehavState.Walking:
-                    jax.debug.print("state: Walking")
-                    jax.debug.print("blended_action: {}", state.info["blended_action"])
-                    jax.debug.print("joint_desire: {}", state.info["joint_desire"])
-                    jax.debug.print("current joint config: {}", state.pipeline_state.qpos[-self.model.nu :])
-                    jax.debug.print("time: {}", state.pipeline_state.time)
-                    jax.debug.print(
-                        "time - step_start: {}", state.pipeline_state.time - state.info["domain_info"]["step_start"]
-                    )
-                    if (state.pipeline_state.time - state.info["domain_info"]["step_start"]) / step_dur > 1:
-                        state.info["domain_info"]["step_start"] = state.pipeline_state.time
-
-                        alpha = jp.dot(self.R, alpha)
-                        print("update step_start")
-
-                        state.info["offset"] = state.pipeline_state.qpos[-self.model.nu :] - self._forward(
-                            state.pipeline_state.time, state.info["domain_info"]["step_start"], step_dur, alpha
-                        )
-                        jax.debug.print("offset: {}", state.info["offset"])
-                        # prev_domain = state.info["domain_info"]["domain_idx"]
-                        # jax.debug.print("domain changed to {}", state.info["domain_info"]["domain_idx"])
-                        # state_change = True
-
-                if state_change:
-                    state.info["domain_info"]["step_start"] = state.pipeline_state.time
-                    state.info["offset"] = state.pipeline_state.qpos[-self.model.nu :] - self.getNominalDesire(state)[0]
-
-                    jax.debug.print("offset: {}", state.info["offset"])
-
-                rollouts.append(state)
-                images.append(self.get_image(state.pipeline_state))
-
-        media.write_video(output_video, images, fps=1.0 / self.dt)
-
-        log_file = "logged_data.json"
-        rollout_file = "rollout_data.pkl"
-        with open(log_file, "wb") as f:
-            pickle.dump(logged_data_per_step, f)
-
-        with open(rollout_file, "wb") as f:
-            pickle.dump(rollouts, f)
-        self.plot_logged_data(logged_data_per_step)
-        # check if
-        return
-
-    def run_base_bez_sim(
-        self, rng, alpha, step_dur, num_steps=400, log_file="bez_sim.log", output_video="bez_video.mp4"
-    ):
-        """Run the simulation basic version with given bezier trajectory."""
-        self.getRender()
-        jit_reset = jax.jit(self.reset_bez)
-        jit_step = jax.jit(self.bez_step)
-
-        state = jit_reset(rng, alpha, step_dur, BehavState.Walking)
-        images = []
-
-        with open(log_file, "w") as file:
-            for _ in range(num_steps):
-                start_time = time.time()
-                state = jit_step(state, alpha, step_dur)
-
-                end_time = time.time()
-
-                step_duration = end_time - start_time
-
-                # Log the time taken for each step
-                file.write(f"Step duration: {step_duration}\n")
-
-                if self.checkImpact(state.pipeline_state, state.info):
-                    # if (state.pipeline_state.time - state.info["domain_info"]["step_start"]) / step_dur > 1:
-                    state.info["domain_info"]["step_start"] = state.pipeline_state.time
-                    state.info["domain_info"]["domain_idx"] = 1 - state.info["domain_info"]["domain_idx"]
-                    alpha = jp.dot(self.R, alpha)
-                    print("update step_start")
-                    jax.debug.print(
-                        "actual phase var: {}",
-                        (state.pipeline_state.time - state.info["domain_info"]["step_start"]) / step_dur,
-                    )
-
-                images.append(self.get_image(state.pipeline_state))
-
-        media.write_video(output_video, images, fps=1.0 / self.dt)
-        return
-
     def eulRates2omega(self, eulRates, orientation):
         """Convert euler rates to omega."""
         # Input processing
@@ -1000,6 +700,29 @@ class Exo(MjxEnv):
         omega = jp.dot(M, eulRates)
 
         return omega
+
+    def eulerXYZ2quat(self, eul):
+        """Convert Euler angles (XYZ order) to a quaternion.
+
+        Args:
+            eul (array): Euler angles, a 3-element array-like object.
+
+        Returns:
+            array: Quaternion as a 4-element array.
+        """
+        c = jp.array([jp.cos(eul[0] / 2), jp.cos(eul[1] / 2), jp.cos(eul[2] / 2)])
+        s = jp.array([jp.sin(eul[0] / 2), jp.sin(eul[1] / 2), jp.sin(eul[2] / 2)])
+
+        q = jp.array(
+            [
+                c[0] * c[1] * c[2] - s[0] * s[1] * s[2],
+                s[0] * c[1] * c[2] + c[0] * s[1] * s[2],
+                -s[0] * c[1] * s[2] + c[0] * s[1] * c[2],
+                c[0] * c[1] * s[2] + s[0] * s[1] * c[2],
+            ]
+        )
+
+        return q
 
     def quat2eulXYZ(self, quat):
         """Convert quaternion to euler angles."""
@@ -1090,7 +813,11 @@ class Exo(MjxEnv):
         )
 
         tracking_lin_vel_reward = self.config.reward.tracking_lin_vel * jp.exp(
-            -jp.sum(jp.square(data.qvel[0:3] - state_info["base_vel_desire"][0:3]))
+            -jp.sum(
+                jp.square(
+                    math.rotate(data.qvel[:3], math.quat_inv(data.qpos[3:7])) - state_info["base_vel_desire"][0:3]
+                )
+            )
             / self.config.reward.tracking_sigma_vel
         )
 
@@ -1117,6 +844,19 @@ class Exo(MjxEnv):
             "jt_smoothness_reward": jt_smoothness_reward,
             "base_smoothness_reward": base_smoothness_reward,
         }
+
+    def _reward_tracking_lin_vel(self, commands: jax.Array, x: Transform, xd: Motion) -> jax.Array:
+        # Tracking of linear velocity commands (xy axes)
+        local_vel = math.rotate(xd.vel[0], math.quat_inv(x.rot[0]))
+        lin_vel_error = jp.sum(jp.square(commands[:2] - local_vel[:2]))
+        lin_vel_reward = jp.exp(-lin_vel_error / self.config.reward.tracking_sigma)
+        return lin_vel_reward
+
+    def _reward_tracking_ang_vel(self, commands: jax.Array, x: Transform, xd: Motion) -> jax.Array:
+        # Tracking of angular velocity commands (yaw)
+        base_ang_vel = math.rotate(xd.ang[0], math.quat_inv(x.rot[0]))
+        ang_vel_error = jp.square(commands[2] - base_ang_vel[2])
+        return jp.exp(-ang_vel_error / self.config.reward.tracking_sigma)
 
     def checkImpact(self, data, state_info):
         """Check if the robot is in impact."""
@@ -1253,7 +993,7 @@ class Exo(MjxEnv):
         """Get the renderer and camera for rendering."""
         camera = mj.MjvCamera()
         camera.azimuth = 45
-        camera.elevation = 0.3
+        camera.elevation = 0.5
         camera.distance = 3
         camera.lookat = jp.array([0, 0, 0.5])
         self.camera = camera
@@ -1297,9 +1037,11 @@ class Exo(MjxEnv):
         B = 0
         tau = (t - t0) / step_dur
         tau = jp.clip(tau, 0, 1)
+
         for i in range(bez_deg + 1):
             x = self._ncr(bez_deg, i)
             B = B + x * ((1 - tau) ** (bez_deg - i)) * (tau**i) * alpha[:, i]
+
         return B  # B.astype(jnp.float32)
 
     def _forward_vel(self, t, t0, step_dur, alpha):

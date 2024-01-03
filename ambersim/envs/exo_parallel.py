@@ -27,12 +27,12 @@ class CustomVecEnv(Wrapper):
         env.unwrapped.sys = sys
         return env
 
-    def reset(self, rng: jnp.ndarray, behavState: BehavState) -> State:
+    def reset(self, rng: jnp.ndarray, q_init: jnp.ndarray, dq_init: jnp.ndarray, behavState: BehavState) -> State:
         """Resets the vectorized environment."""
 
         def reset(sys, rng):
             env = self._env_fn(sys=sys)
-            return env.reset(rng, behavState)
+            return env.reset(rng, q_init, dq_init, behavState)
 
         state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
         return state
@@ -210,6 +210,51 @@ def randomizeSlope(sys, plane_ind, rng, max_angle_degrees=0):
     sys_v = sys.tree_replace({"geom_quat": rand_geom_quats})
 
     return sys_v, in_axes
+
+
+def randomizeSlopeGain(sys, plane_ind, rng, max_angle_degrees):
+    """Randomizes the plane slope, friction, and gain."""
+
+    @jax.vmap
+    def rand(rng):
+        _, key = jax.random.split(rng, 2)
+        # friction
+        friction = jax.random.uniform(key, (1,), minval=0.9, maxval=1.1)
+        friction = sys.geom_friction.at[:, 0].set(friction)
+        # actuator
+        _, key = jax.random.split(key, 2)
+        gain_range = (-5, 5)
+        param = jax.random.uniform(key, (1,), minval=gain_range[0], maxval=gain_range[1]) + sys.actuator_gainprm[:, 0]
+        gain = sys.actuator_gainprm.at[:, 0].set(param)
+        bias = sys.actuator_biasprm.at[:, 1].set(-param)
+        #  geom_quat
+        rand_quat = random_slope(rng, max_angle_degrees=max_angle_degrees)
+        rand_plane_geom = sys.geom_quat.at[plane_ind].set(rand_quat)
+
+        return friction, gain, bias, rand_plane_geom
+
+    friction, gain, bias, rand_plane_geom = rand(rng)
+
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace(
+        {
+            "geom_quat": 0,
+            "geom_friction": 0,
+            "actuator_gainprm": 0,
+            "actuator_biasprm": 0,
+        }
+    )
+
+    sys = sys.tree_replace(
+        {
+            "geom_quat": rand_plane_geom,
+            "geom_friction": friction,
+            "actuator_gainprm": gain,
+            "actuator_biasprm": bias,
+        }
+    )
+
+    return sys, in_axes
 
 
 def randomizeBoxTerrain(sys, geom_indices, rng):
