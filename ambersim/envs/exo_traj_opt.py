@@ -8,7 +8,6 @@ import jax
 import jax.numpy as jp
 import mediapy as media
 import yaml
-from brax.envs.wrappers.training import DomainRandomizationVmapWrapper
 from jax import grad, jacfwd, jit
 from jax.example_libraries import optimizers
 
@@ -36,7 +35,7 @@ class TrajectoryOptimizer:
     """Class to optimize trajectory parameters."""
 
     def __init__(
-        self, config, param_keys, param_values, cost_terms, cost_weights=None, num_env=200, seed=0, time_steps=400
+        self, config, param_keys, param_values, cost_terms, cost_weights=None, num_env=100, seed=0, time_steps=400
     ):
         """Initialize the trajectory optimizer."""
         self.config = config
@@ -56,7 +55,7 @@ class TrajectoryOptimizer:
     def init_vec_env(self):
         """Initialize the vectorized environment."""
         # self.randomization_fn=partial(rand_friction, rng=self.rng)
-        self.randomize_func = partial(randomizeSlopeGain, rng=self.rng, plane_ind=0, max_angle_degrees=5)
+        self.randomize_func = partial(randomizeSlopeGain, rng=self.rng, plane_ind=0, max_angle_degrees=10)
         self.domain_env = CustomVecEnv(self.env, randomization_fn=self.randomize_func)
         self.jit_env_reset = jit(self.domain_env.reset)
         self.jit_env_step = jit(self.domain_env.step)
@@ -64,7 +63,12 @@ class TrajectoryOptimizer:
     def updateParams(self, state, params):
         """Update the parameters in the state."""
         for key in params.keys():
-            state.info[key] = state.info[key].at[:].set(params[key])
+            # check if it's 1d array
+            # jax.debug.breakpoint()
+            if len(state.info[key].shape):
+                state.info[key] = state.info[key].at[:].set(params[key])
+            else:
+                state.info[key] = params[key]
             # jax.debug.print("state.info[key]: {}", state.info[key])
         return state
 
@@ -99,7 +103,11 @@ class TrajectoryOptimizer:
             t_values.append(state.pipeline_state.time)
 
             for term in self.cost_terms:
-                if term != "survival":
+                if term == "tracking_err":
+                    costs_dict[term].append(sum(state.info["tracking_err"]))
+                elif term == "impact_mismatch":
+                    costs_dict[term].append(sum(state.info["domain_info"]["impact_mismatch"]))
+                elif term != "survival":
                     costs_dict[term].append(-state.info["reward_tuple"][term])
                 else:
                     costs_dict[term].append(sum(state.done))
@@ -109,7 +117,8 @@ class TrajectoryOptimizer:
 
         if "mechanical_power" in self.cost_terms:
             mcot = env.mcot(jp.array(t_values).T, step_length, jp.array(costs_dict["mechanical_power"]).T)
-            costs_dict["mechanical_power"] = self.process_metrics(mcot)
+            costs_dict["mechanical_power"] = self.env._clip_reward(self.process_metrics(mcot))
+            jax.debug.print("mcot: {}", mcot)
 
         # Aggregate and process costs
         total_cost = 0.0
@@ -140,11 +149,17 @@ class TrajectoryOptimizer:
         with open(full_file, "wb") as file:
             pickle.dump(self.get_params(opt_state), file)
 
-    def optimization_step(self, step_num, opt_state):
+    def optimization_step(self, step_num, opt_state, clip_value=100.0):
         """Perform one optimization step."""
         grads = jacfwd(self.eval_cost)(self.get_params(opt_state))
         jax.debug.print("grads: {}", grads)
-        opt_state = self.opt_update(step_num, grads, opt_state)
+        # Clip gradients
+        clipped_grads = jax.tree_util.tree_map(lambda g: jp.clip(g, -clip_value, clip_value), grads)
+
+        # Debugging: print gradients
+        jax.debug.print("Clipped grads: {}", clipped_grads)
+
+        opt_state = self.opt_update(step_num, clipped_grads, opt_state)
         return self.eval_cost(self.get_params(opt_state)), opt_state
 
     def simulate(self, env, optimized_params, num_steps=200, output_video="sim_video.mp4"):
@@ -164,11 +179,53 @@ class TrajectoryOptimizer:
         state = jit_env_reset(jax.random.PRNGKey(1), q_init, dq_init, BehavState.Walking)
         state = self.updateParams(state, optimized_params)
         images = []
+        rollouts = []
+
+        logged_data_per_step = []  # List to store data for each step
+        log_items = ["qpos", "qvel", "qfrc_actuator"]
+        reward_items = [
+            "ctrl_cost",
+            "base_smoothness_reward",
+            "jt_smoothness_reward",
+            "grf_penalty",
+            "base_smoothness_reward",
+            "tracking_lin_vel_reward",
+            "tracking_ang_vel_reward",
+            "tracking_pos_reward",
+            "mechanical_power",
+        ]
         env.getRender()
+
         for _ in range(num_steps):
             state = jit_env_step(state, jp.zeros(self.env.action_size))
             images.append(env.get_image(state.pipeline_state))
+            rollouts.append(state)
+
+            # Log the required data
+            logged_data = {}
+            logged_data = env.log_state_info(
+                state.info, ["state", "domain_info", "tracking_err", "joint_desire"], logged_data
+            )
+            logged_data = env.log_data(state.pipeline_state, log_items, logged_data)
+            logged_data = env.log_state_info(state.info["reward_tuple"], reward_items, logged_data)
+            logged_data["survival"] = state.done
+            logged_data["impact_mismatch"] = state.info["domain_info"]["impact_mismatch"]
+            logged_data_per_step.append(logged_data)
+
         media.write_video(os.path.join(self.save_dir, output_video), images, fps=1.0 / self.env.dt)
+
+        # Plot the logged data
+        plot_save_dir = os.path.join(self.save_dir, "plots")
+        # env.plot_logged_data(logged_data, plot_save_dir)
+        log_file = os.path.join(self.save_dir, "logged_data.json")
+        rollout_file = os.path.join(self.save_dir, "rollout_data.pkl")
+        with open(log_file, "wb") as f:
+            pickle.dump(logged_data_per_step, f)
+
+        with open(rollout_file, "wb") as f:
+            pickle.dump(rollouts, f)
+        env.plot_logged_data(logged_data_per_step, save_dir=plot_save_dir)
+        return
 
     def run_base_sim(self, rng, alpha, num_steps=400, output_video="nominal_policy_video.mp4"):
         """Run the simulation basic version."""
@@ -352,32 +409,43 @@ if __name__ == "__main__":
     config.impact_based_switching = False
     config.jt_traj_file = "merged_multicontact.yaml"
     config.no_noise = False
-    config.hip_regulation = False
+    config.controller.hip_regulation = True
     env = Exo(config)
-    param_keys = ["alpha"]
-    # with open("multi_no_pos_optimized_params_update.pkl", "rb") as file:
-    #     init_guess = pickle.load(file)
-    # param_values = [init_guess["alpha"]]  # Example initial conditions
-    param_values = [env.alpha]  # Example initial conditions
+    param_keys = ["alpha", "hip_regulator_gain", "impact_threshold"]
+    old_config = "configurations/9e0ac5e83389bef376c2e257334eb0a4c10e629ab280f3cd00cdb874d5beaaf9/optimized_params.pkl"
+    with open(old_config, "rb") as file:
+        init_guess = pickle.load(file)
+    param_values = [
+        init_guess["alpha"],
+        init_guess["hip_regulator_gain"],
+        env.config.impact_threshold,
+    ]  # Example initial conditions
+    # param_values = [env.alpha,  jp.array([1.0, 1.0, 0.03, 0.03, 1.0, 1.0, 0.01, 0.01])]  # Example initial conditions
+
+    # to do add grf penalty, and check the impact_mismatch
+
     cost_terms = [
         "base_smoothness_reward",
         "jt_smoothness_reward",
+        "tracking_err",
         "tracking_lin_vel_reward",
+        "tracking_ang_vel_reward",
         "mechanical_power",
         "survival",
+        "impact_mismatch",
     ]
-    # param_keys = ['hip_regulator_gain']
-    # param_values = [config.hip_regulator_gain]  # Example initial conditions
-    # param_keys = ['alpha','hip_regulator_gain']
-    # param_values = [env.alpha,config.hip_regulator_gain]  # Example initial conditions
+
     cost_weights = {
         "base_smoothness_reward": 1.0,
-        "jt_smoothness_reward": 1.0,
+        "jt_smoothness_reward": 0.01,
+        "tracking_err": 10.0,
         "tracking_lin_vel_reward": 1.0,
+        "tracking_ang_vel_reward": 1.0,
         "mechanical_power": 1.0,
         "survival": 100.0,
+        "impact_mismatch": 1.0,
     }
-    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, cost_weights, time_steps=300)
+    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, cost_weights, time_steps=250)
     # filename = "multi_no_pos_optimized_params_update_v2.pkl" #either this or without v2 is the old result
 
     # optimizer.run_base_sim(jax.random.PRNGKey(0),init_guess["alpha"],output_video="mjx_version.mp4")
@@ -395,25 +463,26 @@ if __name__ == "__main__":
     # loaded_config = optimizer.load_config(path)
     # print(f"Loaded config: {loaded_config}")
 
-    train = True
-    # train = False
+    # train = True
+    train = False
     if train:
         path = optimizer.save_config()
         print(f"Config saved at: {path}")
-        optimizer.train(num_steps=15, opt_step_size=1e-4)
+        optimizer.train(num_steps=15, opt_step_size=1e-3)
     else:
         config = ExoConfig()
         config.slope = False
         config.impact_based_switching = False
         config.jt_traj_file = "merged_multicontact.yaml"
         config.no_noise = True
-        config.hip_regulation = False
+        config.controller.hip_regulation = True
         env = Exo(config)
 
-        param_date = "20240102"
+        param_date = "20240103"
         opt_config = optimizer.load_config(date=param_date)
-        # nominal = {"alpha": optimizer.env.alpha}
+        # nominal = {"alpha": optimizer.env.alpha,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold}
         optimizer.simulate(
-            env, opt_config["optimized_params"], num_steps=1000, output_video="multi_traj_opt_" + param_date + ".mp4"
+            env, opt_config["optimized_params"], num_steps=600, output_video="multi_traj_opt_" + param_date + ".mp4"
         )
-        # optimizer.simulate(nominal, num_steps=1000, output_video="nominal.mp4")
+
+        # optimizer.simulate(env,nominal, num_steps=600, output_video="nominal_" + param_date + ".mp4")

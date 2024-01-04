@@ -1,5 +1,6 @@
 import enum
 import os
+import pickle
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -79,7 +80,7 @@ class ExoRewardConfig:
     tracking_sigma_joint_pos: float = 0.2
 
     # grf penalty
-    grf_cost_weight: float = 0.0
+    grf_cost_weight: float = 1e-5
     # L2 regularization of joint torques, |tau|^2.
     ctrl_cost_weight: float = -1e-10
 
@@ -88,8 +89,8 @@ class ExoRewardConfig:
     healthy_reward: float = 2.0
 
     # smoothness reward
-    base_smoothness_weight: float = 0.001
-    jt_smoothness_weight: float = 0.001
+    base_smoothness_weight: float = 1e-4
+    jt_smoothness_weight: float = 1e-5
 
 
 class ExoControllerConfig:
@@ -354,8 +355,9 @@ class Exo(MjxEnv):
             "state": behavstate,
             "offset": jp.zeros(12),
             "domain_info": {
-                "step_start": 0.0,
+                "step_start": zero,
                 "domain_idx": StanceState.Right.value,
+                "impact_mismatch": zero,
             },
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
             "nominal_action": jp.zeros(12),
@@ -380,6 +382,7 @@ class Exo(MjxEnv):
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
             "hip_regulator_gain": self.config.controller.hip_regulator_gain,
+            "impact_threshold": self.config.impact_threshold,
         }
 
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
@@ -437,15 +440,18 @@ class Exo(MjxEnv):
         data0 = state.pipeline_state
         domain_idx = state.info["domain_info"]["domain_idx"]
         step_start = state.info["domain_info"]["step_start"]
+        impact_mismatch = state.info["domain_info"]["impact_mismatch"]
 
         # action = self.conv_action_based_on_idx(cur_action, jp.zeros(12))
-        def update_step(step_start, domain_idx):
+        def update_step(step_start, impact_mismatch, domain_idx):
             new_step_start = data0.time
             new_domain_idx = 1 - domain_idx  # Switch domain_idx between 0 and 1
-            return new_step_start, new_domain_idx
+            # if current time - step_Start <
+            impact_mismatch = data0.time - step_start
+            return new_step_start, new_domain_idx, impact_mismatch
 
-        def no_update(step_start, domain_idx):
-            return step_start, domain_idx
+        def no_update(step_start, impact_mismatch, domain_idx):
+            return step_start, domain_idx, impact_mismatch
 
         condition = (data0.time - step_start) / self.step_dur[BehavState.Walking] >= 1
         if self.config.impact_based_switching:
@@ -456,8 +462,11 @@ class Exo(MjxEnv):
                 (data0.time - step_start) / self.step_dur[BehavState.Walking] >= 0.8,
             )
 
-        new_step_start, domain_idx = lax.cond(
-            condition, lambda args: update_step(*args), lambda args: no_update(*args), (step_start, domain_idx)
+        new_step_start, domain_idx, impact_mismatch = lax.cond(
+            condition,
+            lambda args: update_step(*args),
+            lambda args: no_update(*args),
+            (step_start, impact_mismatch, domain_idx),
         )
 
         step_start = new_step_start
@@ -487,6 +496,7 @@ class Exo(MjxEnv):
         )
         state.info["domain_info"]["domain_idx"] = domain_idx
         state.info["domain_info"]["step_start"] = step_start
+        state.info["domain_info"]["impact_mismatch"] = impact_mismatch
         state.info["offset"] = new_offset
         return q_desire, state
 
@@ -600,7 +610,6 @@ class Exo(MjxEnv):
 
     def state_condition_met(self, maxErrorTrigger, minTransitionTime, data: mjx.Data, state_info: Dict[str, Any]):
         """Check if the error is within the threshold and minimum time has passed since the last transition."""
-        # Check if the error is within the threshold and minimum time has passed since the last transition
         step_start = state_info["domain_info"]["step_start"]
         err = state_info["tracking_err"]
         current_time = data.time
@@ -671,6 +680,21 @@ class Exo(MjxEnv):
 
             if values:
                 self.plot_attribute(attribute, values, save_dir)
+
+    def load_and_plot_data(self, file_path, plot_save_dir):
+        """Loads data from a pickle file and plots the logged data.
+
+        Args:file_path (str): Path to the pickle file containing logged data.
+            plot_save_dir (str): Directory where plots should be saved.
+        """
+        if not os.path.exists(file_path):
+            print(f"File {file_path} not found.")
+            return
+
+        with open(file_path, "rb") as file:
+            logged_data = pickle.load(file)
+
+        self.plot_logged_data(logged_data, plot_save_dir)
 
     def process_rollouts(self, rollouts_dir, plot_save_dir="plots"):
         """Processes saved rollouts, extracting and plotting logged data.
@@ -780,20 +804,7 @@ class Exo(MjxEnv):
             operand=None,
         )
 
-        def get_stance_contact(idx, data):
-            """Get the contact force for the stance leg."""
-            # jax.debug.print("hacked get_stance_contact()")
-            # return data.efc_force[0:4]
-            return data.efc_force[self.efc_address[idx]]
-
-        stance_grf = jax.lax.cond(
-            domain_idx == StanceState.Left.value,
-            lambda _: get_stance_contact(jp.array([0, 1, 2, 3]), data),
-            lambda _: get_stance_contact(jp.array([4, 5, 6, 7]), data),
-            operand=None,
-        )
-
-        grf_penalty = self.config.reward.grf_cost_weight * (1.0 - jp.sum(stance_grf) / (self.mass * 9.81))
+        grf_penalty = self._grf_penalty(data, state_info)
 
         tracking_pos_reward = self.config.reward.tracking_base_pos * jp.exp(
             -jp.sum(jp.square(base_pos - state_info["base_pos_desire"][0:3])) / self.config.reward.tracking_sigma_pos
@@ -833,17 +844,41 @@ class Exo(MjxEnv):
         base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
 
         return {
-            "ctrl_cost": ctrl_cost,
-            "tracking_lin_vel_reward": tracking_lin_vel_reward,
-            "tracking_ang_vel_reward": tracking_ang_vel_reward,
-            "tracking_pos_reward": tracking_pos_reward,
-            "tracking_orientation_reward": tracking_orientation_reward,
-            "trtacking_joint_reward": tracking_joint_reward,
-            "grf_penalty": grf_penalty,
+            "ctrl_cost": self._clip_reward(ctrl_cost),
+            "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
+            "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
+            "tracking_pos_reward": self._clip_reward(tracking_pos_reward),
+            "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
+            "trtacking_joint_reward": self._clip_reward(tracking_joint_reward),
+            "grf_penalty": self._clip_reward(grf_penalty),
             "mechanical_power": mechanical_power,
-            "jt_smoothness_reward": jt_smoothness_reward,
-            "base_smoothness_reward": base_smoothness_reward,
+            "jt_smoothness_reward": self._clip_reward(jt_smoothness_reward),
+            "base_smoothness_reward": self._clip_reward(base_smoothness_reward),
         }
+
+    def _grf_penalty(self, data: mjx.Data, state_info) -> float:
+        """Calculate a penalty based on the ground reaction force."""
+        domain_idx = state_info["domain_info"]["domain_idx"]
+
+        # if there's grf on the swing leg, then apply penalty
+        # determine which leg is the swing leg
+        def get_swing_contact(idx, data):
+            """Get the contact force for the stance leg."""
+            # jax.debug.print("hacked get_stance_contact()")
+            # return data.efc_force[0:4]
+            return data.efc_force[self.efc_address[idx]]
+
+        swing_grf = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: get_swing_contact(jp.array([0, 1, 2, 3]), data),
+            lambda _: get_swing_contact(jp.array([4, 5, 6, 7]), data),
+            operand=None,
+        )
+        return self.config.reward.grf_cost_weight * jp.sum(swing_grf)
+
+    def _clip_reward(self, reward: float) -> float:
+        """Clip the reward."""
+        return jp.clip(reward, -50.0, 50.0)
 
     def _reward_tracking_lin_vel(self, commands: jax.Array, x: Transform, xd: Motion) -> jax.Array:
         # Tracking of linear velocity commands (xy axes)
@@ -875,7 +910,7 @@ class Exo(MjxEnv):
             operand=None,
         )
         # jax.debug.print("swing_grf: {}", swing_grf)
-        return jp.sum(swing_grf) > self.config.impact_threshold
+        return jp.sum(swing_grf) > state_info["impact_threshold"]
 
     def jt_blending(self, t: float, step_dur: float, action: jp.ndarray, state_info: Dict[str, Any]):
         """Blend the action with the offset."""
