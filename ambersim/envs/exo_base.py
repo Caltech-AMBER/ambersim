@@ -320,7 +320,7 @@ class Exo(MjxEnv):
         return self.reset(rng, state)
 
     def reset(
-        self, rng: jp.ndarray, q_init: jp.ndarray, dq_init: jp.ndarray, behavstate: BehavState = BehavState.Walking
+        self, rng: jp.ndarray, q_init: jp.ndarray=None, dq_init: jp.ndarray=None, behavstate: BehavState = BehavState.Walking
     ) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -330,6 +330,10 @@ class Exo(MjxEnv):
         qpos = self._q_default[behavstate, :] + jax.random.uniform(rng1, (self.sys.nq,), minval=low, maxval=hi)
         qvel = self._dq_default[behavstate, :] + jax.random.uniform(rng2, (self.sys.nv,), minval=low, maxval=hi)
 
+        if q_init is None:
+            q_init = self._q_init
+        if dq_init is None:
+            dq_init = self._dq_init
         # if BehaveState is walking, then override the qpos and qvel with the desired values
         # using lax.cond to avoid jax error
         def true_fun(_):
@@ -584,7 +588,7 @@ class Exo(MjxEnv):
         state.info["reward_tuple"] = reward_tuple
         state.info["last_action"] = cur_action
         state.info["blended_action"] = blended_action
-        state.info["mechanical_power"] = self.mechanical_power(data)
+        state.info["reward_tuple"]["mechanical_power"] = self.mechanical_power(data)
         state.info["tracking_err"] = (
             data.qpos[-self.model.nu :] - action
         )  # currently assuming motor_targets is the desired joint angles; TODO handle torque case

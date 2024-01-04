@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import functools
 
 import jax
 import yaml
@@ -14,6 +15,7 @@ from ambersim.utils import ppo_training_utils
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # Disable memory preallocation
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+os.environ["JAX_TRACEBACK_FILTERING"] = "off"
 
 
 def generate_policy_save_path(base_dir, env_name, policy_name_prefix):
@@ -61,7 +63,8 @@ training_config = merge_configs(training_config, struct_to_dict(env.config))
 # training_config.update(ppo_config)
 # training_config.update(env.config)
 # Initialize a wandb run
-wandb.init(project="exo_ppo", entity="kli5", config=training_config)
+# wandb.init(project="exo_ppo", entity="kli5", config=training_config)
+wandb.init(project="exo_ppo", config=training_config)
 
 networks_factory = ppo_training_utils.make_networks_factory(ppo_config)
 ppo_train_function = ppo_training_utils.train_fn(ppo_config)
