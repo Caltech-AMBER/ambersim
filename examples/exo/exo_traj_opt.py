@@ -313,6 +313,7 @@ if train_flag:
                 "num_steps": num_steps,
                 "step_size": step_size,
                 }
+    
     logger = WandbLogger(log_dir, project_name, cfg_dict)
 
     costFuncs = {"evalCostImpact": evalCostImpact, "evalCostFromStanding": evalCostFromStanding, "evalCost": evalCost}
