@@ -212,18 +212,18 @@ def randomizeSlope(sys, plane_ind, rng, max_angle_degrees=0):
     return sys_v, in_axes
 
 
-def randomizeSlopeGain(sys, plane_ind, rng, max_angle_degrees):
+def randomizeSlopeGain(sys, plane_ind, rng, max_angle_degrees, max_gain):
     """Randomizes the plane slope, friction, and gain."""
 
     @jax.vmap
     def rand(rng):
         _, key = jax.random.split(rng, 2)
         # friction
-        friction = jax.random.uniform(key, (1,), minval=0.9, maxval=1.1)
+        friction = jax.random.uniform(key, (1,), minval=0.7, maxval=1.4)
         friction = sys.geom_friction.at[:, 0].set(friction)
         # actuator
         _, key = jax.random.split(key, 2)
-        gain_range = (-5, 5)
+        gain_range = (-max_gain, max_gain)
         param = jax.random.uniform(key, (1,), minval=gain_range[0], maxval=gain_range[1]) + sys.actuator_gainprm[:, 0]
         gain = sys.actuator_gainprm.at[:, 0].set(param)
         bias = sys.actuator_biasprm.at[:, 1].set(-param)

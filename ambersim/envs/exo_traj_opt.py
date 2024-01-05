@@ -55,7 +55,7 @@ class TrajectoryOptimizer:
     def init_vec_env(self):
         """Initialize the vectorized environment."""
         # self.randomization_fn=partial(rand_friction, rng=self.rng)
-        self.randomize_func = partial(randomizeSlopeGain, rng=self.rng, plane_ind=0, max_angle_degrees=10)
+        self.randomize_func = partial(randomizeSlopeGain, rng=self.rng, plane_ind=0, max_angle_degrees=5, max_gain=300)
         self.domain_env = CustomVecEnv(self.env, randomization_fn=self.randomize_func)
         self.jit_env_reset = jit(self.domain_env.reset)
         self.jit_env_step = jit(self.domain_env.step)
@@ -72,11 +72,9 @@ class TrajectoryOptimizer:
             # jax.debug.print("state.info[key]: {}", state.info[key])
         return state
 
-    def process_metrics(self, metric, flip_sign=False):
+    def process_metrics(self, metric):
         """Process the metric to remove inf and nan values."""
         metric = jp.array(metric)
-        if flip_sign:
-            metric = -metric
         metric = jp.where(jp.isnan(metric), 1000, metric)
         metric = jp.where(jp.isinf(metric), 1000, metric)
         return metric
@@ -335,7 +333,7 @@ class TrajectoryOptimizer:
         """Generate a unique hash based on the param_keys, cost_terms, and a given date."""
         if date is None:
             date = datetime.now().strftime("%Y%m%d")
-        hash_input = str(self.params.keys()) + str(self.cost_terms) + date
+        hash_input = str(self.params.keys()) + str(self.cost_terms) + str(self.cost_weights) + date
         return hashlib.sha256(hash_input.encode()).hexdigest()
 
     def save_config(self, base_dir="configurations"):
@@ -406,47 +404,48 @@ if __name__ == "__main__":
     # Example usage:
     config = ExoConfig()
     config.slope = True
+    config.traj_opt = True
     config.impact_based_switching = False
-    config.jt_traj_file = "merged_multicontact.yaml"
+    config.jt_traj_file = "default_bez.yaml"
+    config.physics_steps_per_control_step = 5
     config.no_noise = False
-    config.controller.hip_regulation = True
+    config.controller.hip_regulation = False
     env = Exo(config)
-    param_keys = ["alpha", "hip_regulator_gain", "impact_threshold"]
-    old_config = "configurations/9e0ac5e83389bef376c2e257334eb0a4c10e629ab280f3cd00cdb874d5beaaf9/optimized_params.pkl"
-    with open(old_config, "rb") as file:
-        init_guess = pickle.load(file)
-    param_values = [
-        init_guess["alpha"],
-        init_guess["hip_regulator_gain"],
-        env.config.impact_threshold,
-    ]  # Example initial conditions
-    # param_values = [env.alpha,  jp.array([1.0, 1.0, 0.03, 0.03, 1.0, 1.0, 0.01, 0.01])]  # Example initial conditions
+    param_keys = ["alpha"]
+    # old_config = "configurations/9e0ac5e83389bef376c2e257334eb0a4c10e629ab280f3cd00cdb874d5beaaf9/optimized_params.pkl"
+    # with open(old_config, "rb") as file:
+    #     init_guess = pickle.load(file)
+    # param_values = [
+    #     init_guess["alpha"],
+    #     init_guess["hip_regulator_gain"],
+    #     env.config.impact_threshold,
+    # ]  # Example initial conditions
+    param_values = [env.alpha]  # Example initial conditions
 
     # to do add grf penalty, and check the impact_mismatch
 
     cost_terms = [
         "base_smoothness_reward",
-        "jt_smoothness_reward",
         "tracking_err",
+        "tracking_pos_reward",
         "tracking_lin_vel_reward",
         "tracking_ang_vel_reward",
-        "mechanical_power",
         "survival",
-        "impact_mismatch",
     ]
 
     cost_weights = {
-        "base_smoothness_reward": 1.0,
-        "jt_smoothness_reward": 0.01,
+        "base_smoothness_reward": 0.001,
         "tracking_err": 10.0,
+        "tracking_pos_reward": 1.0,
         "tracking_lin_vel_reward": 1.0,
         "tracking_ang_vel_reward": 1.0,
-        "mechanical_power": 1.0,
         "survival": 100.0,
-        "impact_mismatch": 1.0,
     }
-    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, cost_weights, time_steps=250)
+    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, cost_weights, time_steps=300)
     # filename = "multi_no_pos_optimized_params_update_v2.pkl" #either this or without v2 is the old result
+
+    # a1ff6cdd
+    # 9666, work multiple steps in c++
 
     # optimizer.run_base_sim(jax.random.PRNGKey(0),init_guess["alpha"],output_video="mjx_version.mp4")
     # breakpoint()
@@ -463,22 +462,23 @@ if __name__ == "__main__":
     # loaded_config = optimizer.load_config(path)
     # print(f"Loaded config: {loaded_config}")
 
-    # train = True
-    train = False
+    train = True
+    # train = False
     if train:
         path = optimizer.save_config()
         print(f"Config saved at: {path}")
-        optimizer.train(num_steps=15, opt_step_size=1e-3)
+        optimizer.train(num_steps=10, opt_step_size=1e-3)
     else:
         config = ExoConfig()
         config.slope = False
         config.impact_based_switching = False
-        config.jt_traj_file = "merged_multicontact.yaml"
+        config.jt_traj_file = "default_bez.yaml"
+        # config.jt_traj_file = "merged_multicontact.yaml"
         config.no_noise = True
-        config.controller.hip_regulation = True
+        config.controller.hip_regulation = False
         env = Exo(config)
 
-        param_date = "20240103"
+        param_date = "20240104"
         opt_config = optimizer.load_config(date=param_date)
         # nominal = {"alpha": optimizer.env.alpha,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold}
         optimizer.simulate(

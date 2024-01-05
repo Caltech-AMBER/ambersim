@@ -130,6 +130,7 @@ class ExoConfig:
     impact_threshold: float = 200.0
     impact_based_switching: bool = False
     no_noise: bool = False
+    traj_opt: bool = False
 
 
 class Exo(MjxEnv):
@@ -321,7 +322,11 @@ class Exo(MjxEnv):
         return self.reset(rng, state)
 
     def reset(
-        self, rng: jp.ndarray, q_init: jp.ndarray=None, dq_init: jp.ndarray=None, behavstate: BehavState = BehavState.Walking
+        self,
+        rng: jp.ndarray,
+        q_init: jp.ndarray = None,
+        dq_init: jp.ndarray = None,
+        behavstate: BehavState = BehavState.Walking,
     ) -> State:
         """Resets the environment to an initial state."""
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -335,6 +340,7 @@ class Exo(MjxEnv):
             q_init = self._q_init
         if dq_init is None:
             dq_init = self._dq_init
+
         # if BehaveState is walking, then override the qpos and qvel with the desired values
         # using lax.cond to avoid jax error
         def true_fun(_):
@@ -588,7 +594,20 @@ class Exo(MjxEnv):
         else:
             motor_targets = jp.clip(action, self._torque_lb, self._torque_ub)
 
-        data = self.pipeline_step(data0, motor_targets)
+        if self.config.traj_opt:
+            # if data0.time > 0.5 and data0.done, do not step; just return as is
+            # use lax.cond to avoid jax error
+            def true_fun(_):
+                return data0
+
+            def false_fun(_):
+                return self.pipeline_step(data0, motor_targets)
+
+            cond = jp.logical_and(data0.time > 0.5, data0.done)
+            data = lax.cond(cond, true_fun, false_fun, None)
+
+        else:
+            data = self.pipeline_step(data0, motor_targets)
 
         # observation data
         obs = self._get_obs(data, action, state.info)
