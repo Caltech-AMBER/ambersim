@@ -166,7 +166,7 @@ def random_quaternion(key, max_angle_degrees=10):
 def random_slope(key, max_angle_degrees=5):
     """Generate a random rotation within a specified maximum angle using JAX."""
     # Generate a random axis (unit vector)
-    axis_index = 0  # jax.random.randint(key, (1,1),minval=0, maxval=2)
+    axis_index = jax.random.randint(key, (1, 1), minval=0, maxval=2)
 
     # Initialize axis vector
     axis = jnp.zeros(3)
@@ -174,6 +174,7 @@ def random_slope(key, max_angle_degrees=5):
     axis = axis.at[axis_index].set(1)
 
     # Generate a random angle within the specified range and convert to radians
+    # angle_x = jax.random.uniform(key, minval=-max_angle_degrees, maxval=max_angle_degrees) * jnp.pi / 180
     angle = jax.random.uniform(key, minval=-max_angle_degrees, maxval=max_angle_degrees) * jnp.pi / 180
 
     # Calculate quaternion components

@@ -383,7 +383,7 @@ class Exo(MjxEnv):
                 "tracking_ang_vel_reward": zero,
                 "tracking_pos_reward": zero,
                 "tracking_orientation_reward": zero,
-                "trtacking_joint_reward": zero,
+                "tracking_joint_reward": zero,
                 "grf_penalty": zero,
                 "mechanical_power": zero,
                 "jt_smoothness_reward": zero,
@@ -603,7 +603,7 @@ class Exo(MjxEnv):
             def false_fun(_):
                 return self.pipeline_step(data0, motor_targets)
 
-            cond = jp.logical_and(data0.time > 0.5, data0.done)
+            cond = jp.logical_and(data0.time > 0.5, state.done)
             data = lax.cond(cond, true_fun, false_fun, None)
 
         else:
@@ -872,7 +872,7 @@ class Exo(MjxEnv):
             "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
             "tracking_pos_reward": self._clip_reward(tracking_pos_reward),
             "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
-            "trtacking_joint_reward": self._clip_reward(tracking_joint_reward),
+            "tracking_joint_reward": self._clip_reward(tracking_joint_reward),
             "grf_penalty": self._clip_reward(grf_penalty),
             "mechanical_power": mechanical_power,
             "jt_smoothness_reward": self._clip_reward(jt_smoothness_reward),

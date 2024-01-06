@@ -1,6 +1,7 @@
 import hashlib
 import os
 import pickle
+from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 
@@ -31,20 +32,36 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["MUJOCO_GL"] = "egl"
 
 
+@dataclass
+class TrajOptConfig:
+    """Data class for storing default values for Trajectory Optimizer configuration."""
+
+    # Define default values for each parameter
+    num_env: int = 200
+    seed: int = 0
+    time_steps: int = 400
+    num_steps: int = 20
+    opt_step_size: float = 1e-3
+    file_name: str = "optimized_params.pkl"
+    output_video: str = "sim_video.mp4"
+    simulation_steps: int = 200
+    max_angle_degrees: float = 3.0
+    max_gain: float = 500.0
+
+
 class TrajectoryOptimizer:
     """Class to optimize trajectory parameters."""
 
-    def __init__(
-        self, config, param_keys, param_values, cost_terms, cost_weights=None, num_env=100, seed=0, time_steps=400
-    ):
+    def __init__(self, env_config, traj_opt_config, param_keys, param_values, cost_terms, cost_weights=None):
         """Initialize the trajectory optimizer."""
-        self.config = config
-        self.env = Exo(config)
+        self.config = traj_opt_config
+        self.env_config = env_config
+        self.env = Exo(env_config)
         self.ind_jit_env_reset = jit(self.env.reset)
         self.ind_jit_env_step = jit(self.env.step)
-        rng = jax.random.PRNGKey(seed)
-        self.rng = jax.random.split(rng, num_env)
-        self.timesteps = time_steps
+        rng = jax.random.PRNGKey(self.config.seed)
+        self.rng = jax.random.split(rng, self.config.num_env)
+        self.timesteps = self.config.time_steps
         self.cost_weights = cost_weights if cost_weights is not None else {term: 1.0 for term in cost_terms}
 
         self.cost_terms = cost_terms
@@ -55,7 +72,13 @@ class TrajectoryOptimizer:
     def init_vec_env(self):
         """Initialize the vectorized environment."""
         # self.randomization_fn=partial(rand_friction, rng=self.rng)
-        self.randomize_func = partial(randomizeSlopeGain, rng=self.rng, plane_ind=0, max_angle_degrees=5, max_gain=300)
+        self.randomize_func = partial(
+            randomizeSlopeGain,
+            rng=self.rng,
+            plane_ind=0,
+            max_angle_degrees=self.config.max_angle_degrees,
+            max_gain=self.config.max_gain,
+        )
         self.domain_env = CustomVecEnv(self.env, randomization_fn=self.randomize_func)
         self.jit_env_reset = jit(self.domain_env.reset)
         self.jit_env_step = jit(self.domain_env.step)
@@ -129,18 +152,37 @@ class TrajectoryOptimizer:
 
         return total_cost / self.rng.shape[0]
 
-    def train(self, num_steps=5, opt_step_size=1e-1, file_name="optimized_params.pkl"):
+    def train(self, file_name="optimized_params.pkl"):
         """Run the optimization loop."""
         self.init_vec_env()
         self.logger = LoggerFactory.get_logger("wandb", self.save_dir)
 
-        self.opt_init, self.opt_update, self.get_params = optimizers.adam(step_size=opt_step_size)
+        self.opt_init, self.opt_update, self.get_params = optimizers.adam(step_size=self.config.opt_step_size)
         opt_state = self.opt_init(self.params)
-        wandb.init(project="traj_opt", config={"num_steps": num_steps, "step_size": opt_step_size})
-        for i in range(num_steps):
-            print("Optimized parameters: ", self.get_params(opt_state))
+        wandb.init(
+            project="traj_opt", config={"num_steps": self.config.num_steps, "step_size": self.config.opt_step_size}
+        )
+
+        best_cost = float("inf")  # Initialize best cost as infinity
+        best_params = None  # Initialize best parameters as None
+
+        for i in range(self.config.num_steps):
+            current_params = self.get_params(opt_state)
+            print("Optimized parameters: ", current_params)
             value, opt_state = self.optimization_step(i, opt_state)
-            wandb.log({"step": i, "value": float(jax.device_get(value))})
+            val = float(jax.device_get(value))
+            wandb.log({"step": i, "value": val})
+
+            if val < best_cost:
+                best_cost = val
+                best_params = current_params
+                print("update best params")
+
+        # Save the best parameters at the end of training
+        best_params_file = os.path.join(self.save_dir, "best_" + file_name)
+        print(f"Saving best optimized params to: {best_params_file}")
+        with open(best_params_file, "wb") as file:
+            pickle.dump(best_params, file)
 
         full_file = os.path.join(self.save_dir, file_name)
         print(f"Saving optimized params to: {full_file}")
@@ -185,6 +227,7 @@ class TrajectoryOptimizer:
             "ctrl_cost",
             "base_smoothness_reward",
             "jt_smoothness_reward",
+            "tracking_joint_reward",
             "grf_penalty",
             "base_smoothness_reward",
             "tracking_lin_vel_reward",
@@ -333,7 +376,7 @@ class TrajectoryOptimizer:
         """Generate a unique hash based on the param_keys, cost_terms, and a given date."""
         if date is None:
             date = datetime.now().strftime("%Y%m%d")
-        hash_input = str(self.params.keys()) + str(self.cost_terms) + str(self.cost_weights) + date
+        hash_input = str(self.params.keys()) + str(self.cost_terms) + str(self.cost_weights) + str(self.config) + date
         return hashlib.sha256(hash_input.encode()).hexdigest()
 
     def save_config(self, base_dir="configurations"):
@@ -347,6 +390,8 @@ class TrajectoryOptimizer:
             "cost_terms": self.cost_terms,
             "cost_weights": self.cost_weights,
             "date": datetime.now().strftime("%Y%m%d"),
+            "config": vars(self.config),
+            "env_config": vars(self.env_config),
         }
         os.makedirs(base_dir, exist_ok=True)
         os.makedirs(full_path, exist_ok=True)
@@ -357,17 +402,25 @@ class TrajectoryOptimizer:
 
         return full_path
 
-    def load_config(self, date, base_dir="configurations", file_name="optimized_params.pkl", export_yaml=True):
+    def load_config(self, date, base_dir="configurations", folder=None, best_flag=False, export_yaml=True):
         """Load configuration parameters from a file identified by the hash generated with a specific date."""
         hash_path = self.generate_hash(date=date)
+        if folder is not None:
+            hash_path = folder
         full_path = os.path.join(base_dir, hash_path)
+
         full_config_path = os.path.join(full_path, "config.yaml")
         with open(full_config_path, "r") as file:
             config = yaml.safe_load(file)
         self.save_dir = full_path
+
+        if best_flag:
+            file_name = "best_optimized_params.pkl"
+        else:
+            file_name = "optimized_params.pkl"
         file = os.path.join(self.save_dir, file_name)
         print(f"Loading config from: {file}")
-        # config = {}
+
         with open(file, "rb") as optimized_File:
             config["optimized_params"] = pickle.load(optimized_File)
         print(f"optimized_params: {config['optimized_params']}")
@@ -405,14 +458,16 @@ if __name__ == "__main__":
     config = ExoConfig()
     config.slope = True
     config.traj_opt = True
-    config.impact_based_switching = False
+    config.impact_based_switching = True
+    config.impact_threshold = 400.0
     config.jt_traj_file = "default_bez.yaml"
     config.physics_steps_per_control_step = 5
+    config.reset_noise_scale = 1e-2
     config.no_noise = False
     config.controller.hip_regulation = False
     env = Exo(config)
     param_keys = ["alpha"]
-    # old_config = "configurations/9e0ac5e83389bef376c2e257334eb0a4c10e629ab280f3cd00cdb874d5beaaf9/optimized_params.pkl"
+    # old_config = "configurations/ddf5bdf083e2f5daf2b7c75b01626c7591598440febd83cc7b9026d4ce99dff9/optimized_params.pkl"
     # with open(old_config, "rb") as file:
     #     init_guess = pickle.load(file)
     # param_values = [
@@ -437,12 +492,18 @@ if __name__ == "__main__":
         "base_smoothness_reward": 0.001,
         "tracking_err": 10.0,
         "tracking_pos_reward": 1.0,
-        "tracking_lin_vel_reward": 1.0,
+        "tracking_lin_vel_reward": 10.0,
         "tracking_ang_vel_reward": 1.0,
         "survival": 100.0,
     }
-    optimizer = TrajectoryOptimizer(config, param_keys, param_values, cost_terms, cost_weights, time_steps=300)
+
+    traj_opt_config = TrajOptConfig()
+
+    optimizer = TrajectoryOptimizer(config, traj_opt_config, param_keys, param_values, cost_terms, cost_weights)
     # filename = "multi_no_pos_optimized_params_update_v2.pkl" #either this or without v2 is the old result
+
+    # retrain 279b399b0aa77c3fd4a87f616c7dbc15bb8afc6d356975679f426d1b8c672d94
+    # --> saved at ddf5bdf083e2f5daf2b7c75b01626c7591598440febd83cc7b9026d4ce99dff9
 
     # a1ff6cdd
     # 9666, work multiple steps in c++
@@ -462,27 +523,31 @@ if __name__ == "__main__":
     # loaded_config = optimizer.load_config(path)
     # print(f"Loaded config: {loaded_config}")
 
-    train = True
-    # train = False
+    # train = True
+    train = False
     if train:
         path = optimizer.save_config()
         print(f"Config saved at: {path}")
-        optimizer.train(num_steps=10, opt_step_size=1e-3)
+        optimizer.train()
     else:
         config = ExoConfig()
-        config.slope = False
-        config.impact_based_switching = False
+        config.slope = True
+        config.impact_based_switching = True
         config.jt_traj_file = "default_bez.yaml"
+        config.physics_steps_per_control_step = 5
         # config.jt_traj_file = "merged_multicontact.yaml"
         config.no_noise = True
         config.controller.hip_regulation = False
         env = Exo(config)
 
-        param_date = "20240104"
-        opt_config = optimizer.load_config(date=param_date)
-        # nominal = {"alpha": optimizer.env.alpha,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold}
+        param_date = "20240105"
+        # folder = "04cb3d3b2992140e9c9dcbaa9422e7b5dd5b1bde392f1f45cbfdf40a1ca272e9"
+        opt_config = optimizer.load_config(date=param_date, best_flag=False)
+        nominal = {
+            "alpha": optimizer.env.alpha
+        }  # ,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold
         optimizer.simulate(
-            env, opt_config["optimized_params"], num_steps=600, output_video="multi_traj_opt_" + param_date + ".mp4"
+            env, opt_config["optimized_params"], num_steps=2400, output_video="multi_traj_opt_" + param_date + ".mp4"
         )
 
-        # optimizer.simulate(env,nominal, num_steps=600, output_video="nominal_" + param_date + ".mp4")
+        # optimizer.simulate(env,nominal, num_steps=2400, output_video="nominal_" + param_date + ".mp4")
