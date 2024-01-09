@@ -147,10 +147,10 @@ class Exo(MjxEnv):
             path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_box.xml")
             # add_geom_to_env(org_path,rand_box_xml,path)
         elif config.hfield:
-            xml_file = "loadedExo_no_terrain.xml"
-            org_path = os.path.join(ROOT, "..", "models", "exo", xml_file)
+            # xml_file = "loadedExo_no_terrain.xml"
+            # org_path = os.path.join(ROOT, "..", "models", "exo", xml_file)
             path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_hfield.xml")
-            add_heightfield_to_mujoco_xml(org_path, path)
+            # add_heightfield_to_mujoco_xml(org_path, path)
         elif config.slope:
             path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_slope.xml")
 
@@ -174,7 +174,50 @@ class Exo(MjxEnv):
         self.observation_size_single_step = self.model.nq + self.model.nv + 8 + 3 + 3
 
         super().__init__(mj_model=self.model, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
+
         self.efc_address = jp.array([0, 4, 8, 12, 16, 20, 24, 28])
+        self.left_grf_idx = jp.array([0, 1, 2, 3])
+        self.right_grf_idx = jp.array([4, 5, 6, 7])
+
+        if config.rand_terrain:
+            self.get_efc_address()
+
+    def get_efc_address(self):
+        """Get the efc address for the left and right foot."""
+        data = mj.MjData(self.model)
+        rng = jax.random.PRNGKey(0)
+        state = self.reset(rng)
+        mjx.device_get_into(data, state.pipeline_state)
+        efc_address = data.contact.efc_address
+
+        # Use the geom1 to get the contact force for left and right foot
+        geom1 = data.contact.geom1
+        geom = data.contact.geom2
+        geom_idx_left = jp.array(
+            [
+                mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "left_sole"),
+                mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "left_toe"),
+                mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "left_heel"),
+            ]
+        )
+
+        geom_idx_right = jp.array(
+            [
+                mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "right_sole"),
+                mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "right_toe"),
+                mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "right_heel"),
+            ]
+        )
+
+        # Find the entries where either geom1 or geom2 is in the left/right indices and the other geom is 0
+        left_contacts = jp.logical_and(jp.isin(geom, geom_idx_left), (jp.isin(geom1, self.terrain_geom_idx)))
+        right_contacts = jp.logical_and(jp.isin(geom, geom_idx_right), (jp.isin(geom1, self.terrain_geom_idx)))
+
+        # Get the efc_addresses for left and right foot contacts
+        self.left_grf_idx = efc_address[left_contacts]
+        self.right_grf_idx = efc_address[right_contacts]
+
+        return
 
     @property
     def action_size(self) -> int:
@@ -191,12 +234,14 @@ class Exo(MjxEnv):
         self.foot_geom_idx = jp.array(foot_geom_idx)
 
         if self.config.rand_terrain:
-            terrain_geom_idx = jp.zeros(10, dtype=int)
+            terrain_geom_idx = jp.zeros(4, dtype=int)
             for i in range(10):
                 terrain_geom_idx = terrain_geom_idx.at[i].set(
                     mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "box_" + str(i))
                 )
             self.terrain_geom_idx = terrain_geom_idx
+        else:
+            self.terrain_geom_idx = jp.array([0])
 
     def load_traj(self) -> None:
         """Load default trajectory from yaml file specfied in the config."""
@@ -879,24 +924,29 @@ class Exo(MjxEnv):
             "base_smoothness_reward": self._clip_reward(base_smoothness_reward),
         }
 
-    def _grf_penalty(self, data: mjx.Data, state_info) -> float:
-        """Calculate a penalty based on the ground reaction force."""
+    def get_swing_grf(self, data: mjx.Data, state_info) -> jax.Array:
+        """Get the ground reaction force for the swing leg."""
         domain_idx = state_info["domain_info"]["domain_idx"]
 
-        # if there's grf on the swing leg, then apply penalty
-        # determine which leg is the swing leg
+        # jax.debug.print("get_swing_grf()")
         def get_swing_contact(idx, data):
             """Get the contact force for the stance leg."""
-            # jax.debug.print("hacked get_stance_contact()")
-            # return data.efc_force[0:4]
             return data.efc_force[self.efc_address[idx]]
 
         swing_grf = jax.lax.cond(
             domain_idx == StanceState.Right.value,
-            lambda _: get_swing_contact(jp.array([0, 1, 2, 3]), data),
-            lambda _: get_swing_contact(jp.array([4, 5, 6, 7]), data),
+            lambda _: get_swing_contact(self.left_grf_idx, data),
+            lambda _: get_swing_contact(self.right_grf_idx, data),
             operand=None,
         )
+
+        return swing_grf
+
+    def _grf_penalty(self, data: mjx.Data, state_info) -> float:
+        """Calculate a penalty based on the ground reaction force."""
+        # if there's grf on the swing leg, then apply penalty
+        # determine which leg is the swing leg
+        swing_grf = self.get_swing_grf(data, state_info)
         return self.config.reward.grf_cost_weight * jp.sum(swing_grf)
 
     def _clip_reward(self, reward: float) -> float:
@@ -918,20 +968,7 @@ class Exo(MjxEnv):
 
     def checkImpact(self, data, state_info):
         """Check if the robot is in impact."""
-
-        def get_swing_contact(idx, data):
-            """Get the contact force for the stance leg."""
-            # jax.debug.print("hacked get_stance_contact()")
-            # return data.efc_force[0:4]
-            return data.efc_force[self.efc_address[idx]]
-
-        domain_idx = state_info["domain_info"]["domain_idx"]
-        swing_grf = jax.lax.cond(
-            domain_idx == StanceState.Right.value,
-            lambda _: get_swing_contact(jp.array([0, 1, 2, 3]), data),
-            lambda _: get_swing_contact(jp.array([4, 5, 6, 7]), data),
-            operand=None,
-        )
+        swing_grf = self.get_swing_grf(data, state_info)
         # jax.debug.print("swing_grf: {}", swing_grf)
         return jp.sum(swing_grf) > state_info["impact_threshold"]
 

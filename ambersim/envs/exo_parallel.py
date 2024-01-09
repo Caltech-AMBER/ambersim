@@ -213,6 +213,72 @@ def randomizeSlope(sys, plane_ind, rng, max_angle_degrees=0):
     return sys_v, in_axes
 
 
+#   @jax.vmap
+#     def get_offset(rng):
+#         offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
+#         pos = sys.body_pos.at[0].set(offset)
+#         return pos
+
+#     sys_v = sys.tree_replace({"body_pos": get_offset(rng)})
+#     in_axes = jax.tree_map(lambda x: None, sys)
+#     in_axes = in_axes.tree_replace({"body_pos": 0})
+#     return sys_v, in_axes
+
+
+def randomizeSlopeGainWeight(sys, torso_idx, plane_ind, rng, max_angle_degrees, max_gain):
+    """Randomizes the plane slope, friction, and gain."""
+
+    @jax.vmap
+    def rand(rng):
+        _, key = jax.random.split(rng, 2)
+        # friction
+        friction = jax.random.uniform(key, (1,), minval=0.7, maxval=1.4)
+        friction = sys.geom_friction.at[:, 0].set(friction)
+        # actuator
+        _, key = jax.random.split(key, 2)
+        gain_range = (-max_gain, max_gain)
+        param = jax.random.uniform(key, (1,), minval=gain_range[0], maxval=gain_range[1]) + sys.actuator_gainprm[:, 0]
+        gain = sys.actuator_gainprm.at[:, 0].set(param)
+        bias = sys.actuator_biasprm.at[:, 1].set(-param)
+        #  geom_quat
+        rand_quat = random_slope(rng, max_angle_degrees=max_angle_degrees)
+        rand_plane_geom = sys.geom_quat.at[plane_ind].set(rand_quat)
+
+        com_offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1) + sys.body_pos.at[torso_idx]
+        pos = sys.body_pos.at[0].set(com_offset)
+        rand_inertia = jax.random.uniform(rng, shape=(3,), minval=0.5, maxval=1.5) + sys.body_inertia.at[torso_idx]
+        inertia = sys.body_inertia.at[0].set(rand_inertia)
+
+        return friction, gain, bias, rand_plane_geom, pos, inertia
+
+    friction, gain, bias, rand_plane_geom, pos, inertia = rand(rng)
+
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace(
+        {
+            "geom_quat": 0,
+            "geom_friction": 0,
+            "actuator_gainprm": 0,
+            "actuator_biasprm": 0,
+            "body_pos": 0,
+            "body_inertia": 0,
+        }
+    )
+
+    sys = sys.tree_replace(
+        {
+            "geom_quat": rand_plane_geom,
+            "geom_friction": friction,
+            "actuator_gainprm": gain,
+            "actuator_biasprm": bias,
+            "body_pos": pos,
+            "body_inertia": inertia,
+        }
+    )
+
+    return sys, in_axes
+
+
 def randomizeSlopeGain(sys, plane_ind, rng, max_angle_degrees, max_gain):
     """Randomizes the plane slope, friction, and gain."""
 

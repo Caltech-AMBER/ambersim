@@ -69,12 +69,15 @@ class TrajectoryOptimizer:
         # Initialize the parameters to optimize
         self.params = dict(zip(param_keys, param_values))
 
-    def init_vec_env(self):
+    def init_vec_env(self, rng=None):
         """Initialize the vectorized environment."""
+        if rng is None:
+            rng = self.rng
+
         # self.randomization_fn=partial(rand_friction, rng=self.rng)
         self.randomize_func = partial(
             randomizeSlopeGain,
-            rng=self.rng,
+            rng=rng,
             plane_ind=0,
             max_angle_degrees=self.config.max_angle_degrees,
             max_gain=self.config.max_gain,
@@ -101,6 +104,28 @@ class TrajectoryOptimizer:
         metric = jp.where(jp.isnan(metric), 1000, metric)
         metric = jp.where(jp.isinf(metric), 1000, metric)
         return metric
+
+    def simulate_vec_env(self, rng, params):
+        """Evaluate the cost function."""
+        if "alpha" in params and "alpha_base" in params:
+            q_init, dq_init = self.env.getBezInitialConfig(
+                params["alpha"], params["alpha_base"], self.env.step_dur[BehavState.Walking]
+            )
+
+        elif "alpha" in params:
+            q_init, dq_init = self.env.getBezInitialConfig(
+                params["alpha"], self.env.alpha_base, self.env.step_dur[BehavState.Walking]
+            )
+
+        state = self.jit_env_reset(rng, q_init, dq_init, BehavState.Walking)
+        state = self.updateParams(state, params)
+
+        states = []
+        for _ in range(self.timesteps):
+            state = self.jit_env_step(state, jp.zeros((rng.shape[0], self.env.action_size)))
+            states.append(state)
+
+        return states
 
     def eval_cost(self, params):
         """Evaluate the cost function."""
@@ -188,6 +213,8 @@ class TrajectoryOptimizer:
         print(f"Saving optimized params to: {full_file}")
         with open(full_file, "wb") as file:
             pickle.dump(self.get_params(opt_state), file)
+
+        wandb.finish()
 
     def optimization_step(self, step_num, opt_state, clip_value=100.0):
         """Perform one optimization step."""
@@ -429,7 +456,7 @@ class TrajectoryOptimizer:
             print(f"File:{file_name} exists")
 
         if export_yaml:
-            gait_params_file = os.path.join(ROOT, "..", "models", "exo", env.config.jt_traj_file)
+            gait_params_file = os.path.join(ROOT, "..", "models", "exo", self.env_config.jt_traj_file)
             with open(gait_params_file, "r") as file:
                 gait_params = yaml.safe_load(file)
             gait_params["coeff_jt"] = config["optimized_params"]["alpha"].T.ravel().astype(float).tolist()
