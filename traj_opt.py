@@ -28,15 +28,20 @@ config = ExoConfig()
 config.slope = True
 config.traj_opt = True
 config.impact_based_switching = True
-config.impact_threshold = 400.0
-config.jt_traj_file = "default_bez.yaml"
+config.jt_traj_file = "optimized_params.yaml"
 config.physics_steps_per_control_step = 5
-config.reset_noise_scale = 1e-3
+config.reset_noise_scale = 1e-2
 config.no_noise = False
 config.controller.hip_regulation = False
+config.controller.cop_regulation = True
 env = Exo(config)
-param_keys = ["alpha"]
-param_values = [env.alpha]  # Example initial conditions
+# param_keys = ["alpha"]
+# param_values = [env.alpha]  # Example initial conditions
+param_keys = ["cop_regulator_gain"]
+param_values = [env.config.controller.cop_regulator_gain]
+# import jax.numpy as jp
+# cop_gain =  jp.array([[-0.01, -0.0096,0.0], [0.005,-0.0004, 0.0]])
+
 
 # to do add grf penalty, and check the impact_mismatch
 
@@ -46,38 +51,41 @@ cost_terms = [
     "tracking_pos_reward",
     "tracking_lin_vel_reward",
     "tracking_ang_vel_reward",
+    "cop_reward",
     "survival",
 ]
-
 cost_weights = {
     "base_smoothness_reward": 0.001,
     "tracking_err": 10.0,
     "tracking_pos_reward": 1.0,
     "tracking_lin_vel_reward": 10.0,
     "tracking_ang_vel_reward": 1.0,
+    "cop_reward": 1.0,
     "survival": 100.0,
 }
 
 traj_opt = TrajOptConfig()
-traj_opt.num_steps = 50
-
+traj_opt.num_steps = 30
+traj_opt.seed = 1
 # loop through different num env values;
-num_envs = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+num_envs = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 paths = {}
-dir_yaml = "traj_results/num_envs_dir.yaml"
+base_dir = "traj_results_cop"
+dir_yaml = os.path.join(base_dir, "num_envs_dir.yaml")
 
-train = False
+train = True
 if train:
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir)
     for num_env in num_envs:
         traj_opt.num_env = num_env
-
         optimizer = TrajectoryOptimizer(config, traj_opt, param_keys, param_values, cost_terms, cost_weights)
 
-        path = optimizer.save_config(base_dir="traj_results")
+        path = optimizer.save_config(base_dir=base_dir)
         print(f"Config saved at: {path}")
         optimizer.train()
 
-        paths[str(num_env)] = path
+        paths["num_env" + str(num_env)] = path
 
         # save the paths to a yaml file
         with open(dir_yaml, "w") as file:
@@ -157,7 +165,7 @@ def getLinVel(data):
     return qvel[0]
 
 
-plot = True
+plot = False
 if plot:
     import jax.numpy as jp
     import matplotlib.pyplot as plt

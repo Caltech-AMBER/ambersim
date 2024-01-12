@@ -92,6 +92,10 @@ class ExoRewardConfig:
     base_smoothness_weight: float = 1e-4
     jt_smoothness_weight: float = 1e-5
 
+    # cop reward
+    tracking_cop: float = 1.0
+    tracking_sigma_cop: float = 0.2
+
 
 class ExoControllerConfig:
     """config dataclass that specified the controller related setting for exo env."""
@@ -101,6 +105,8 @@ class ExoControllerConfig:
     yaw_control: bool = False
     yaw_gain: jp.ndarray = jp.array([1, -1])
     yaw_index: jp.ndarray = jp.array([1, 7])
+    cop_regulation: bool = False
+    cop_regulator_gain: jp.ndarray = jp.array([[0.0001, 0.0, 0.0], [0, 0.00001, 0.0]])
 
 
 class ExoConfig:
@@ -127,7 +133,7 @@ class ExoConfig:
     action_scale: float = 0.05
     custom_action_space: jp.ndarray = jp.array([1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0])
     custom_act_idx: jp.ndarray = jp.array([0, 2, 6, 8])
-    impact_threshold: float = 200.0
+    impact_threshold: float = 400.0
     impact_based_switching: bool = False
     no_noise: bool = False
     traj_opt: bool = False
@@ -232,6 +238,12 @@ class Exo(MjxEnv):
             mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "left_sole"),
         ]
         self.foot_geom_idx = jp.array(foot_geom_idx)
+
+        ankle_geom_idx = [
+            mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "RightHenkeAnkleLink"),
+            mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "LeftHenkeAnkleLink"),
+        ]
+        self.ankle_geom_idx = jp.array(ankle_geom_idx)
 
         if self.config.rand_terrain:
             terrain_geom_idx = jp.zeros(4, dtype=int)
@@ -378,8 +390,11 @@ class Exo(MjxEnv):
 
         low, hi = -self.config.reset_noise_scale, self.config.reset_noise_scale
 
-        qpos = self._q_default[behavstate, :] + jax.random.uniform(rng1, (self.sys.nq,), minval=low, maxval=hi)
-        qvel = self._dq_default[behavstate, :] + jax.random.uniform(rng2, (self.sys.nv,), minval=low, maxval=hi)
+        qpos = self._q_default[behavstate, :]
+        qvel = self._dq_default[behavstate, :]
+
+        qpos_noise = jax.random.uniform(rng1, (self.sys.nq,), minval=0.1 * low, maxval=0.1 * hi)
+        qvel_noise = self._dq_default[behavstate, :] + jax.random.uniform(rng2, (self.sys.nv,), minval=low, maxval=hi)
 
         if q_init is None:
             q_init = self._q_init
@@ -396,12 +411,12 @@ class Exo(MjxEnv):
 
         qpos, qvel = lax.cond(behavstate == BehavState.Walking, true_fun, false_fun, None)
 
-        if self.config.no_noise:
-            qpos = self._q_default[behavstate, :]
-            qvel = self._dq_default[behavstate, :]
+        if not self.config.no_noise:
+            qpos = qpos + qpos_noise
+            qvel = qvel + qvel_noise
 
         if self.config.rand_terrain or self.config.slope:
-            qpos = qpos.at[2].set(qpos[2] + 0.01)
+            qpos = qpos.at[2].set(qpos[2] + 0.005)
         data = self.pipeline_init(qpos, qvel)
 
         reward, done, zero = jp.zeros(3)
@@ -409,6 +424,7 @@ class Exo(MjxEnv):
         state_info = {
             "state": behavstate,
             "offset": jp.zeros(12),
+            "des_cop": data.geom_xpos[self.foot_geom_idx[0], 0:2],
             "domain_info": {
                 "step_start": zero,
                 "domain_idx": StanceState.Right.value,
@@ -433,11 +449,13 @@ class Exo(MjxEnv):
                 "mechanical_power": zero,
                 "jt_smoothness_reward": zero,
                 "base_smoothness_reward": zero,
+                "cop_reward": zero,
             },
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
             "hip_regulator_gain": self.config.controller.hip_regulator_gain,
             "impact_threshold": self.config.impact_threshold,
+            "cop_regulator_gain": self.config.controller.cop_regulator_gain,
         }
 
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
@@ -462,8 +480,8 @@ class Exo(MjxEnv):
         done = 0.0
         done = jp.where(
             jp.logical_or(
-                jp.any(joint_angles < 0.97 * self._jt_lb),
-                jp.any(joint_angles > 0.97 * self._jt_ub),
+                jp.any(joint_angles < self._jt_lb + 0.01),
+                jp.any(joint_angles > self._jt_ub - 0.01),
             ),
             1.0,
             done,
@@ -496,6 +514,7 @@ class Exo(MjxEnv):
         domain_idx = state.info["domain_info"]["domain_idx"]
         step_start = state.info["domain_info"]["step_start"]
         impact_mismatch = state.info["domain_info"]["impact_mismatch"]
+        des_cop = state.info["des_cop"]
 
         # action = self.conv_action_based_on_idx(cur_action, jp.zeros(12))
         def update_step(step_start, impact_mismatch, domain_idx):
@@ -503,6 +522,7 @@ class Exo(MjxEnv):
             new_domain_idx = 1 - domain_idx  # Switch domain_idx between 0 and 1
             # if current time - step_Start <
             impact_mismatch = data0.time - step_start
+
             return new_step_start, new_domain_idx, impact_mismatch
 
         def no_update(step_start, impact_mismatch, domain_idx):
@@ -523,6 +543,29 @@ class Exo(MjxEnv):
             lambda args: no_update(*args),
             (step_start, impact_mismatch, domain_idx),
         )
+
+        # update cop when condition is true
+        def update_cop(domain_idx):
+            # get stance foot idx
+            new_des_cop = jp.zeros(2)
+
+            sole_pos = jax.lax.cond(
+                domain_idx == StanceState.Right.value,
+                lambda _: data0.geom_xpos[self.foot_geom_idx[0]],
+                lambda _: data0.geom_xpos[self.foot_geom_idx[1]],
+                operand=None,
+            )
+
+            new_des_cop = sole_pos[0:2]
+
+            return new_des_cop
+
+        # get stance foot idx
+
+        def no_update_cop(domain_idx):
+            return des_cop
+
+        des_cop = lax.cond(condition, update_cop, no_update_cop, domain_idx)
 
         step_start = new_step_start
         alpha = lax.cond(
@@ -553,6 +596,7 @@ class Exo(MjxEnv):
         state.info["domain_info"]["step_start"] = step_start
         state.info["domain_info"]["impact_mismatch"] = impact_mismatch
         state.info["offset"] = new_offset
+        state.info["des_cop"] = des_cop
         return q_desire, state
 
     def getHipTargets(self, state) -> jp.ndarray:
@@ -636,6 +680,17 @@ class Exo(MjxEnv):
             if self.config.controller.hip_regulation:
                 hip_targets, hip_index = self.getHipTargets(state)
                 motor_targets = motor_targets.at[hip_index].set(motor_targets[hip_index] + hip_targets)
+
+            if self.config.controller.cop_regulation:
+                cop_targets, st_ankle_idx = self.cop_regulator(state.pipeline_state, state.info)
+                # jax.debug.print("motor target: {}", motor_targets)
+
+                motor_targets = motor_targets.at[st_ankle_idx].set(motor_targets[st_ankle_idx] + cop_targets)
+
+            motor_targets = jp.clip(motor_targets, self._jt_lb, self._jt_ub)
+            # jax.debug.print("mod cop motor target: {}", motor_targets)
+            # motor_targets = motor_targets.at[4:8].set(motor_targets[4:8] + cop_targe
+            # ts)
         else:
             motor_targets = jp.clip(action, self._torque_lb, self._torque_ub)
 
@@ -911,6 +966,9 @@ class Exo(MjxEnv):
         jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
         base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
 
+        # cop
+        cop_reward = self.cop_reward(data, state_info)
+
         return {
             "ctrl_cost": self._clip_reward(ctrl_cost),
             "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
@@ -922,6 +980,7 @@ class Exo(MjxEnv):
             "mechanical_power": mechanical_power,
             "jt_smoothness_reward": self._clip_reward(jt_smoothness_reward),
             "base_smoothness_reward": self._clip_reward(base_smoothness_reward),
+            "cop_reward": self._clip_reward(cop_reward),
         }
 
     def get_swing_grf(self, data: mjx.Data, state_info) -> jax.Array:
@@ -931,7 +990,8 @@ class Exo(MjxEnv):
         # jax.debug.print("get_swing_grf()")
         def get_swing_contact(idx, data):
             """Get the contact force for the stance leg."""
-            return data.efc_force[self.efc_address[idx]]
+            contact_force = self._get_contact_force(data)
+            return contact_force[idx]
 
         swing_grf = jax.lax.cond(
             domain_idx == StanceState.Right.value,
@@ -1018,32 +1078,78 @@ class Exo(MjxEnv):
             float: The calculated reward.
         """
         contact_force = self._get_contact_force(data)
-        cop_L = self._calculate_cop(data.contact.pos[0:4], contact_force[0:4])
-        cop_R = self._calculate_cop(data.contact.pos[4:8], contact_force[4:8])
 
-        # Extract the desired min and max range for the CoP
-        desired_min, desired_max = self.config.desired_cop_range
+        domain_idx = state_info["domain_info"]["domain_idx"]
 
-        step_start = state_info["domain_info"]["step_start"]
-        phase_var = (data.time - step_start) / self.step_dur[state_info["state"]]
-        # desired cop
-        desired_cop = jp.zeros(2)
-        desired_cop = desired_cop.at[0].set(phase_var * (desired_max - desired_min) + desired_min)
+        stance_grf_idx = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: self.right_grf_idx,
+            lambda _: self.left_grf_idx,
+            operand=None,
+        )
 
-        # Calculate how far the CoP is from the desired range
-        cop = cop_L[0:2]
-        deviation_L = jp.square(cop - desired_cop)
+        cop = self._calculate_cop(data.contact.pos[stance_grf_idx], contact_force[stance_grf_idx])
 
-        cop = cop_R[0:2]
-        deviation_R = jp.square(cop - desired_cop)
+        sole_pos = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: data.geom_xpos[self.foot_geom_idx[0]],
+            lambda _: data.geom_xpos[self.foot_geom_idx[1]],
+            operand=None,
+        )
+
+        desired_cop = sole_pos[0:2]
+        # desired_cop = desired_cop.at[1].set(0)
+
+        # jax.debug.print("cop: {}", cop)
+        # jax.debug.print("desired_cop: {}", desired_cop)
 
         # Calculate the reward as the negative of the deviation
         # This means less deviation results in a higher (less negative) reward
-        return self.config.reward.cop_scale * jp.sum(deviation_L + deviation_R)
+        return self.config.reward.tracking_cop * jp.exp(
+            -jp.sum(jp.square(cop[0:2] - desired_cop)) / self.config.reward.tracking_sigma_cop
+        )
 
     def _get_contact_force(self, data: mjx.Data) -> jax.Array:
         # hacked version
         contact_force = data.efc_force[self.efc_address]
+
+        # mu = data.contact.friction
+        dim = 3  # hardcode to pyramid
+
+        # TODO: get rid of the for loop
+        for i in range(len(self.efc_address)):
+            # decode pyramid
+            force_normal = 0.0
+            for j in range(2 * (dim - 1)):
+                force_normal = force_normal + data.efc_force[self.efc_address[i] + j]
+
+            # pyramid = data.efc_force[self.efc_address[i]:self.efc_address[i]+dim]
+            # force_normal = sum(pyramid0_i + pyramid1_i)
+            # force_normal = jp.sum(pyramid[:2 * (dim - 1)])
+
+            # force_tangent_i = (pyramid0_i - pyramid1_i) * mu_i
+            # force_tangents = (pyramid[::2][:dim-1] - pyramid[1::2][:dim-1]) * mu[:dim-1]
+
+            # Combine normal and tangential forces into one array
+            # force = jp.concatenate(([force_normal], force_tangents))
+            contact_force = contact_force.at[i].set(force_normal)
+            # jax.debug.print("contact: {}", i)
+            # jax.debug.print("force normal: {}", force_normal)
+
+        # for i in range(len(self.efc_address)):
+        #     #decode pyramid
+        #     pyramid = data.efc_force[self.efc_address[i]:-1]
+        #     # force_normal = sum(pyramid0_i + pyramid1_i)
+        #     force_normal = jp.sum(pyramid[:2 * (dim - 1)])
+
+        #     # force_tangent_i = (pyramid0_i - pyramid1_i) * mu_i
+        #     # force_tangents = (pyramid[::2][:dim-1] - pyramid[1::2][:dim-1]) * mu[:dim-1]
+
+        #     # Combine normal and tangential forces into one array
+        #     # force = jp.concatenate(([force_normal], force_tangents))
+        #     contact_force = contact_force.at[i].set(force_normal)
+        #     jax.debug.print("contact: {}", i)
+
         # jax.debug.print("contact force: {}", contact_force)
         return contact_force
 
@@ -1055,7 +1161,106 @@ class Exo(MjxEnv):
             return jp.zeros_like(pos[0])
 
         # Use jax.lax.cond to check if sum of forces is not zero
-        return jax.lax.cond(jp.sum(force) > 0, None, true_func, None, false_func)
+        return jax.lax.cond(jp.any(force) > 10.0, None, true_func, None, false_func)
+
+    def cop_regulator(self, data: mjx.Data, state_info: Dict[str, Any]):
+        """Regulate the Center of Pressure (CoP) using the measured moment."""
+        cop_des = jp.zeros(3)
+        cop_des = cop_des.at[0:2].set(state_info["des_cop"])
+
+        contact_force = self._get_contact_force(data)
+
+        domain_idx = state_info["domain_info"]["domain_idx"]
+
+        stance_grf_idx = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: self.right_grf_idx,
+            lambda _: self.left_grf_idx,
+            operand=None,
+        )
+
+        st_ankle_idx = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: jp.array([10, 11]),
+            lambda _: jp.array([4, 5]),
+            operand=None,
+        )
+
+        sole_pos = jax.lax.cond(
+            domain_idx == StanceState.Right.value,
+            lambda _: data.geom_xpos[self.foot_geom_idx[0]],
+            lambda _: data.geom_xpos[self.foot_geom_idx[1]],
+            operand=None,
+        )
+
+        # sole_pos = jax.lax.cond(
+        #     domain_idx == StanceState.Right.value,
+        #     lambda _: data.geom_xpos[self.ankle_geom_idx[0]],
+        #     lambda _: data.geom_xpos[self.ankle_geom_idx[1]],
+        #     operand=None,
+        # )
+
+        cop_des = cop_des.at[0].set(sole_pos[0])
+        cop_des = cop_des.at[1].set(sole_pos[1])
+
+        st_contact_pos = data.contact.pos[stance_grf_idx]
+
+        p_x = st_contact_pos[:, 0]
+        p_y = st_contact_pos[:, 1]
+        # jax.debug.print("sole pos: {}", sole_pos)
+        # jax.debug.print("cop_des: {}", cop_des)
+        # jax.debug.print("p_x: {}", p_x)
+        # jax.debug.print("p_y: {}", p_y)
+
+        # p_x = jp.array([0.1368,0.1368,-0.1368,-0.1368]).transpose()
+        # p_y = jp.array([-0.06,0.06,-0.06,0.06]).transpose()
+        st_contact_force = contact_force[stance_grf_idx]
+        # jax.debug.print("st_contact_force: {}", st_contact_force)
+        st_contact_force = jp.clip(st_contact_force, -100.0, 2000.0)
+        # jax.debug.print("st_contact_force_clipped: {}", st_contact_force)
+        # force vector
+        f = jp.zeros(3)
+        f = f.at[2].set(jp.sum(contact_force))
+
+        # cop_des_mod(1:2,:) = cop_des;
+        # cop_offset = ExoConstants.dimensions.footLength/2-ExoConstants.dimensions.soleToHeel;
+        # cop_des_mod(1,:) = cop_des_mod(1,:) + cop_offset;
+        # f = zeros(3,1); f(3) = sum(Fz_cur);
+
+        # measured_moment = zeros(3,1);
+        # measured_moment(1,1) = p_y * Fz_cur';
+        # measured_moment(2,1) = -p_x * Fz_cur';
+
+        # % [dtheta_r, dtheta_p] = Acop(p_des x F_m - tau_m)
+        # Admit_gain = [-2,0,0;
+        #               0, -1.5,0];
+        # theta_targ = Admit_gain * (cross(cop_des_mod,f) - measured_moment);
+        # u_ankle(1,:) = - (dqa(ankle_idx(1)+6) - theta_targ(2,1));
+        # u_ankle(2,:) = - (dqa(ankle_idx(2)+6) - theta_targ(1,1));
+
+        # ankle_max = [184;82];
+        # u_ankle(:,:)  = min(ankle_max,max(u_ankle,-ankle_max));
+
+        # Measured moment calculation
+        measured_moment = jp.zeros(3)
+        measured_moment = measured_moment.at[0].set(jp.dot(p_y, st_contact_force))
+        measured_moment = measured_moment.at[1].set(jp.dot(-p_x, st_contact_force))
+
+        # # Admittance gain matrix
+        gain = state_info["cop_regulator_gain"]
+        theta_targ = jp.dot(gain, jp.cross(cop_des, f) - measured_moment)
+
+        # jax.debug.print("measured moment: {}", measured_moment)
+        # jax.debug.print("theta_targ: {}", theta_targ)
+        # jax.debug.print("desire moment: {}", jp.cross(cop_des, f))
+
+        theta_targ = theta_targ.clip(-0.01, 0.01)
+        # jax.debug.print("theta_targ_clipped: {}", theta_targ)
+
+        ankle_targ = jp.zeros(2)
+        ankle_targ = ankle_targ.at[0].set(theta_targ[1])
+        ankle_targ = ankle_targ.at[1].set(theta_targ[0])
+        return ankle_targ, st_ankle_idx
 
     def _get_obs(self, data: mjx.Data, action: jp.ndarray, state_info: Dict[str, Any]) -> jp.ndarray:
         """Observes position, velocities, contact forces, and last action."""

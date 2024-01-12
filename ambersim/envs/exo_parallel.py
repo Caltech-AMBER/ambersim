@@ -244,10 +244,10 @@ def randomizeSlopeGainWeight(sys, torso_idx, plane_ind, rng, max_angle_degrees, 
         rand_quat = random_slope(rng, max_angle_degrees=max_angle_degrees)
         rand_plane_geom = sys.geom_quat.at[plane_ind].set(rand_quat)
 
-        com_offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1) + sys.body_pos.at[torso_idx]
-        pos = sys.body_pos.at[0].set(com_offset)
-        rand_inertia = jax.random.uniform(rng, shape=(3,), minval=0.5, maxval=1.5) + sys.body_inertia.at[torso_idx]
-        inertia = sys.body_inertia.at[0].set(rand_inertia)
+        com_offset = jax.random.uniform(rng, shape=(3,), minval=-0.05, maxval=0.05) + sys.body_pos[torso_idx]
+        pos = sys.body_pos.at[torso_idx].set(com_offset)
+        rand_inertia = jax.random.uniform(rng, shape=(3,), minval=-0.01, maxval=0.01) + sys.body_inertia[torso_idx]
+        inertia = sys.body_inertia.at[torso_idx].set(rand_inertia)
 
         return friction, gain, bias, rand_plane_geom, pos, inertia
 
