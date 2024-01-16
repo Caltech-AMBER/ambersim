@@ -67,7 +67,7 @@ class ExoRewardConfig:
     # terms to base state regularizations, joint
     # regularizations, and other behavior regularizations.
     # Penalize the base velocity in z direction, L2 penalty.
-    tracking_base_ori: float = 1.0
+    # tracking_base_ori: float = 1.0
 
     # Penalize the base roll and pitch rate. L2 penalty.
     tracking_base_pos: float = 10.0
@@ -124,13 +124,13 @@ class ExoConfig:
     jt_traj_file: str = "jt_bez_2023-09-10.yaml"
     loading_pos_file: str = "sim_config_loadingPos.yaml"
     ctrl_limit_file: str = "limits.yaml"
-    rand_terrain: bool = False
+    rand_terrain: bool = True
     slope: bool = False
     hfield: bool = False
     position_ctrl: bool = True
     residual_action_space: bool = True
     physics_steps_per_control_step: int = 10
-    action_scale: float = 0.05
+    action_scale: float = 0.02
     custom_action_space: jp.ndarray = jp.array([1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0])
     custom_act_idx: jp.ndarray = jp.array([0, 2, 6, 8])
     impact_threshold: float = 400.0
@@ -938,9 +938,9 @@ class Exo(MjxEnv):
             -jp.sum(jp.square(base_pos - state_info["base_pos_desire"][0:3])) / self.config.reward.tracking_sigma_pos
         )
 
-        tracking_orientation_reward = self.config.reward.tracking_base_ori * jp.exp(
-            -jp.sum(jp.square(eul - state_info["base_pos_desire"][3:6])) / self.config.reward.tracking_sigma_pos
-        )
+        # tracking_orientation_reward = self.config.reward.tracking_base_ori * jp.exp(
+        #     -jp.sum(jp.square(eul - state_info["base_pos_desire"][3:6])) / self.config.reward.tracking_sigma_pos
+        # )
 
         tracking_joint_reward = self.config.reward.tracking_joint * jp.exp(
             -jp.sum(jp.square(data.qpos[-self.model.nu :] - state_info["nominal_action"]))
@@ -977,9 +977,11 @@ class Exo(MjxEnv):
         return {
             "ctrl_cost": self._clip_reward(ctrl_cost),
             "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
-            "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
+            # "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
+            "tracking_ang_vel_reward": 0.0,
             "tracking_pos_reward": self._clip_reward(tracking_pos_reward),
-            "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
+            # "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
+            "tracking_orientation_reward": 0.0,
             "tracking_joint_reward": self._clip_reward(tracking_joint_reward),
             "grf_penalty": self._clip_reward(grf_penalty),
             "mechanical_power": mechanical_power,
