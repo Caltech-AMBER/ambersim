@@ -1,6 +1,7 @@
 import hashlib
 import os
 import pickle
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 
@@ -24,6 +25,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["MUJOCO_GL"] = "egl"
 
 
+@dataclass
 class TrajOptConfig:
     """Data class for storing default values for Trajectory Optimizer configuration."""
 
@@ -36,9 +38,9 @@ class TrajOptConfig:
     file_name: str = "optimized_params.pkl"
     output_video: str = "sim_video.mp4"
     simulation_steps: int = 200
-    max_angle_degrees: float = 1.0
+    max_angle_degrees: float = 2.0
     max_gain: float = 500.0
-    geom_indices: jax.numpy.ndarray = jp.array([0, 1, 2])
+    geom_indices: jp.ndarray = field(default_factory=lambda: jp.arange(6))
 
 
 class TrajectoryOptimizer:
@@ -567,19 +569,20 @@ if __name__ == "__main__":
         print(f"Config saved at: {path}")
         optimizer.train()
     else:
-        config = ExoConfig()
-        config.rand_terrain = True
-        config.impact_based_switching = True
-        config.impact_threshold = 200.0
-        config.jt_traj_file = "default_bez.yaml"
-        config.physics_steps_per_control_step = 5
-        config.reset_noise_scale = 1e-2
+        # config = ExoConfig()
+        # config.rand_terrain = True
+        # config.impact_based_switching = True
+        # config.impact_threshold = 200.0
+        # config.jt_traj_file = "default_bez.yaml"
+        # config.physics_steps_per_control_step = 5
+        # config.reset_noise_scale = 1e-2
+        config.traj_opt = False
         config.no_noise = True
         config.controller.hip_regulation = False
         config.controller.cop_regulation = False
         env = Exo(config)
 
-        param_date = "20240114"
+        param_date = "20240115"
         # folder = "04cb3d3b2992140e9c9dcbaa9422e7b5dd5b1bde392f1f45cbfdf40a1ca272e9"
         opt_config = optimizer.load_config(date=param_date, best_flag=True)
         # nominal = {"cop_regulator_gain": env.config.controller.cop_regulator_gain}
@@ -590,7 +593,7 @@ if __name__ == "__main__":
             env,
             opt_config["optimized_params"],
             num_steps=1000,
-            output_video="multi_traj_opt_plane_" + param_date + ".mp4",
+            output_video="mjx_traj_opt_plane_" + param_date + ".mp4",
         )
 
         # optimizer.simulate(env,nominal, num_steps=2400, output_video="nominal_box_" + param_date + ".mp4")

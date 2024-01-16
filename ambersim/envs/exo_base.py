@@ -264,7 +264,7 @@ class Exo(MjxEnv):
         self.ankle_geom_idx = jp.array(ankle_geom_idx)
 
         if self.config.rand_terrain:
-            num_box = 4
+            num_box = 6
             terrain_geom_idx = jp.zeros(num_box, dtype=int)
             for i in range(num_box):
                 terrain_geom_idx = terrain_geom_idx.at[i].set(
@@ -718,50 +718,6 @@ class Exo(MjxEnv):
         else:
             motor_targets = jp.clip(action, self._torque_lb, self._torque_ub)
 
-        def update_geom(new_geom_pos, geom_idx, update_geom_time):
-            # update based on domain idx
-            new_geom_pos = new_geom_pos.at[geom_idx].set(new_geom_pos[geom_idx] + jp.array([0.1, 0.0, 0.0]))
-            update_geom_time = update_geom_time.at[geom_idx].set(data0.time)
-            jax.debug.print("update geom pos: {}", new_geom_pos[0:4])
-            jax.debug.breakpoint()
-            return new_geom_pos, update_geom_time
-
-        def no_update_geom(new_geom_pos, geom_idx, update_geom_time):
-            return new_geom_pos, update_geom_time
-
-        if self.config.rand_terrain:
-            # condition: whether there is valid grf for the box
-            # if there is valid grf, update the box position
-            update_geom_time = state.info["domain_info"]["update_geom"]
-            new_geom_pos = data0.geom_xpos
-            jax.debug.print("geom pos: {}", new_geom_pos[0:4])
-            for i in range(len(self.terrain_geom_idx)):
-                contact_force = self._get_contact_force(data0)
-                jax.debug.print("contact force: {}", contact_force)
-                box_grf = jp.sum(contact_force[self.box_idx[i]])
-                jax.debug.print("box grf: {}", contact_force[self.box_idx[i]])
-                # condition = jp.logical_and(data0.time - update_geom_time[i] >0.6, data0.time > 0.0)
-
-                condition = jp.logical_and(
-                    box_grf < 10.0, jp.logical_and(data0.time - update_geom_time[i] > 0.6, data0.time > 0.0)
-                )
-                jax.debug.print("condition: {}", condition)
-                new_geom_pos, update_geom_time = lax.cond(
-                    condition,
-                    lambda args: update_geom(*args),
-                    lambda args: no_update_geom(*args),
-                    (new_geom_pos, self.terrain_geom_idx[i], update_geom_time),
-                )
-
-            state.info["domain_info"]["update_geom"] = update_geom_time
-            jax.debug.print("update geom time: {}", update_geom_time)
-            # jax.debug.breakpoint()
-            data0 = data0.replace(geom_xpos=new_geom_pos)
-            self.sys = self.sys.replace(geom_pos=new_geom_pos)
-            jax.debug.print("new geom pos: {}", new_geom_pos[0:4])
-            jax.debug.print("data0 new geom pos: {}", data0.geom_xpos[0:4])
-            jax.debug.print("sys new geom pos: {}", self.sys.geom_pos[0:4])
-
         if self.config.traj_opt:
             # if data0.time > 0.5 and data0.done, do not step; just return as is
             # use lax.cond to avoid jax error
@@ -797,7 +753,7 @@ class Exo(MjxEnv):
         reward = jp.sum(jp.array(list(reward_tuple.values())))
         reward = reward + (1 - done) * self.config.reward.healthy_reward
 
-        self.curr_step +=1
+        self.curr_step += 1
 
         return state.replace(pipeline_state=data, obs=obs, reward=reward, done=done)
 
@@ -1362,8 +1318,12 @@ class Exo(MjxEnv):
         # stack observations through time
         if self.curr_step % self.obs_history_update_freq == 0 and self.curr_step != 0:
             single_obs_size = len(obs)
-            state_info["obs_history"] = jp.roll(state_info["obs_history"], (single_obs_size * self.obs_history_update_freq))
-            state_info["obs_history"] = jp.array(state_info["obs_history"]).at[:(single_obs_size * self.obs_history_update_freq)].set(obs)
+            state_info["obs_history"] = jp.roll(
+                state_info["obs_history"], (single_obs_size * self.obs_history_update_freq)
+            )
+            state_info["obs_history"] = (
+                jp.array(state_info["obs_history"]).at[: (single_obs_size * self.obs_history_update_freq)].set(obs)
+            )
 
         return state_info["obs_history"]
 

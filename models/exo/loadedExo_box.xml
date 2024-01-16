@@ -53,12 +53,12 @@
             size="0.1 0.15 0.05" pos="0.075 0.35 -0.055" rgba="0.85 0.4 0.05 1" conaffinity="1" condim="3" material="plane" />
 
 
-      <!-- <geom name="box_4" type="box" friction="1 .1 .1"  solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"
+      <geom name="box_4" type="box" friction="1 .1 .1"  solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"
             size="0.1 0.15 0.05" pos="0.34 -0.05 -0.055" rgba="0.85 0.4 0.05 1" conaffinity="2" condim="3" material="plane" />
       <geom name="box_5" type="box" friction="1 .1 .1" solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"
             size="0.1 0.15 0.05" pos="0.28 0.35 -0.055" rgba="0.9 0.9 0.9 1" conaffinity="1" condim="3" material="plane" />
 
-      <geom name="box_6" type="box" friction="1 .1 .1"  solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"
+      <!-- <geom name="box_6" type="box" friction="1 .1 .1"  solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"
             size="0.1 0.15 0.05" pos="0.55 -0.05 -0.055" rgba="0.9 0.9 0.9 1" conaffinity="2" condim="3" material="plane" />
       <geom name="box_7" type="box" friction="1 .1 .1" solimp="0.9 0.95 0.001 0.4 2" solref="0.02 1"
             size="0.1 0.15 0.05" pos="0.5 0.35 -0.055" rgba="0.85 0.4 0.05 1" conaffinity="1" condim="3" material="plane" /> -->
