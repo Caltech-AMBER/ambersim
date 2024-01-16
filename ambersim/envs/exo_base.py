@@ -137,6 +137,7 @@ class ExoConfig:
     impact_based_switching: bool = False
     no_noise: bool = False
     traj_opt: bool = False
+    rand_plane: bool = False
 
 
 class Exo(MjxEnv):
@@ -160,6 +161,8 @@ class Exo(MjxEnv):
         elif config.slope:
             path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_slope.xml")
 
+        elif config.rand_plane:
+            path = os.path.join(ROOT, "..", "models", "exo", "loadedExo_plane.xml")
         else:
             path = os.path.join(ROOT, "..", "models", "exo", config.xml_file)
 
@@ -196,7 +199,7 @@ class Exo(MjxEnv):
         rng = jax.random.PRNGKey(0)
         state = self.reset(rng)
         mjx.device_get_into(data, state.pipeline_state)
-        efc_address = data.contact.efc_address
+        self.efc_address = data.contact.efc_address
 
         # Use the geom1 to get the contact force for left and right foot
         geom1 = data.contact.geom1
@@ -222,9 +225,22 @@ class Exo(MjxEnv):
         right_contacts = jp.logical_and(jp.isin(geom, geom_idx_right), (jp.isin(geom1, self.terrain_geom_idx)))
 
         # Get the efc_addresses for left and right foot contacts
-        self.left_grf_idx = efc_address[left_contacts]
-        self.right_grf_idx = efc_address[right_contacts]
+        contact_idx = jp.arange(self.efc_address.shape[0])
+        self.left_grf_idx = contact_idx[left_contacts]
+        self.right_grf_idx = contact_idx[right_contacts]
 
+        # left_box_1 = jp.where(geom1 == self.terrain_geom_idx[1])[0]
+        # left_box_2 = jp.where(geom1 == self.terrain_geom_idx[3])[0]
+        # right_box_1 = jp.where(geom1 == self.terrain_geom_idx[0])[0]
+        # right_box_2 = jp.where(geom1 == self.terrain_geom_idx[2])[0]
+        # self.left_box_idx = jp.array([left_box_1,left_box_2])
+        # self.right_box_idx = jp.array([right_box_1,right_box_2])
+        self.box_idx = [
+            jp.where(geom1 == self.terrain_geom_idx[0])[0],
+            jp.where(geom1 == self.terrain_geom_idx[1])[0],
+            jp.where(geom1 == self.terrain_geom_idx[2])[0],
+            jp.where(geom1 == self.terrain_geom_idx[3])[0],
+        ]
         return
 
     @property
@@ -248,8 +264,9 @@ class Exo(MjxEnv):
         self.ankle_geom_idx = jp.array(ankle_geom_idx)
 
         if self.config.rand_terrain:
-            terrain_geom_idx = jp.zeros(4, dtype=int)
-            for i in range(10):
+            num_box = 6
+            terrain_geom_idx = jp.zeros(num_box, dtype=int)
+            for i in range(num_box):
                 terrain_geom_idx = terrain_geom_idx.at[i].set(
                     mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_GEOM, "box_" + str(i))
                 )
@@ -417,8 +434,18 @@ class Exo(MjxEnv):
             qpos = qpos + qpos_noise
             qvel = qvel + qvel_noise
 
-        if self.config.rand_terrain or self.config.slope:
+        if self.config.slope:
             qpos = qpos.at[2].set(qpos[2] + 0.005)
+
+        if self.config.rand_terrain:
+            # check the position of z for geom 0,1
+            # and set  qpos[2] accordingly
+            zpos_offset = (
+                self.sys.geom_size[self.terrain_geom_idx[0], 2]
+                + self.sys.geom_pos[self.terrain_geom_idx[0], 2]
+                - (-0.005)
+            )
+            qpos = qpos.at[2].set(qpos[2] + zpos_offset)
         data = self.pipeline_init(qpos, qvel)
 
         reward, done, zero = jp.zeros(3)
@@ -431,6 +458,7 @@ class Exo(MjxEnv):
                 "step_start": zero,
                 "domain_idx": StanceState.Right.value,
                 "impact_mismatch": zero,
+                "update_geom": jp.ones(4) * -1.0,
             },
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
             "nominal_action": jp.zeros(12),
@@ -652,11 +680,6 @@ class Exo(MjxEnv):
             return jp.array([6, 8, 0, 2])
 
         hip_index = lax.cond(domain == StanceState.Right.value, true_fun, false_fun, None)
-        # jax.debug.print("hip_targets: {}", hip_targets)
-        # jax.debug.print("hip_index: {}", hip_index)
-        # jax.debug.print("desire: {}", state.info["base_pos_desire"][3:6])
-        # jax.debug.print("actual: {}", base_act)
-        # jax.debug.breakpoint()
         return hip_targets, hip_index
 
     def step(self, state: State, action: jp.ndarray) -> State:
@@ -691,9 +714,7 @@ class Exo(MjxEnv):
                 motor_targets = motor_targets.at[st_ankle_idx].set(motor_targets[st_ankle_idx] + cop_targets)
 
             motor_targets = jp.clip(motor_targets, self._jt_lb, self._jt_ub)
-            # jax.debug.print("mod cop motor target: {}", motor_targets)
-            # motor_targets = motor_targets.at[4:8].set(motor_targets[4:8] + cop_targe
-            # ts)
+
         else:
             motor_targets = jp.clip(action, self._torque_lb, self._torque_ub)
 
@@ -732,7 +753,7 @@ class Exo(MjxEnv):
         reward = jp.sum(jp.array(list(reward_tuple.values())))
         reward = reward + (1 - done) * self.config.reward.healthy_reward
 
-        self.curr_step +=1
+        self.curr_step += 1
 
         return state.replace(pipeline_state=data, obs=obs, reward=reward, done=done)
 
@@ -998,6 +1019,8 @@ class Exo(MjxEnv):
         def get_swing_contact(idx, data):
             """Get the contact force for the stance leg."""
             contact_force = self._get_contact_force(data)
+            # jax.debug.print("contact_force: {}", contact_force)
+            # jax.debug.print("idx: {}", idx)
             return contact_force[idx]
 
         swing_grf = jax.lax.cond(
@@ -1006,6 +1029,10 @@ class Exo(MjxEnv):
             lambda _: get_swing_contact(self.right_grf_idx, data),
             operand=None,
         )
+
+        # jax.debug.print("swing_grf: {}", swing_grf)
+        # jax.debug.print("left grf idx: {}", self.left_grf_idx)
+        # jax.debug.print("right grf idx: {}", self.right_grf_idx)
 
         return swing_grf
 
@@ -1293,18 +1320,22 @@ class Exo(MjxEnv):
         # stack observations through time
         if self.curr_step % self.obs_history_update_freq == 0 and self.curr_step != 0:
             single_obs_size = len(obs)
-            state_info["obs_history"] = jp.roll(state_info["obs_history"], (single_obs_size * self.obs_history_update_freq))
-            state_info["obs_history"] = jp.array(state_info["obs_history"]).at[:(single_obs_size * self.obs_history_update_freq)].set(obs)
+            state_info["obs_history"] = jp.roll(
+                state_info["obs_history"], (single_obs_size * self.obs_history_update_freq)
+            )
+            state_info["obs_history"] = (
+                jp.array(state_info["obs_history"]).at[: (single_obs_size * self.obs_history_update_freq)].set(obs)
+            )
 
         return state_info["obs_history"]
 
     def getRender(self):
         """Get the renderer and camera for rendering."""
         camera = mj.MjvCamera()
-        camera.azimuth = 45
-        camera.elevation = 0.5
+        camera.azimuth = 60
+        camera.elevation = 0.6
         camera.distance = 3
-        camera.lookat = jp.array([0, 0, 0.5])
+        camera.lookat = jp.array([0, 0, 0.8])
         self.camera = camera
 
         renderer = mj.Renderer(self.model, 480, 640)
@@ -1317,13 +1348,16 @@ class Exo(MjxEnv):
 
     def get_image(self, state):
         """Get the image from the renderer."""
+        # jax.debug.breakpoint()
+        self.model.geom_pos[0:4] = state.geom_xpos[0:4]
         d = mj.MjData(self.model)
         # write the mjx.Data into an mjData object
         mjx.device_get_into(d, state)
+
         mj.mj_forward(self.model, d)
 
-        self.camera.lookat[0] = d.qpos[0]
-        self.camera.lookat[1] = d.qpos[1]
+        # self.camera.lookat[0] = d.qpos[0]
+        # self.camera.lookat[1] = d.qpos[1]
 
         # use the mjData object to update the renderer
 

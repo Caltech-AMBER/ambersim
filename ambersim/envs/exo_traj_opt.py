@@ -1,7 +1,7 @@
 import hashlib
 import os
 import pickle
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 
@@ -40,6 +40,7 @@ class TrajOptConfig:
     simulation_steps: int = 200
     max_angle_degrees: float = 2.0
     max_gain: float = 500.0
+    geom_indices: jp.ndarray = field(default_factory=lambda: jp.arange(6))
 
 
 class TrajectoryOptimizer:
@@ -72,7 +73,7 @@ class TrajectoryOptimizer:
             randomizeSlopeGainWeight,
             torso_idx=self.env.base_frame_idx,
             rng=rng,
-            plane_ind=0,
+            geom_indices=self.config.geom_indices,
             max_angle_degrees=self.config.max_angle_degrees,
             max_gain=self.config.max_gain,
         )
@@ -85,11 +86,13 @@ class TrajectoryOptimizer:
         for key in params.keys():
             # check if it's 1d array
             # jax.debug.breakpoint()
-            if len(state.info[key].shape):
+            if key == "q_b_init" or key == "dq_b_init":
+                continue
+            elif len(state.info[key].shape):
                 state.info[key] = state.info[key].at[:].set(params[key])
             else:
                 state.info[key] = params[key]
-            # jax.debug.print("state.info[key]: {}", state.info[key])
+            jax.debug.print("state.info[key]: {}", state.info[key])
         return state
 
     def process_metrics(self, metric):
@@ -110,6 +113,9 @@ class TrajectoryOptimizer:
             q_init, dq_init = self.env.getBezInitialConfig(
                 params["alpha"], self.env.alpha_base, self.env.step_dur[BehavState.Walking]
             )
+        else:
+            q_init = self.env._q_init
+            dq_init = self.env._dq_init
 
         state = self.jit_env_reset(rng, q_init, dq_init, BehavState.Walking)
         state = self.updateParams(state, params)
@@ -124,19 +130,9 @@ class TrajectoryOptimizer:
     def eval_cost(self, params):
         """Evaluate the cost function."""
         costs_dict = {term: [] for term in self.cost_terms}
-        if "alpha" in params and "alpha_base" in params:
-            q_init, dq_init = self.env.getBezInitialConfig(
-                params["alpha"], params["alpha_base"], self.env.step_dur[BehavState.Walking]
-            )
 
-        elif "alpha" in params:
-            q_init, dq_init = self.env.getBezInitialConfig(
-                params["alpha"], self.env.alpha_base, self.env.step_dur[BehavState.Walking]
-            )
+        q_init, dq_init = self.obtain_init(params, self.env)
 
-        else:
-            q_init = self.env._q_init
-            dq_init = self.env._dq_init
         state = self.jit_env_reset(self.rng, q_init, dq_init, BehavState.Walking)
         state = self.updateParams(state, params)
         init_pos_x = state.pipeline_state.qpos[:, 0]
@@ -226,8 +222,15 @@ class TrajectoryOptimizer:
         opt_state = self.opt_update(step_num, clipped_grads, opt_state)
         return self.eval_cost(self.get_params(opt_state)), opt_state
 
-    def simulate(self, env, optimized_params, num_steps=200, output_video="sim_video.mp4"):
-        """Simulate the trajectory using the optimized parameters."""
+    def obtain_init(self, optimized_params, env):
+        """Obtain the initial configuration for the simulation."""
+        if "alpha" in optimized_params and ("q_b_init" in optimized_params and "dq_b_init" in optimized_params):
+            q_init, dq_init = env.getBezInitialConfig(
+                optimized_params["alpha"], self.env.alpha_base, self.env.step_dur[BehavState.Walking]
+            )
+            q_init = q_init.at[0:7].set(optimized_params["q_b_init"])
+            dq_init = dq_init.at[0:6].set(optimized_params["dq_b_init"])
+
         if "alpha" in optimized_params and "alpha_base" in optimized_params:
             q_init, dq_init = env.getBezInitialConfig(
                 optimized_params["alpha"], optimized_params["alpha_base"], self.env.step_dur[BehavState.Walking]
@@ -241,6 +244,12 @@ class TrajectoryOptimizer:
         else:
             q_init = self.env._q_init
             dq_init = self.env._dq_init
+        return q_init, dq_init
+
+    def simulate(self, env, optimized_params, num_steps=200, output_video="sim_video.mp4"):
+        """Simulate the trajectory using the optimized parameters."""
+        q_init, dq_init = self.obtain_init(optimized_params, env)
+
         jit_env_reset = jit(env.reset)
         jit_env_step = jit(env.step)
         state = jit_env_reset(jax.random.PRNGKey(1), q_init, dq_init, BehavState.Walking)
@@ -484,17 +493,18 @@ class TrajectoryOptimizer:
 if __name__ == "__main__":
     # Example usage:
     config = ExoConfig()
-    config.slope = True
+    config.rand_terrain = True
     config.traj_opt = True
     config.impact_based_switching = True
-    config.jt_traj_file = "optimized_params.yaml"
+    config.impact_threshold = 200.0
+    config.jt_traj_file = "default_bez.yaml"
     config.physics_steps_per_control_step = 5
     config.reset_noise_scale = 1e-2
     config.no_noise = False
     config.controller.hip_regulation = False
-    config.controller.cop_regulation = True
+    config.controller.cop_regulation = False
     env = Exo(config)
-    param_keys = ["cop_regulator_gain"]
+    param_keys = ["alpha"]
     # old_config = "configurations/ddf5bdf083e2f5daf2b7c75b01626c7591598440febd83cc7b9026d4ce99dff9/optimized_params.pkl"
     # with open(old_config, "rb") as file:
     #     init_guess = pickle.load(file)
@@ -503,7 +513,7 @@ if __name__ == "__main__":
     #     init_guess["hip_regulator_gain"],
     #     env.config.impact_threshold,
     # ]  # Example initial conditions
-    param_values = [env.config.controller.cop_regulator_gain]  # Example initial conditions
+    param_values = [env.alpha]  # Example initial conditions
 
     # to do add grf penalty, and check the impact_mismatch
 
@@ -518,8 +528,8 @@ if __name__ == "__main__":
     ]
 
     cost_weights = {
-        "base_smoothness_reward": 0.001,
-        "tracking_err": 10.0,
+        "base_smoothness_reward": 0.01,
+        "tracking_err": 1.0,
         "tracking_pos_reward": 1.0,
         "tracking_lin_vel_reward": 10.0,
         "tracking_ang_vel_reward": 1.0,
@@ -528,7 +538,6 @@ if __name__ == "__main__":
     }
 
     traj_opt_config = TrajOptConfig()
-    traj_opt_config.num_env = 1
     optimizer = TrajectoryOptimizer(config, traj_opt_config, param_keys, param_values, cost_terms, cost_weights)
     # filename = "multi_no_pos_optimized_params_update_v2.pkl" #either this or without v2 is the old result
 
@@ -560,26 +569,31 @@ if __name__ == "__main__":
         print(f"Config saved at: {path}")
         optimizer.train()
     else:
-        config = ExoConfig()
-        config.slope = False
-        config.impact_based_switching = True
-        config.jt_traj_file = "optimized_params.yaml"
-        config.physics_steps_per_control_step = 5
-        # config.jt_traj_file = "merged_multicontact.yaml"
-        config.no_noise = False
+        # config = ExoConfig()
+        # config.rand_terrain = True
+        # config.impact_based_switching = True
+        # config.impact_threshold = 200.0
+        # config.jt_traj_file = "default_bez.yaml"
+        # config.physics_steps_per_control_step = 5
+        # config.reset_noise_scale = 1e-2
+        config.traj_opt = False
+        config.no_noise = True
         config.controller.hip_regulation = False
-        config.controller.cop_regulation = True
+        config.controller.cop_regulation = False
         env = Exo(config)
 
-        param_date = "20240111"
+        param_date = "20240115"
         # folder = "04cb3d3b2992140e9c9dcbaa9422e7b5dd5b1bde392f1f45cbfdf40a1ca272e9"
         opt_config = optimizer.load_config(date=param_date, best_flag=True)
-        nominal = {"cop_regulator_gain": env.config.controller.cop_regulator_gain}
-        # nominal = {
-        #     "alpha": optimizer.env.alpha
-        # }  # ,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold
+        # nominal = {"cop_regulator_gain": env.config.controller.cop_regulator_gain}
+        # nominal = dict(zip(param_keys, param_values))
+
+        # ,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold
         optimizer.simulate(
-            env, opt_config["optimized_params"], num_steps=2400, output_video="multi_traj_opt_" + param_date + ".mp4"
+            env,
+            opt_config["optimized_params"],
+            num_steps=1000,
+            output_video="mjx_traj_opt_plane_" + param_date + ".mp4",
         )
 
-        # optimizer.simulate(env,nominal, num_steps=2400, output_video="nominal_no_cop_" + param_date + ".mp4")
+        # optimizer.simulate(env,nominal, num_steps=2400, output_video="nominal_box_" + param_date + ".mp4")
