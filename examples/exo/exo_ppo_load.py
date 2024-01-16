@@ -112,9 +112,13 @@ for i in range(len(rollout)):
 # media.show_video(images, fps=1.0 / eval_env.dt)
 
 output_file = "video/exo_base_ppo_policy_new.mp4"
+
+# Open the file in write mode and write content
+with open(output_file, 'w') as file:
+    media.write_video(output_file, images, fps=1.0 / eval_env.dt)
+
 # Save the video
-media.write_video(output_file, images, fps=1.0 / eval_env.dt)
-breakpoint()
+# breakpoint()
 # %%
 
 

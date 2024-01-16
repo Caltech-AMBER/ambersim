@@ -181,6 +181,8 @@ class Exo(MjxEnv):
         # calculate observation size
         # TODO: fix hard code here
         self.observation_size_single_step = self.model.nq + self.model.nv + 8 + 3 + 3
+        self.curr_step = 0
+        self.obs_history_update_freq = 10
 
         super().__init__(mj_model=self.model, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
 
@@ -486,6 +488,7 @@ class Exo(MjxEnv):
             "cop_regulator_gain": self.config.controller.cop_regulator_gain,
         }
 
+        self.curr_step = 0
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
 
         metrics = {"total_dist": 0.0}
@@ -793,6 +796,8 @@ class Exo(MjxEnv):
 
         reward = jp.sum(jp.array(list(reward_tuple.values())))
         reward = reward + (1 - done) * self.config.reward.healthy_reward
+
+        self.curr_step +=1
 
         return state.replace(pipeline_state=data, obs=obs, reward=reward, done=done)
 
@@ -1352,11 +1357,13 @@ class Exo(MjxEnv):
         obs_list.append(jp.array([domain_idx, step_start, phase_var]))
 
         obs = jp.clip(jp.concatenate(obs_list), -100.0, 2000.0)
+        # self.obs_buffer
 
         # stack observations through time
-        single_obs_size = len(obs)
-        state_info["obs_history"] = jp.roll(state_info["obs_history"], single_obs_size)
-        state_info["obs_history"] = jp.array(state_info["obs_history"]).at[:single_obs_size].set(obs)
+        if self.curr_step % self.obs_history_update_freq == 0 and self.curr_step != 0:
+            single_obs_size = len(obs)
+            state_info["obs_history"] = jp.roll(state_info["obs_history"], (single_obs_size * self.obs_history_update_freq))
+            state_info["obs_history"] = jp.array(state_info["obs_history"]).at[:(single_obs_size * self.obs_history_update_freq)].set(obs)
 
         return state_info["obs_history"]
 
