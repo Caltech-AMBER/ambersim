@@ -127,7 +127,7 @@ class ExoConfig:
     custom_action_space: jp.ndarray = jp.array([1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0])
     custom_act_idx: jp.ndarray = jp.array([0, 2, 6, 8])
     impact_threshold: float = 200.0
-    impact_based_switching: bool = False
+    impact_based_switching: bool = True
     no_noise: bool = False
 
 
@@ -249,6 +249,7 @@ class Exo(MjxEnv):
 
         self._q_default = self._q_default.at[BehavState.Walking.value, :].set(self._q_init)
         self._dq_default = self._dq_default.at[BehavState.Walking.value, :].set(self._dq_init)
+        self.swing_foot = 0
 
     def update_default_traj(self, new_traj: jp.ndarray, step_dur: float) -> None:
         """Update the default trajectory with the new trajectory."""
@@ -362,6 +363,7 @@ class Exo(MjxEnv):
             "domain_info": {
                 "step_start": 0.0,
                 "domain_idx": StanceState.Right.value,
+                "swing_foot": 0
             },
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
             "nominal_action": jp.zeros(12),
@@ -382,6 +384,7 @@ class Exo(MjxEnv):
                 "mechanical_power": zero,
                 "jt_smoothness_reward": zero,
                 "base_smoothness_reward": zero,
+                "tracking_foot_reward": zero,
             },
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
@@ -582,6 +585,12 @@ class Exo(MjxEnv):
             motor_targets = jp.clip(action, self._torque_lb, self._torque_ub)
 
         data = self.pipeline_step(data0, motor_targets)
+        
+        phaseVar = (state.info["domain_info"]["step_start"] - data.time) / self.step_dur[
+            BehavState.Walking]
+        if True:
+            self.swing_foot = (self.swing_foot + 1) % 2
+            self.switchFootTarget(state);
 
         # observation data
         obs = self._get_obs(data, action, state.info)
@@ -841,6 +850,12 @@ class Exo(MjxEnv):
         jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
         base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
 
+        # target foot pos
+        currentFootPos = data.geom_xpos[:, 0:3]
+        targetFootPos = self.footTarget
+        tracking_foot_reward = -(jp.linalg.norm(targetFootPos[0][:2] - currentFootPos[1][:2]) + 
+                                 jp.linalg.norm(targetFootPos[1][:2] - currentFootPos[0][:2]))
+
         return {
             "ctrl_cost": ctrl_cost,
             "tracking_lin_vel_reward": tracking_lin_vel_reward,
@@ -852,6 +867,7 @@ class Exo(MjxEnv):
             "mechanical_power": mechanical_power,
             "jt_smoothness_reward": jt_smoothness_reward,
             "base_smoothness_reward": base_smoothness_reward,
+            "tracking_foot_reward": tracking_foot_reward
         }
 
     def _reward_tracking_lin_vel(self, commands: jax.Array, x: Transform, xd: Motion) -> jax.Array:
@@ -1076,3 +1092,25 @@ class Exo(MjxEnv):
         R = jp.zeros_like(relabel)
         R = R.at[relabelIdx].set(relabel)
         return R
+    
+    def switchFootTarget(self, state):
+        prng_key = jax.random.PRNGKey(seed=10)
+        step_len = [0.11966493318671938, -0.2940499740759257, -7.344087977321223E-4]
+        data = state.pipeline_state
+        swingFootPos = data.geom_xpos[self.swing_foot, 0:3]
+        stanceFootPos = data.geom_xpos[(self.swing_foot + 1) % 2, 0:3]
+        targetOffset = jp.array([step_len[0] * 2, 0, 0.0])
+        randomization = jp.array([jax.random.uniform(prng_key, minval=-0.05, maxval=0.05), 
+                                  jax.random.uniform(prng_key, minval=-0.02, maxval=0.02), 0.0])
+        
+        if self.swing_foot == 0:
+            self.leftfootTarget = jp.add(swingFootPos, targetOffset)
+            self.leftfootTarget = jp.add(self.leftfootTarget, randomization)
+            self.rightfootTarget = stanceFootPos
+
+        if self.swing_foot == 1:
+            self.leftfootTarget = stanceFootPos
+            self.rightfootTarget = jp.add(swingFootPos, targetOffset)
+            self.rightfootTarget = jp.add(self.rightfootTarget, randomization)
+        print(self.leftfootTarget, self.rightfootTarget)
+        self.footTarget = jp.array([self.leftfootTarget, self.rightfootTarget])
