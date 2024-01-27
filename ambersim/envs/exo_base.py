@@ -362,8 +362,7 @@ class Exo(MjxEnv):
             "offset": jp.zeros(12),
             "domain_info": {
                 "step_start": 0.0,
-                "domain_idx": StanceState.Right.value,
-                "swing_foot": 0
+                "domain_idx": StanceState.Right.value
             },
             "obs_history": jp.zeros(self.config.history_size * self.observation_size_single_step),
             "nominal_action": jp.zeros(12),
@@ -389,6 +388,10 @@ class Exo(MjxEnv):
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
             "hip_regulator_gain": self.config.controller.hip_regulator_gain,
+            "tracking_foot": {
+                "target_pos": zero,
+                "swing_foot": 0
+            },
         }
 
         self.curr_step = 0
@@ -586,11 +589,14 @@ class Exo(MjxEnv):
 
         data = self.pipeline_step(data0, motor_targets)
         
-        phaseVar = (state.info["domain_info"]["step_start"] - data.time) / self.step_dur[
-            BehavState.Walking]
-        if True:
-            self.swing_foot = (self.swing_foot + 1) % 2
-            self.switchFootTarget(state);
+        time_to_new_step = (state.info["domain_info"]["step_start"] - data.time) <= 0.01
+        step_done = lax.cond(time_to_new_step, lambda : True, lambda : False)
+
+        jax.debug.print("Time: {}", data.time)
+        if step_done:
+            state.info["tracking_foot"]["swing_foot"] = (state.info["tracking_foot"]["swing_foot"] + 1) % 2
+            self.switchFootTarget(state, data);
+            jax.debug.print("Time: {}", data.time)
 
         # observation data
         obs = self._get_obs(data, action, state.info)
@@ -852,10 +858,11 @@ class Exo(MjxEnv):
 
         # target foot pos
         currentFootPos = data.geom_xpos[:, 0:3]
-        targetFootPos = self.footTarget
-        tracking_foot_reward = -(jp.linalg.norm(targetFootPos[0][:2] - currentFootPos[1][:2]) + 
-                                 jp.linalg.norm(targetFootPos[1][:2] - currentFootPos[0][:2]))
+        targetFootPos = state_info["tracking_foot"]["target_pos"]
+        tracking_foot_reward = -((jp.linalg.norm(targetFootPos[0][:2] - currentFootPos[1][:2]) + 
+                                 jp.linalg.norm(targetFootPos[1][:2] - currentFootPos[0][:2])))
 
+        # TODO: remove reward terms
         return {
             "ctrl_cost": ctrl_cost,
             "tracking_lin_vel_reward": tracking_lin_vel_reward,
@@ -956,6 +963,7 @@ class Exo(MjxEnv):
 
         step_start = state_info["domain_info"]["step_start"]
         phase_var = (data.time - step_start) / self.step_dur[state_info["state"]]
+
         # desired cop
         desired_cop = jp.zeros(2)
         desired_cop = desired_cop.at[0].set(phase_var * (desired_max - desired_min) + desired_min)
@@ -1093,24 +1101,24 @@ class Exo(MjxEnv):
         R = R.at[relabelIdx].set(relabel)
         return R
     
-    def switchFootTarget(self, state):
+    def switchFootTarget(self, state, data):
+        # use state info, and key from run
         prng_key = jax.random.PRNGKey(seed=10)
         step_len = [0.11966493318671938, -0.2940499740759257, -7.344087977321223E-4]
-        data = state.pipeline_state
-        swingFootPos = data.geom_xpos[self.swing_foot, 0:3]
-        stanceFootPos = data.geom_xpos[(self.swing_foot + 1) % 2, 0:3]
-        targetOffset = jp.array([step_len[0] * 2, 0, 0.0])
+        swingFootPos = data.geom_xpos[state.info["tracking_foot"]["swing_foot"], 0:3]
+        stanceFootPos = data.geom_xpos[(state.info["tracking_foot"]["swing_foot"] + 1) % 2, 0:3]
+        targetOffset = jp.array([step_len[0] * 2, 0.0, 0.0])
         randomization = jp.array([jax.random.uniform(prng_key, minval=-0.05, maxval=0.05), 
                                   jax.random.uniform(prng_key, minval=-0.02, maxval=0.02), 0.0])
         
-        if self.swing_foot == 0:
-            self.leftfootTarget = jp.add(swingFootPos, targetOffset)
-            self.leftfootTarget = jp.add(self.leftfootTarget, randomization)
-            self.rightfootTarget = stanceFootPos
+        if state.info["tracking_foot"]["swing_foot"] == 0:
+            leftfootTarget = jp.add(swingFootPos, targetOffset)
+            leftfootTarget = jp.add(leftfootTarget, randomization)
+            rightfootTarget = stanceFootPos
 
-        if self.swing_foot == 1:
-            self.leftfootTarget = stanceFootPos
-            self.rightfootTarget = jp.add(swingFootPos, targetOffset)
-            self.rightfootTarget = jp.add(self.rightfootTarget, randomization)
-        print(self.leftfootTarget, self.rightfootTarget)
-        self.footTarget = jp.array([self.leftfootTarget, self.rightfootTarget])
+        if state.info["tracking_foot"]["swing_foot"] == 1:
+            leftfootTarget = stanceFootPos
+            rightfootTarget = jp.add(swingFootPos, targetOffset)
+            rightfootTarget = jp.add(rightfootTarget, randomization)
+        print(leftfootTarget, rightfootTarget)
+        state.info["tracking_foot"]["target_pos"] = jp.array([leftfootTarget, rightfootTarget])
