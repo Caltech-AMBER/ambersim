@@ -816,7 +816,7 @@ class Exo(MjxEnv):
             lambda _: get_stance_contact(jp.array([4, 5, 6, 7]), data),
             operand=None,
         )
-
+        """
         grf_penalty = self.config.reward.grf_cost_weight * (1.0 - jp.sum(stance_grf) / (self.mass * 9.81))
 
         tracking_pos_reward = self.config.reward.tracking_base_pos * jp.exp(
@@ -855,7 +855,7 @@ class Exo(MjxEnv):
         # smoothness
         jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
         base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
-
+        """
         # target foot pos
         currentFootPos = data.geom_xpos[:, 0:3]
         targetFootPos = state_info["tracking_foot"]["target_pos"]
@@ -864,16 +864,16 @@ class Exo(MjxEnv):
 
         # TODO: remove reward terms
         return {
-            "ctrl_cost": ctrl_cost,
-            "tracking_lin_vel_reward": tracking_lin_vel_reward,
-            "tracking_ang_vel_reward": tracking_ang_vel_reward,
-            "tracking_pos_reward": tracking_pos_reward,
-            "tracking_orientation_reward": tracking_orientation_reward,
-            "tracking_joint_reward": tracking_joint_reward,
-            "grf_penalty": grf_penalty,
-            "mechanical_power": mechanical_power,
-            "jt_smoothness_reward": jt_smoothness_reward,
-            "base_smoothness_reward": base_smoothness_reward,
+            "ctrl_cost": 0,
+            "tracking_lin_vel_reward": 0,
+            "tracking_ang_vel_reward": 0,
+            "tracking_pos_reward": 0,
+            "tracking_orientation_reward": 0,
+            "tracking_joint_reward": 0,
+            "grf_penalty": 0,
+            "mechanical_power": 0,
+            "jt_smoothness_reward": 0,
+            "base_smoothness_reward": 0,
             "tracking_foot_reward": tracking_foot_reward
         }
 

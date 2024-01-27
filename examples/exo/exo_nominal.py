@@ -21,8 +21,8 @@ os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["JAX_TRACEBACK_FILTERING"] = "off"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # env.run_base_sim(rng=jax.random.PRNGKey(0), alpha=env.alpha, num_steps=400, output_video=filename)
-state = env.reset(rng=jax.random.PRNGKey(0))
-env.step(state, action=jp.zeros(env.action_size))
+# state = env.reset(rng=jax.random.PRNGKey(0))
+# env.step(state, action=jp.zeros(env.action_size))
 # env.run_sim_from_standing(rng=jax.random.PRNGKey(0), num_steps=400)
 # breakpoint()
 # env.run_bez_sim_from_standing(
