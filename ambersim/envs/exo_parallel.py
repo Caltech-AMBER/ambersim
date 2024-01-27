@@ -166,7 +166,7 @@ def random_quaternion(key, max_angle_degrees=10):
 def random_slope(key, max_angle_degrees=5):
     """Generate a random rotation within a specified maximum angle using JAX."""
     # Generate a random axis (unit vector)
-    axis_index = 0  # jax.random.randint(key, (1,1),minval=0, maxval=2)
+    axis_index = jax.random.randint(key, (1, 1), minval=0, maxval=2)
 
     # Initialize axis vector
     axis = jnp.zeros(3)
@@ -174,6 +174,7 @@ def random_slope(key, max_angle_degrees=5):
     axis = axis.at[axis_index].set(1)
 
     # Generate a random angle within the specified range and convert to radians
+    # angle_x = jax.random.uniform(key, minval=-max_angle_degrees, maxval=max_angle_degrees) * jnp.pi / 180
     angle = jax.random.uniform(key, minval=-max_angle_degrees, maxval=max_angle_degrees) * jnp.pi / 180
 
     # Calculate quaternion components
@@ -186,9 +187,9 @@ def random_slope(key, max_angle_degrees=5):
     return jnp.array([w, x, y, z])
 
 
-def updateGeomsQuat(sys, geom_indices, rngs):
+def updateGeomsQuat(sys, geom_indices, max_degree, rngs):
     """Generate random quaternions for all specified geom_indices."""
-    rand_quats = jax.vmap(random_quaternion)(rngs)
+    rand_quats = jax.vmap(random_quaternion)(rngs, max_angle_degrees=max_degree)
     geom_quat = sys.geom_quat.at[geom_indices].set(rand_quats)
     return geom_quat
 
@@ -212,18 +213,93 @@ def randomizeSlope(sys, plane_ind, rng, max_angle_degrees=0):
     return sys_v, in_axes
 
 
-def randomizeSlopeGain(sys, plane_ind, rng, max_angle_degrees):
+#   @jax.vmap
+#     def get_offset(rng):
+#         offset = jax.random.uniform(rng, shape=(3,), minval=-0.1, maxval=0.1)
+#         pos = sys.body_pos.at[0].set(offset)
+#         return pos
+
+#     sys_v = sys.tree_replace({"body_pos": get_offset(rng)})
+#     in_axes = jax.tree_map(lambda x: None, sys)
+#     in_axes = in_axes.tree_replace({"body_pos": 0})
+#     return sys_v, in_axes
+
+
+def randomizeSlopeGainWeight(sys, torso_idx, geom_indices, rng, max_angle_degrees, max_gain):
     """Randomizes the plane slope, friction, and gain."""
 
     @jax.vmap
     def rand(rng):
         _, key = jax.random.split(rng, 2)
         # friction
-        friction = jax.random.uniform(key, (1,), minval=0.9, maxval=1.1)
+        friction = jax.random.uniform(key, (1,), minval=0.7, maxval=1.4)
+        friction = sys.geom_friction.at[:, geom_indices].set(friction * jnp.ones(len(geom_indices)))
+
+        _, key = jax.random.split(key, 2)
+        rand_quat = random_slope(key, max_angle_degrees=max_angle_degrees)
+        rand_geom_quats = sys.geom_quat.at[geom_indices[0]].set(rand_quat)
+
+        _, key = jax.random.split(key, 2)
+        rand_quat = random_slope(key, max_angle_degrees=max_angle_degrees)
+        rand_geom_quats = rand_geom_quats.at[geom_indices[1]].set(rand_quat)
+
+        # actuator
+        _, key = jax.random.split(key, 2)
+        gain_range = (-max_gain, max_gain)
+        param = jax.random.uniform(key, (1,), minval=gain_range[0], maxval=gain_range[1]) + sys.actuator_gainprm[:, 0]
+        gain = sys.actuator_gainprm.at[:, 0].set(param)
+        bias = sys.actuator_biasprm.at[:, 1].set(-param)
+        # #  geom_quat
+        # rand_quat = random_slope(rng, max_angle_degrees=max_angle_degrees)
+        # rand_plane_geom = sys.geom_quat.at[geom_idx].set(rand_quat)
+
+        com_offset = jax.random.uniform(rng, shape=(3,), minval=-0.05, maxval=0.05) + sys.body_pos[torso_idx]
+        pos = sys.body_pos.at[torso_idx].set(com_offset)
+        rand_inertia = jax.random.uniform(rng, shape=(3,), minval=-0.01, maxval=0.01) + sys.body_inertia[torso_idx]
+        inertia = sys.body_inertia.at[torso_idx].set(rand_inertia)
+
+        return friction, gain, bias, pos, inertia, rand_geom_quats
+
+    friction, gain, bias, pos, inertia, rand_geom_quats = rand(rng)
+
+    in_axes = jax.tree_map(lambda x: None, sys)
+    in_axes = in_axes.tree_replace(
+        {
+            "geom_quat": 0,
+            "geom_friction": 0,
+            "actuator_gainprm": 0,
+            "actuator_biasprm": 0,
+            "body_pos": 0,
+            "body_inertia": 0,
+        }
+    )
+
+    sys = sys.tree_replace(
+        {
+            "geom_quat": rand_geom_quats,
+            "geom_friction": friction,
+            "actuator_gainprm": gain,
+            "actuator_biasprm": bias,
+            "body_pos": pos,
+            "body_inertia": inertia,
+        }
+    )
+
+    return sys, in_axes
+
+
+def randomizeSlopeGain(sys, plane_ind, rng, max_angle_degrees, max_gain):
+    """Randomizes the plane slope, friction, and gain."""
+
+    @jax.vmap
+    def rand(rng):
+        _, key = jax.random.split(rng, 2)
+        # friction
+        friction = jax.random.uniform(key, (1,), minval=0.7, maxval=1.4)
         friction = sys.geom_friction.at[:, 0].set(friction)
         # actuator
         _, key = jax.random.split(key, 2)
-        gain_range = (-5, 5)
+        gain_range = (-max_gain, max_gain)
         param = jax.random.uniform(key, (1,), minval=gain_range[0], maxval=gain_range[1]) + sys.actuator_gainprm[:, 0]
         gain = sys.actuator_gainprm.at[:, 0].set(param)
         bias = sys.actuator_biasprm.at[:, 1].set(-param)
