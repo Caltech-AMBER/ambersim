@@ -37,6 +37,43 @@ class CustomVecEnv(Wrapper):
         state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
         return state
 
+    def barrier_reset(
+        self, rng: jnp.ndarray, q_inits: jnp.ndarray, dq_inits: jnp.ndarray, behavState: BehavState
+    ) -> State:
+        """Resets the vectorized environment."""
+
+        def reset(sys, rng, q_init, dq_init):
+            env = self._env_fn(sys=sys)
+            return env.reset(rng, q_init, dq_init, behavState)
+
+        state = jax.vmap(reset, in_axes=[self._in_axes, 0, 0, 0])(self._sys_v, rng, q_inits, dq_inits)
+
+        return state
+
+    # def barrier_reset(self, rng: jnp.ndarray, q_inits: jnp.ndarray, dq_inits: jnp.ndarray, behavState: BehavState) -> State:
+    #     """Resets the vectorized environment."""
+
+    #     def reset(sys, rng,q_init,dq_init):
+    #         env = self._env_fn(sys=sys)
+    #         return env.reset(rng, q_init, dq_init, behavState)
+
+    #     vec_env_reset = jax.vmap(reset, in_axes=[self._in_axes, 0,None,None])
+
+    #     state = jax.vmap(vec_env_reset, in_axes=[None, None, None, 0])(self._sys_v, rng,q_inits,dq_inits)
+
+    #     return state
+
+    def barrier_step(self, state: State, action: jnp.ndarray) -> State:
+        """Steps the vectorized environment."""
+
+        def step(sys, s, a):
+            env = self._env_fn(sys=sys)
+            return env.barrier_step(s, a)
+
+        # res = jax.vmap(step, in_axes=[self._in_axes, 0, 0])(self._sys_v, state, action)
+
+        return state
+
     def step(self, state: State, action: jnp.ndarray) -> State:
         """Steps the vectorized environment."""
 

@@ -1,7 +1,6 @@
 import hashlib
 import os
 import pickle
-from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 
@@ -16,31 +15,14 @@ import wandb
 from ambersim import ROOT
 from ambersim.envs.exo_base import BehavState, Exo, ExoConfig
 from ambersim.envs.exo_parallel import CustomVecEnv, randomizeSlopeGainWeight
+from ambersim.envs.traj_opt_utils import TrajOptConfig, delta_h_hat, get_x_k, get_x_k_plus_1, get_x_star, h
 from ambersim.logger.logger import LoggerFactory
 
-# Set environment variables outside the class as they are global settings
-os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-os.environ["JAX_TRACEBACK_FILTERING"] = "off"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-os.environ["MUJOCO_GL"] = "egl"
-
-
-@dataclass
-class TrajOptConfig:
-    """Data class for storing default values for Trajectory Optimizer configuration."""
-
-    # Define default values for each parameter
-    num_env: int = 100
-    seed: int = 0
-    time_steps: int = 400
-    num_steps: int = 20
-    opt_step_size: float = 1e-3
-    file_name: str = "optimized_params.pkl"
-    output_video: str = "sim_video.mp4"
-    simulation_steps: int = 200
-    max_angle_degrees: float = 2.0
-    max_gain: float = 500.0
-    geom_indices: jp.ndarray = field(default_factory=lambda: jp.arange(6))
+# # Set environment variables outside the class as they are global settings
+# os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+# os.environ["JAX_TRACEBACK_FILTERING"] = "off"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["MUJOCO_GL"] = "egl"
 
 
 class TrajectoryOptimizer:
@@ -79,7 +61,10 @@ class TrajectoryOptimizer:
         )
         self.domain_env = CustomVecEnv(self.env, randomization_fn=self.randomize_func)
         self.jit_env_reset = jit(self.domain_env.reset)
-        self.jit_env_step = jit(self.domain_env.step)
+        if self.config.barrier:
+            self.jit_env_step = jit(self.domain_env.barrier_step)
+        else:
+            self.jit_env_step = jit(self.domain_env.step)
 
     def updateParams(self, state, params):
         """Update the parameters in the state."""
@@ -92,7 +77,7 @@ class TrajectoryOptimizer:
                 state.info[key] = state.info[key].at[:].set(params[key])
             else:
                 state.info[key] = params[key]
-            jax.debug.print("state.info[key]: {}", state.info[key])
+            # jax.debug.print("state.info[key]: {}", state.info[key])
         return state
 
     def process_metrics(self, metric):
@@ -126,6 +111,51 @@ class TrajectoryOptimizer:
             states.append(state)
 
         return states
+
+    def eval_barrier_cond(self, params):
+        """Evaluate barrier condition."""
+        q_init, dq_init = self.obtain_init(params, self.env)
+
+        total_env = self.config.num_env * self.config.num_init
+        x_star = get_x_star(q_init, dq_init, jax.random.PRNGKey(0), total_env)
+
+        init_noise = jax.random.uniform(
+            jax.random.PRNGKey(1), (self.config.num_init, self.env.model.nv), minval=-0.1, maxval=0.1
+        )
+        q_init_rand = jp.tile(q_init, (self.config.num_init, 1))
+        dq_init_rand = jp.tile(dq_init, (self.config.num_init, 1))
+        dq_init_rand = dq_init_rand.at[:, 0 : self.env.model.nv].set(
+            dq_init_rand[:, 0 : self.env.model.nv] + init_noise
+        )
+
+        q_inits = jp.tile(q_init_rand, (self.config.num_env, 1))
+        dq_inits = jp.tile(dq_init_rand, (self.config.num_env, 1))
+
+        state = self.domain_env.barrier_reset(self.rngs_replicated, q_inits, dq_inits, BehavState.Walking)
+        state = self.updateParams(state, params)
+
+        x_k = get_x_k(self.env, state)
+
+        r = 0.85
+        # check h(xk) > 0
+        h_k = h(x_k, x_star, r)
+
+        if jp.any(h_k < 0):
+            jax.debug.print("h_k: {}", h_k)
+            breakpoint()
+
+        for _ in range(self.timesteps):
+            state = self.jit_env_step(state, jp.zeros((total_env, self.env.action_size)))
+
+        # make sure it stop simulate when one step is completed
+        # breakpoint()
+        x_k_plus_1 = get_x_k_plus_1(self.env, state)
+        delta_h_val = delta_h_hat(x_k, x_k_plus_1, x_star, r)
+        delta_h_over_h = jp.clip(delta_h_val / h_k, a_max=0)
+        barrier_val = jp.sum(-delta_h_over_h)
+        jax.debug.print("barrier_val: {}", barrier_val)
+
+        return barrier_val
 
     def eval_cost(self, params):
         """Evaluate the cost function."""
@@ -170,9 +200,26 @@ class TrajectoryOptimizer:
 
         return total_cost / self.rng.shape[0]
 
+    def optimization_barrier_step(self, step_num, opt_state, clip_value=100.0):
+        """Perform one optimization step."""
+        grads = jacfwd(self.eval_barrier_cond)(self.get_params(opt_state))
+        jax.debug.print("grads: {}", grads)
+        # Clip gradients
+        clipped_grads = jax.tree_util.tree_map(lambda g: jp.clip(g, -clip_value, clip_value), grads)
+
+        # Debugging: print gradients
+        jax.debug.print("Clipped grads: {}", clipped_grads)
+
+        opt_state = self.opt_update(step_num, clipped_grads, opt_state)
+        return self.eval_barrier_cond(self.get_params(opt_state)), opt_state
+
     def train(self, file_name="optimized_params.pkl"):
         """Run the optimization loop."""
-        self.init_vec_env()
+        if self.config.barrier:
+            self.rngs_replicated = jp.tile(self.rng, (self.config.num_init, 1))
+            self.init_vec_env(self.rngs_replicated)
+        else:
+            self.init_vec_env()
         self.logger = LoggerFactory.get_logger("wandb", self.save_dir)
 
         self.opt_init, self.opt_update, self.get_params = optimizers.adam(step_size=self.config.opt_step_size)
@@ -187,7 +234,10 @@ class TrajectoryOptimizer:
         for i in range(self.config.num_steps):
             current_params = self.get_params(opt_state)
             print("Optimized parameters: ", current_params)
-            value, opt_state = self.optimization_step(i, opt_state)
+            if self.config.barrier:
+                value, opt_state = self.optimization_barrier_step(i, opt_state)
+            else:
+                value, opt_state = self.optimization_step(i, opt_state)
             val = float(jax.device_get(value))
             wandb.log({"step": i, "value": val})
 
@@ -427,7 +477,7 @@ class TrajectoryOptimizer:
             "cost_terms": self.cost_terms,
             "cost_weights": self.cost_weights,
             "date": datetime.now().strftime("%Y%m%d"),
-            "config": vars(self.config),
+            "config": self.config.to_dict(),
             "env_config": vars(self.env_config),
         }
         os.makedirs(base_dir, exist_ok=True)
@@ -496,11 +546,11 @@ if __name__ == "__main__":
     config.rand_terrain = True
     config.traj_opt = True
     config.impact_based_switching = True
-    config.impact_threshold = 200.0
+    config.impact_threshold = 400.0
     config.jt_traj_file = "default_bez.yaml"
     config.physics_steps_per_control_step = 5
     config.reset_noise_scale = 1e-2
-    config.no_noise = False
+    config.no_noise = True
     config.controller.hip_regulation = False
     config.controller.cop_regulation = False
     env = Exo(config)
@@ -562,8 +612,8 @@ if __name__ == "__main__":
     # loaded_config = optimizer.load_config(path)
     # print(f"Loaded config: {loaded_config}")
 
-    train = True
-    # train = False
+    # train = True
+    train = False
     if train:
         path = optimizer.save_config()
         print(f"Config saved at: {path}")
@@ -582,18 +632,18 @@ if __name__ == "__main__":
         config.controller.cop_regulation = False
         env = Exo(config)
 
-        param_date = "20240115"
+        param_date = "20240118"
         # folder = "04cb3d3b2992140e9c9dcbaa9422e7b5dd5b1bde392f1f45cbfdf40a1ca272e9"
         opt_config = optimizer.load_config(date=param_date, best_flag=True)
         # nominal = {"cop_regulator_gain": env.config.controller.cop_regulator_gain}
-        # nominal = dict(zip(param_keys, param_values))
+        nominal = dict(zip(param_keys, param_values))
 
         # ,"hip_regulator_gain":env.config.controller.hip_regulator_gain,"impact_threshold":env.config.impact_threshold
-        optimizer.simulate(
-            env,
-            opt_config["optimized_params"],
-            num_steps=1000,
-            output_video="mjx_traj_opt_plane_" + param_date + ".mp4",
-        )
+        # optimizer.simulate(
+        #     env,
+        #     opt_config["optimized_params"],
+        #     num_steps=1000,
+        #     output_video="mjx_traj_opt_plane_" + param_date + ".mp4",
+        # )
 
-        # optimizer.simulate(env,nominal, num_steps=2400, output_video="nominal_box_" + param_date + ".mp4")
+        optimizer.simulate(env, nominal, num_steps=2400, output_video="nominal_box_" + param_date + ".mp4")
