@@ -16,8 +16,8 @@ class TrajOptConfig:
     num_env: int = 10
     num_init: int = 100
     seed: int = 0
-    time_steps: int = 220
-    num_steps: int = 100
+    time_steps: int = 2
+    num_steps: int = 1
     opt_step_size: float = 1e-3
     file_name: str = "optimized_params.pkl"
     output_video: str = "sim_video.mp4"

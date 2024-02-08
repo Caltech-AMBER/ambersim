@@ -171,6 +171,7 @@ class Exo(MjxEnv):
             path = os.path.join(ROOT, "..", "models", "exo", config.xml_file)
 
         self.model = mj.MjModel.from_xml_path(path)
+
         self.load_traj()
         self.load_ctrl_params()
 
@@ -853,7 +854,7 @@ class Exo(MjxEnv):
         Param values: The values of the attribute.
         Param save_dir: Directory to save the plot.
         """
-        num_dims = len(values[0]) if isinstance(values[0], list) else 1
+        num_dims = len(values[0]) if isinstance(values[0], list or jp.ndarray) else 1
         plt.figure(figsize=(10, 4 * num_dims))
 
         for dim in range(num_dims):
@@ -1401,9 +1402,9 @@ class Exo(MjxEnv):
         """Get the image from the renderer."""
         # jax.debug.breakpoint()
         # self.model.geom_pos[0:4] = state.geom_xpos[0:4]
-        d = mj.MjData(self.model)
+        # d = mj.MjData(self.model)
         # write the mjx.Data into an mjData object
-        mjx.device_get_into(d, state)
+        d = mjx.get_data(self.model, state)
 
         mj.mj_forward(self.model, d)
 

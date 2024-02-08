@@ -15,6 +15,7 @@ import wandb
 from ambersim import ROOT
 from ambersim.envs.exo_base import BehavState, Exo, ExoConfig
 from ambersim.envs.exo_parallel import CustomVecEnv, randomizeSlopeGainWeight
+from ambersim.envs.exo_tsc import Exo_TSC
 from ambersim.envs.traj_opt_utils import TrajOptConfig, delta_h_hat, get_x_k, get_x_k_plus_1, get_x_star, h
 from ambersim.logger.logger import LoggerFactory
 
@@ -32,7 +33,7 @@ class TrajectoryOptimizer:
         """Initialize the trajectory optimizer."""
         self.config = traj_opt_config
         self.env_config = env_config
-        self.env = Exo(env_config)
+        self.env = Exo_TSC(env_config)
         self.ind_jit_env_reset = jit(self.env.reset)
         self.ind_jit_env_step = jit(self.env.step)
         rng = jax.random.PRNGKey(self.config.seed)
@@ -174,6 +175,8 @@ class TrajectoryOptimizer:
             for term in self.cost_terms:
                 if term == "tracking_err":
                     costs_dict[term].append(sum(state.info["tracking_err"]))
+                elif term == "output_err":
+                    costs_dict[term].append(sum(state.info["output_err"]))
                 elif term == "impact_mismatch":
                     costs_dict[term].append(sum(state.info["domain_info"]["impact_mismatch"]))
                 elif term != "survival":
@@ -198,6 +201,7 @@ class TrajectoryOptimizer:
                 term_cost = self.process_metrics(term_cost)
             total_cost += term_cost
 
+        jax.debug.breakpoint()
         return total_cost / self.rng.shape[0]
 
     def optimization_barrier_step(self, step_num, opt_state, clip_value=100.0):
@@ -543,17 +547,17 @@ class TrajectoryOptimizer:
 if __name__ == "__main__":
     # Example usage:
     config = ExoConfig()
-    config.rand_terrain = True
+    config.rand_terrain = False
     config.traj_opt = True
     config.impact_based_switching = True
     config.impact_threshold = 400.0
-    config.jt_traj_file = "default_bez.yaml"
+    config.jt_traj_file = "jt_bez_2023-09-10.yaml"
     config.physics_steps_per_control_step = 5
     config.reset_noise_scale = 1e-2
     config.no_noise = True
     config.controller.hip_regulation = False
     config.controller.cop_regulation = False
-    env = Exo(config)
+    env = Exo_TSC(config)
     param_keys = ["alpha"]
     # old_config = "configurations/ddf5bdf083e2f5daf2b7c75b01626c7591598440febd83cc7b9026d4ce99dff9/optimized_params.pkl"
     # with open(old_config, "rb") as file:
@@ -568,26 +572,19 @@ if __name__ == "__main__":
     # to do add grf penalty, and check the impact_mismatch
 
     cost_terms = [
-        "base_smoothness_reward",
         "tracking_err",
-        "tracking_pos_reward",
-        "tracking_lin_vel_reward",
-        "tracking_ang_vel_reward",
-        "cop_reward",
+        "output_err",
         "survival",
     ]
 
     cost_weights = {
-        "base_smoothness_reward": 0.01,
         "tracking_err": 1.0,
-        "tracking_pos_reward": 1.0,
-        "tracking_lin_vel_reward": 10.0,
-        "tracking_ang_vel_reward": 1.0,
-        "cop_reward": 1.0,
+        "output_err": 1.0,
         "survival": 100.0,
     }
 
     traj_opt_config = TrajOptConfig()
+    traj_opt_config.barrier = False
     optimizer = TrajectoryOptimizer(config, traj_opt_config, param_keys, param_values, cost_terms, cost_weights)
     # filename = "multi_no_pos_optimized_params_update_v2.pkl" #either this or without v2 is the old result
 
@@ -612,8 +609,8 @@ if __name__ == "__main__":
     # loaded_config = optimizer.load_config(path)
     # print(f"Loaded config: {loaded_config}")
 
-    # train = True
-    train = False
+    train = True
+    # train = False
     if train:
         path = optimizer.save_config()
         print(f"Config saved at: {path}")
