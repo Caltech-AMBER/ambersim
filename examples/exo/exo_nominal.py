@@ -3,6 +3,7 @@ import os
 import jax
 
 from ambersim.envs.exo_base import BehavState, Exo, ExoConfig
+import jax.numpy as jp
 
 config = ExoConfig()
 # config.jt_traj_file = "medium_robust_flatfoot_gait.yaml"
@@ -19,7 +20,11 @@ filename = "video/base_slope_nominal.mp4"
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["JAX_TRACEBACK_FILTERING"] = "off"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-env.run_base_sim(rng=jax.random.PRNGKey(0), alpha=env.alpha, num_steps=400, output_video=filename)
+# env.run_base_sim(rng=jax.random.PRNGKey(0), alpha=env.alpha, num_steps=400, output_video=filename)
+# TODO: jit, motion comfirm
+state = env.reset(rng=jax.random.PRNGKey(0))
+for i in range(100):
+    env.step(state, action=jp.zeros(env.action_size))
 # env.run_sim_from_standing(rng=jax.random.PRNGKey(0), num_steps=400)
 # breakpoint()
 # env.run_bez_sim_from_standing(

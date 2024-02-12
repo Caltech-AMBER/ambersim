@@ -58,6 +58,10 @@ training_config = read_config(os.path.join(home_dir, "ambersim/models/exo/limits
 
 # Add appo configurations
 ppo_config = ppo_training_utils.PPOConfig()
+object.__setattr__(ppo_config, 'num_timesteps', 50)
+object.__setattr__(ppo_config, 'num_envs', 2)
+object.__setattr__(ppo_config, 'episode_length', 50)
+# ppo_config.num_envs = 2
 training_config = merge_configs(training_config, struct_to_dict(ppo_config))
 training_config = merge_configs(training_config, struct_to_dict(env.config))
 # training_config.update(ppo_config)
