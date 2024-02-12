@@ -67,7 +67,7 @@ class ExoRewardConfig:
     # terms to base state regularizations, joint
     # regularizations, and other behavior regularizations.
     # Penalize the base velocity in z direction, L2 penalty.
-    # tracking_base_ori: float = 1.0
+    tracking_base_ori: float = 1.0
 
     # Penalize the base roll and pitch rate. L2 penalty.
     tracking_base_pos: float = 10.0
@@ -121,17 +121,16 @@ class ExoConfig:
     reset_noise_scale: float = 1e-4
     history_size: float = 5
     xml_file: str = "loadedExo.xml"
-    jt_traj_file: str = "default_bez.yaml"
+    jt_traj_file: str = "jt_bez_2023-09-10.yaml"
     loading_pos_file: str = "sim_config_loadingPos.yaml"
     ctrl_limit_file: str = "limits.yaml"
-    rand_terrain: bool = True
+    rand_terrain: bool = False
     slope: bool = False
     hfield: bool = False
     position_ctrl: bool = True
     residual_action_space: bool = True
     physics_steps_per_control_step: int = 10
-    # action_scale: float = 0.02
-    action_scale: float = 0.00
+    action_scale: float = 0.05
     custom_action_space: jp.ndarray = jp.array([1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0])
     custom_act_idx: jp.ndarray = jp.array([0, 2, 6, 8])
     impact_threshold: float = 400.0
@@ -492,7 +491,6 @@ class Exo(MjxEnv):
             "alpha": self.alpha,
             "alpha_base": self.alpha_base,
             "hip_regulator_gain": self.config.controller.hip_regulator_gain,
-            "foot_target": jp.zeros(6),
             "impact_threshold": self.config.impact_threshold,
             "cop_regulator_gain": self.config.controller.cop_regulator_gain,
         }
@@ -789,20 +787,6 @@ class Exo(MjxEnv):
         else:
             data = self.pipeline_step(data0, motor_targets)
 
-        def step_switch_target():
-            self.switchFootTarget(state, data);
-            # jax.debug.print("Switch Time: {}", data.time)
-            return True
-        
-        #TODO: use condition from nominal, try with time-based
-        condition = (data0.time - state.info["domain_info"]["step_start"]) / self.step_dur[BehavState.Walking] >= 1
-        if self.config.impact_based_switching:
-            condition = jp.logical_and(
-            self.checkImpact(data0, state.info),
-            (data0.time - state.info["domain_info"]["step_start"]) / self.step_dur[BehavState.Walking] >= 0.8,)
-
-        switch_done = lax.cond(condition, step_switch_target, lambda : False)
-
         # observation data
         obs = self._get_obs(data, action, state.info)
         reward_tuple = self.evaluate_reward(data0, data, cur_action, state.info)
@@ -1039,15 +1023,15 @@ class Exo(MjxEnv):
             -jp.sum(jp.square(base_pos - state_info["base_pos_desire"][0:3])) / self.config.reward.tracking_sigma_pos
         )
 
-        # tracking_orientation_reward = self.config.reward.tracking_base_ori * jp.exp(
-        #     -jp.sum(jp.square(eul - state_info["base_pos_desire"][3:6])) / self.config.reward.tracking_sigma_pos
-        # )
+        tracking_orientation_reward = self.config.reward.tracking_base_ori * jp.exp(
+            -jp.sum(jp.square(eul - state_info["base_pos_desire"][3:6])) / self.config.reward.tracking_sigma_pos
+        )
 
         tracking_joint_reward = self.config.reward.tracking_joint * jp.exp(
             -jp.sum(jp.square(data.qpos[-self.model.nu :] - state_info["nominal_action"]))
             / self.config.reward.tracking_sigma_joint_pos
         )
-        """
+
         tracking_ang_vel_reward = self.config.reward.tracking_ang_vel * jp.exp(
             -jp.sum(jp.square(eul_rate - state_info["base_vel_desire"][3:6])) / self.config.reward.tracking_sigma_vel
         )
@@ -1071,48 +1055,22 @@ class Exo(MjxEnv):
         # smoothness
         jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
         base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
-        """
-        # target foot pos
-        currentFootPos = data.geom_xpos[:, 0:3]
-        # jax.debug.print("Target Foot Pos: {}", state_info["foot_target"])
-        temp = jp.linalg.norm(state_info["foot_target"][:3])
-        # jax.debug.print("Temp: {}", temp)
-        # breakpoint()
-        tracking_foot_reward = -(jp.linalg.norm(currentFootPos[0,:3] - state_info["foot_target"][:3]) +
-                                 jp.linalg.norm(currentFootPos[1,:3] - state_info["foot_target"][3:]))
-        
-        # breakpoint()
-        # TODO: remove reward terms
+
         # cop
-        # cop_reward = self.cop_reward(data, state_info)
-        zero = jp.sum(jp.zeros(3))
-        # jax.debug.print("{}, {}, {}", zero.shape, tracking_foot_reward.shape, tracking_joint_reward.shape)
+        cop_reward = self.cop_reward(data, state_info)
+
         return {
-            "ctrl_cost": zero,
-            "tracking_lin_vel_reward": zero,
-            "tracking_ang_vel_reward": zero,
-            "tracking_pos_reward": zero,
-            "tracking_orientation_reward": zero,
-            "tracking_joint_reward": tracking_joint_reward,
-            "grf_penalty": zero,
-            "mechanical_power": zero,
-            "jt_smoothness_reward": zero,
-            "base_smoothness_reward": zero,
-            # "ctrl_cost": self._clip_reward(ctrl_cost),
-            # "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
-            # "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
-            "tracking_ang_vel_reward": 0.0,
+            "ctrl_cost": self._clip_reward(ctrl_cost),
+            "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
+            "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
             "tracking_pos_reward": self._clip_reward(tracking_pos_reward),
-            # "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
-            # "tracking_joint_reward": self._clip_reward(tracking_joint_reward),
-            # "grf_penalty": self._clip_reward(grf_penalty),
-            # "mechanical_power": mechanical_power,
-            # "jt_smoothness_reward": jt_smoothness_reward,
-            # "base_smoothness_reward": base_smoothness_reward,
-            "tracking_foot_reward": tracking_foot_reward,
-            "jt_smoothness_reward": zero,
-            "base_smoothness_reward": zero,
-            "cop_reward": zero,
+            "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
+            "tracking_joint_reward": self._clip_reward(tracking_joint_reward),
+            "grf_penalty": self._clip_reward(grf_penalty),
+            "mechanical_power": mechanical_power,
+            "jt_smoothness_reward": self._clip_reward(jt_smoothness_reward),
+            "base_smoothness_reward": self._clip_reward(base_smoothness_reward),
+            "cop_reward": self._clip_reward(cop_reward),
         }
 
     def get_swing_grf(self, data: mjx.Data, state_info) -> jax.Array:
@@ -1502,43 +1460,3 @@ class Exo(MjxEnv):
         R = jp.zeros_like(relabel)
         R = R.at[relabelIdx].set(relabel)
         return R
-    
-    def switchFootTarget(self, state, data):
-        # use state info, and key from run
-        prng_key = jax.random.PRNGKey(seed=10)
-        step_len = [0.11966493318671938, -0.2940499740759257, -7.344087977321223E-4]
-        domain_idx = state.info["domain_info"]["domain_idx"]
-        stanceFootPos = data.geom_xpos[domain_idx, 0:3]
-        swingFootPos = data.geom_xpos[(domain_idx + 1) % 2, 0:3]
-        targetOffset = jp.array([step_len[0] * 2, 0.0, 0.0])
-        randomization = jp.array([jax.random.uniform(prng_key, minval=-0.05, maxval=0.05), 
-                                  jax.random.uniform(prng_key, minval=-0.02, maxval=0.02), 0.0])
-        def leftFootSwing():
-            leftfootTarget = jp.add(swingFootPos, targetOffset)
-            leftfootTarget = jp.add(leftfootTarget, randomization)
-            rightfootTarget = stanceFootPos
-            return leftfootTarget, rightfootTarget
-
-        def rightFootSwing():
-            leftfootTarget = stanceFootPos
-            rightfootTarget = jp.add(swingFootPos, targetOffset)
-            rightfootTarget = jp.add(rightfootTarget, randomization)
-            return leftfootTarget, rightfootTarget
-        
-        # if domain_idx == 0: 
-        #     leftfootTarget, rightfootTarget = leftFootSwing()
-        # else: 
-        #     leftfootTarget, rightfootTarget = rightFootSwing()
-        
-        leftfootTarget, rightfootTarget = lax.cond(domain_idx == StanceState.Right.value, leftFootSwing, rightFootSwing)
-
-        state.info["foot_target"].at[0].set(leftfootTarget[0])
-        state.info["foot_target"].at[1].set(leftfootTarget[1])
-        state.info["foot_target"].at[2].set(leftfootTarget[2])
-        state.info["foot_target"].at[3].set(rightfootTarget[0])
-        state.info["foot_target"].at[4].set(rightfootTarget[1])
-        state.info["foot_target"].at[5].set(rightfootTarget[2])
-
-        # State not class variable, need to return the state
-        
-        
