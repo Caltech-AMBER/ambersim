@@ -41,9 +41,9 @@ for _ in range(num_steps):
     images.append(env.get_image(state.pipeline_state))
     logged_data = {}
     logged_data = env.log_state_info(
-        state.info, ["domain_info", "tracking_err", "joint_desire", "reward_tuple"], logged_data
+        state.info, ["domain_info", "tracking_err", "joint_desire", "reward_tuple", "blended_action"], logged_data
     )
-
+    logged_data["tracking_foot_reward"] = state.info["reward_tuple"]["tracking_foot_reward"]
     logged_data_per_step.append(logged_data)
 
 media.write_video(output_video, images, fps=1.0 / env.dt)

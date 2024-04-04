@@ -58,10 +58,11 @@ training_config = read_config(os.path.join(home_dir, "ambersim/models/exo/limits
 
 # Add appo configurations
 ppo_config = ppo_training_utils.PPOConfig()
-object.__setattr__(ppo_config, 'num_timesteps', 100)
-object.__setattr__(ppo_config, 'num_envs', 2)
-object.__setattr__(ppo_config, 'episode_length', 50)
+object.__setattr__(ppo_config, 'num_timesteps', 1000)
+object.__setattr__(ppo_config, 'num_envs', 1)
+object.__setattr__(ppo_config, 'episode_length', 500)
 
+print(ppo_config.num_envs)
 training_config = merge_configs(training_config, struct_to_dict(ppo_config))
 training_config = merge_configs(training_config, struct_to_dict(env.config))
 # training_config.update(ppo_config)
@@ -84,7 +85,7 @@ def progress(num_steps, metrics):
 
     wandb_log_data = {key: float(val) if isinstance(val, jax.Array) else val for key, val in metrics.items()}
     wandb_log_data["current_time"] = current_time
-    wandb_log_data["current_time"] = current_time
+    print(metrics)
     wandb.log(wandb_log_data, step=num_steps)
 
 # Reset environments since internals may be overwritten by tracers from the
