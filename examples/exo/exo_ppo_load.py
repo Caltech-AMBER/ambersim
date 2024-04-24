@@ -64,7 +64,7 @@ env_name = "exo"
 envs.register_environment("exo", Exo)
 env = envs.get_environment(env_name)
 
-home_dir = os.path.expanduser("~")
+home_dir = os.path.expanduser("/work/exo/")
 
 base_dir = os.path.join(home_dir, "ambersim/policies")
 
@@ -93,7 +93,7 @@ actions = []
 rng = jax.random.PRNGKey(0)
 state = jit_reset(rng)
 
-for _ in range(400):
+for i in range(4000):
     start = time.time()
     rollout.append(state)
     act_rng, rng = jax.random.split(rng)
@@ -101,7 +101,8 @@ for _ in range(400):
     state = jit_step(state, ctrl)
     actions.append(ctrl)
     end = time.time()
-    print(f"step time: {end - start}")
+    if i % 100 == 0:
+        print(f"step {i} time: {end - start}")
 
 
 images = []

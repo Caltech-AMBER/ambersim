@@ -58,7 +58,7 @@ class ExoRewardConfig:
     # Tracking rewards are computed using exp(-delta^2/sigma)
     # sigma can be a hyperparameters to tune.
     # Track the base x-y velocity (no z-velocity tracking.)
-    tracking_lin_vel: float = 0.5
+    tracking_lin_vel: float = 2.0
 
     # Track the angular velocity along z-axis, i.e. yaw rate.
     tracking_ang_vel: float = 0.5
@@ -70,9 +70,9 @@ class ExoRewardConfig:
     tracking_base_ori: float = 1.0
 
     # Penalize the base roll and pitch rate. L2 penalty.
-    tracking_base_pos: float = 10.0
-
+    tracking_base_pos: float = 1.0
     tracking_joint: float = 1.0
+
     # Penalize non-zero roll and pitch angles. L2 penalty.
     # orientation: float = -5.0
     tracking_sigma_vel: float = 0.5
@@ -503,37 +503,7 @@ class Exo(MjxEnv):
         self.curr_step = 0
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
 
-        metrics
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        = {"total_dist": 0.0}
-
-
-        
+        metrics = {"total_dist": 0.0}
         for k in state_info["reward_tuple"]:
             metrics[k] = state_info["reward_tuple"][k]
 
@@ -787,7 +757,7 @@ class Exo(MjxEnv):
 
         q_desire, state = self.getNominalDesire(state)
         scaled_action = self.config.action_scale * action
-        jax.debug.print("scaled_action {}", scaled_action)
+##        jax.debug.print("scaled_action {}", scaled_action)
         # for i in range(scaled_action.shape[0]):
         #     jax.debug.print("scaled_action{} {}", i, scaled_action[i])
         if self.config.residual_action_space:
@@ -843,7 +813,7 @@ class Exo(MjxEnv):
         state.info["reward_tuple"] = reward_tuple
         state.info["last_action"] = cur_action
         state.info["blended_action"] = blended_action
-        state.info["reward_tuple"]["mechanical_power"] = self.mechanical_power(data)
+##        state.info["reward_tuple"]["mechanical_power"] = self.mechanical_power(data)
         state.info["tracking_err"] = (
             data.qpos[-self.model.nu :] - action
         )  # currently assuming motor_targets is the desired joint angles; TODO handle torque case
@@ -856,7 +826,8 @@ class Exo(MjxEnv):
         reward = reward + (1 - done) * self.config.reward.healthy_reward
 
         self.curr_step += 1
-
+        for k in state.info["reward_tuple"]:
+            state.metrics[k] = state.info["reward_tuple"][k]
         return state.replace(pipeline_state=data, obs=obs, reward=reward, done=done)
 
     def getCoM2StPos(self, state: State) -> jp.ndarray:
@@ -1053,7 +1024,7 @@ class Exo(MjxEnv):
         # base coordinate tracking
         domain_idx = state_info["domain_info"]["domain_idx"]
         # base_pos = data.qpos[0:3] - data.geom_xpos[self.foot_geom_idx[domain_idx],0:3]
-        """
+
         def get_base_pos(domain_idx, data, foot_geom_idx):
             base_pos = data.qpos[0:3] - data.geom_xpos[foot_geom_idx[domain_idx], 0:3]
             return base_pos
@@ -1065,24 +1036,25 @@ class Exo(MjxEnv):
             operand=None,
         )
 
-        grf_penalty = self._grf_penalty(data, state_info)
-
         tracking_pos_reward = self.config.reward.tracking_base_pos * jp.exp(
             -jp.sum(jp.square(base_pos - state_info["base_pos_desire"][0:3])) / self.config.reward.tracking_sigma_pos
         )
 
-        tracking_orientation_reward = self.config.reward.tracking_base_ori * jp.exp(
-            -jp.sum(jp.square(eul - state_info["base_pos_desire"][3:6])) / self.config.reward.tracking_sigma_pos
-        )
-        """
+        # """
+        # grf_penalty = self._grf_penalty(data, state_info)
+        #
+        # tracking_orientation_reward = self.config.reward.tracking_base_ori * jp.exp(
+        #     -jp.sum(jp.square(eul - state_info["base_pos_desire"][3:6])) / self.config.reward.tracking_sigma_pos
+        # )
+        # """
         tracking_joint_reward = self.config.reward.tracking_joint * jp.exp(
             -jp.sum(jp.square(data.qpos[-self.model.nu :] - state_info["nominal_action"]))
             / self.config.reward.tracking_sigma_joint_pos
         )
-        """
-        tracking_ang_vel_reward = self.config.reward.tracking_ang_vel * jp.exp(
-            -jp.sum(jp.square(eul_rate - state_info["base_vel_desire"][3:6])) / self.config.reward.tracking_sigma_vel
-        )
+        # """
+        # tracking_ang_vel_reward = self.config.reward.tracking_ang_vel * jp.exp(
+        #     -jp.sum(jp.square(eul_rate - state_info["base_vel_desire"][3:6])) / self.config.reward.tracking_sigma_vel
+        # )
 
         tracking_lin_vel_reward = self.config.reward.tracking_lin_vel * jp.exp(
             -jp.sum(
@@ -1093,17 +1065,17 @@ class Exo(MjxEnv):
             / self.config.reward.tracking_sigma_vel
         )
 
-        # control cost
-        ctrl_cost = self.config.reward.ctrl_cost_weight * jp.sum(jp.square(data.qfrc_actuator[-self.model.nu :]))
-        ctrl_cost = jp.clip(ctrl_cost, -1.0, 1.0)
-
-        # mechanical power
-        mechanical_power = self.mechanical_power(data)
-
-        # smoothness
-        jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
-        base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
-        """
+        # # control cost
+        # ctrl_cost = self.config.reward.ctrl_cost_weight * jp.sum(jp.square(data.qfrc_actuator[-self.model.nu :]))
+        # ctrl_cost = jp.clip(ctrl_cost, -1.0, 1.0)
+        #
+        # # mechanical power
+        # mechanical_power = self.mechanical_power(data)
+        #
+        # # smoothness
+        # jt_smoothness_reward = self.config.reward.jt_smoothness_weight * jp.sum(jp.square(data.qacc[-self.model.nu :]))
+        # base_smoothness_reward = self.config.reward.base_smoothness_weight * jp.sum(jp.square(data.qacc[0:6]))
+        # """
         # target foot pos
         currentFootPos = data.geom_xpos[:, 0:3]
         # jax.debug.print("Target Foot Pos: {}", state_info["foot_target"])
@@ -1116,20 +1088,17 @@ class Exo(MjxEnv):
                                  jp.linalg.norm(currentFootPos[1,:2] - state_info["foot_target"]["right"][:2]))
         tracking_foot_reward *= phase_var
 
-        # jax.debug.print("Reward: {}", tracking_foot_reward)
-
-        # breakpoint()
-
         # DONE: remove reward terms
         # cop
         # cop_reward = self.cop_reward(data, state_info)
-        jax.debug.print("reward {}", tracking_foot_reward)
+        # jax.debug.print("reward {}", tracking_foot_reward)
+        # jax.debug.breakpoint()
 
         return {
             "ctrl_cost": 0.0,
-            "tracking_lin_vel_reward": 0.0,
+            # "tracking_lin_vel_reward": 0.0,
             "tracking_ang_vel_reward": 0.0,
-            "tracking_pos_reward": 0.0,
+            # "tracking_pos_reward": 0.0,
             "tracking_orientation_reward": 0.0,
             # "tracking_joint_reward": 0.0,
             "grf_penalty": 0.0,
@@ -1137,9 +1106,9 @@ class Exo(MjxEnv):
             "jt_smoothness_reward": 0.0,
             "base_smoothness_reward": 0.0,
             # "ctrl_cost": self._clip_reward(ctrl_cost),
-            # "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
+            "tracking_lin_vel_reward": self._clip_reward(tracking_lin_vel_reward),
             # "tracking_ang_vel_reward": self._clip_reward(tracking_ang_vel_reward),
-            # "tracking_pos_reward": self._clip_reward(tracking_pos_reward),
+            "tracking_pos_reward": self._clip_reward(tracking_pos_reward),
             # "tracking_orientation_reward": self._clip_reward(tracking_orientation_reward),
             "tracking_joint_reward": self._clip_reward(tracking_joint_reward),
             # "grf_penalty": self._clip_reward(grf_penalty),

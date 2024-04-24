@@ -16,8 +16,8 @@ class PPOConfig:
     policy_hidden_layer_sizes: tuple = (64, 64, 64)
 
     # Configuration for PPO Training
-    num_timesteps: int = 1_000_000
-    num_evals: int = 5
+    num_timesteps: int = 100_000_000
+    num_evals: int = 50
     reward_scaling: float = 1.0
     episode_length: int = 500
     normalize_observations: bool = True

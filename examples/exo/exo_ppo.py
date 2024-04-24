@@ -16,7 +16,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # Disable memory preallocation
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["JAX_TRACEBACK_FILTERING"] = "off"
-
+os.environ["WANDB_DISABLED"] = "true"
 
 def generate_policy_save_path(base_dir, env_name, policy_name_prefix):
     """Generates a save path for a policy."""
@@ -53,16 +53,13 @@ def struct_to_dict(struct_instance):
 env_name = "exo"
 envs.register_environment("exo", Exo)
 env = envs.get_environment(env_name)
-home_dir = os.path.expanduser("~")
+## home_dir = os.path.expanduser("~")
+home_dir = os.path.expanduser("/work/exo")
 training_config = read_config(os.path.join(home_dir, "ambersim/models/exo/limits.yaml"))
 
 # Add appo configurations
 ppo_config = ppo_training_utils.PPOConfig()
-object.__setattr__(ppo_config, 'num_timesteps', 1000)
-object.__setattr__(ppo_config, 'num_envs', 1)
-object.__setattr__(ppo_config, 'episode_length', 500)
 
-print(ppo_config.num_envs)
 training_config = merge_configs(training_config, struct_to_dict(ppo_config))
 training_config = merge_configs(training_config, struct_to_dict(env.config))
 # training_config.update(ppo_config)
