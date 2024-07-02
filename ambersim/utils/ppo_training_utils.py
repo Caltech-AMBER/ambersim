@@ -16,22 +16,30 @@ class PPOConfig:
     policy_hidden_layer_sizes: tuple = (64, 64, 64)
 
     # Configuration for PPO Training
+#    num_timesteps: int = 10_000_000
+#    num_evals: int = 40
+#    num_timesteps: int = 100_000_000
+#    num_evals: int = 160
     num_timesteps: int = 100_000_000
-    num_evals: int = 50
+    num_evals: int = 400
     reward_scaling: float = 1.0
-    episode_length: int = 500
-    normalize_observations: bool = True
+    episode_length: int = 128
+##    normalize_observations: bool = True
+    normalize_observations: bool = False
     action_repeat: int = 1  # Assuming no change needed
-    unroll_length: int = 32  # Assuming no change needed
-    num_minibatches: int = 32
+##    unroll_length: int = 32  # Assuming no change needed
+    unroll_length: int = 128 # Assuming no change needed
+    num_minibatches: int = 16
     gae_lambda: float = 0.98
-    num_updates_per_batch: int = 10  # Assuming no change needed
+    num_updates_per_batch: int = 16  # Assuming no change needed
     discounting: float = 0.98  # Assuming no change needed
-    learning_rate: float = 9e-5
+    learning_rate: float = 8e-4
     entropy_cost: float = 2e-3
-    num_envs: int = 4096  # Assuming no change needed
-    batch_size: int = 512
-    num_resets_per_eval: int = 5  # Assuming no change needed
+##    num_envs: int = 4096  # Assuming no change needed
+    num_envs: int = 256  # Assuming no change needed
+    batch_size: int = 16
+##    num_resets_per_eval: int = 5  # Assuming no change needed
+    num_resets_per_eval: int = 1  # Assuming no change needed
     seed: int = 0  # Assuming no change needed
     # Add any additional fields here
 

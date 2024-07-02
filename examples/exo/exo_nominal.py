@@ -28,8 +28,8 @@ env.step(state, jp.zeros(env.action_size))
 
 jit_env_step = jax.jit(env.step)
 
-output_video = "nominal_policy_video_ibs.mp4"
-num_steps = 500
+output_video = "video/nominal_policy_video_ibs.mp4"
+num_steps = 3
 """Run the simulation basic version."""
 env.getRender()
 
@@ -38,12 +38,20 @@ logged_data_per_step = []
 print("Starting simulation...")
 for _ in range(num_steps):
     state = jit_env_step(state, jp.zeros(env.action_size))
+    if state.done:
+        env.reset(rng=jax.random.PRNGKey(0))
     images.append(env.get_image(state.pipeline_state))
+    # env.record_state(state, {"cop"})
     logged_data = {}
-    logged_data = env.log_state_info(
-        state.info, ["domain_info", "tracking_err", "joint_desire", "reward_tuple", "blended_action"], logged_data
-    )
-    logged_data["tracking_foot_reward"] = state.info["reward_tuple"]["tracking_foot_reward"]
+    # logged_data = env.log_state_info(
+        # state.info, ["domain_info", "tracking_err", "joint_desire", "reward_tuple", "blended_action", "com_pos", "debug"], logged_data
+        # state.info, ["debug"], logged_data
+
+    # )
+    logged_data["debug-cof"] = state.info["debug"]["contact_force"]
+    logged_data["debug-foot_pos_3"] = state.info["debug"]["3_foot_pos"]
+    logged_data["debug-foot_tgt_3"] = state.info["debug"]["3_foot_tgt"]
+    # logged_data["debug-cop"] = state.info["debug"]["cop"]
     logged_data_per_step.append(logged_data)
 
 media.write_video(output_video, images, fps=1.0 / env.dt)

@@ -16,7 +16,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # Disable memory preallocation
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["JAX_TRACEBACK_FILTERING"] = "off"
-os.environ["WANDB_DISABLED"] = "true"
+os.environ["WANDB_DISABLED"] = "false"
+
 
 def generate_policy_save_path(base_dir, env_name, policy_name_prefix):
     """Generates a save path for a policy."""
@@ -82,7 +83,7 @@ def progress(num_steps, metrics):
 
     wandb_log_data = {key: float(val) if isinstance(val, jax.Array) else val for key, val in metrics.items()}
     wandb_log_data["current_time"] = current_time
-    print(metrics)
+    print("\n".join([f"{k:>50} {float(v)}" for (k,v) in metrics.items() if not "std" in k and v != 0 ]))
     wandb.log(wandb_log_data, step=num_steps)
 
 # Reset environments since internals may be overwritten by tracers from the

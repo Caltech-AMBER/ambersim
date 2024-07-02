@@ -147,6 +147,7 @@ class Exo(MjxEnv):
         with open(gait_params_file, "r") as file:
             gait_params = yaml.safe_load(file)
 
+##        self.step_dur = gait_params["step_dur"]
         self.step_dur = gait_params["step_dur"]
         self.step_start = 0.0
         coeff_jt = np.reshape(np.array(gait_params["coeff_jt"]), (12, 8), order="F")

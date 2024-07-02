@@ -90,6 +90,7 @@ jit_step = jax.jit(eval_env.step)
 
 rollout = []
 actions = []
+logged_data_per_step = []
 rng = jax.random.PRNGKey(0)
 state = jit_reset(rng)
 
@@ -99,21 +100,25 @@ for i in range(4000):
     act_rng, rng = jax.random.split(rng)
     ctrl, _ = jit_inference_fn(state.obs, act_rng)
     state = jit_step(state, ctrl)
+    #if state.done:
+    #    state = jit_reset(rng)
     actions.append(ctrl)
     end = time.time()
+    logged_data = env.log_state_info(state.info, ["domain_info", "tracking_err"], {})
+    logged_data["tracking_foot_reward"] = state.info["reward_tuple"]["tracking_foot_reward"]
+    logged_data_per_step.append(logged_data)
     if i % 100 == 0:
         print(f"step {i} time: {end - start}")
-
 
 images = []
 for i in range(len(rollout)):
     temp_State = rollout[i].pipeline_state
     images.append(eval_env.get_image(temp_State))
 
+env.plot_logged_data(logged_data_per_step, save_dir="plots")
+
 # media.show_video(images, fps=1.0 / eval_env.dt)
-
 output_file = "video/exo_base_ppo_policy_new.mp4"
-
 # Open the file in write mode and write content
 with open(output_file, 'w') as file:
     media.write_video(output_file, images, fps=1.0 / eval_env.dt)

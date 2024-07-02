@@ -146,6 +146,9 @@
                            <site name="left_foot_imu" pos="-0.036966       0.015    -0.13705"
                                  quat="-1.6377e-07    -0.94552  -5.639e-08     0.32557"
                                  size=".01"/>
+                           <site name="left_sole_frame" pos="0.06 -3.3e-05 -0.15975"
+                                 quat="1 0 0 1"
+                                 size=".01"/>
                            <site group="2" name="opto1" pos="0.17825      0.0285     -0.1598" quat="1 0 0 1"
                                  size="0.05"/>
                            <site group="2" name="opto2" pos="0.17825     -0.0285     -0.1598" quat="1 0 0 1"
@@ -234,6 +237,9 @@
                                  type="box"/> -->
                            <site name="right_foot_imu" pos="-0.036966       0.015    -0.13705"
                                  quat="-1.6377e-07    -0.94552  -5.639e-08     0.32557"
+                                 size=".01"/>
+                           <site name="right_sole_frame" pos="0.06 -3.3e-05 -0.15975"
+                                 quat="1 0 0 1"
                                  size=".01"/>
                            <site group="2" name="opto5" pos="0.17825      0.0285     -0.1598" quat="1 0 0 1"
                                  size="0.05"/>
