@@ -6,7 +6,8 @@ from brax.training.acme import running_statistics
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import train as ppo
 from flax import struct
-
+from ambersim.utils.ahac_train_1 import *
+from ambersim.utils.ahac import AHAC
 
 @struct.dataclass
 class PPOConfig:
@@ -15,7 +16,7 @@ class PPOConfig:
     # Configuration for PPO Networks
     policy_hidden_layer_sizes: tuple = (64, 64, 64)
 
-    # Configuration for PPO Training
+    # Configuration for PPO Training        
 #    num_timesteps: int = 10_000_000
 #    num_evals: int = 40
 #    num_timesteps: int = 100_000_000
@@ -49,9 +50,24 @@ def make_networks_factory(config: PPOConfig):
     return functools.partial(ppo_networks.make_ppo_networks, policy_hidden_layer_sizes=config.policy_hidden_layer_sizes)
 
 
-def train_fn(config: PPOConfig):
+def train_fn(config: PPOConfig, env=None):
     """Wrapper for constructing training function for ppo."""
     # TODO: replace with new training function
+    ahac = AHAC(env=env,
+                actor_config={},
+                critic_config={},
+                steps_min=20,  # minimum horizon
+                steps_max=50,  # maximum horizon
+                max_epochs=10,  # number of short rollouts to do (i.e. epochs)
+                train=True,  # if False, we only eval the policy
+                logdir="./ahac_logs",)
+    ahac.train()  
+    # import ipdb; ipdb.set_trace()
+    # train(
+    #     num_timesteps=config.num_timesteps,
+    #     episode_length=config.episode_length,
+    #     environment=env)
+
     return functools.partial(
         ppo.train, 
         num_timesteps=config.num_timesteps,

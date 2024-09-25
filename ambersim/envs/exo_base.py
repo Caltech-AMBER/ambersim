@@ -296,7 +296,9 @@ class Exo(MjxEnv):
             "contact_force": zero,
             "debug": {
 
-            }
+            },
+            "accelerations" : jp.zeros(18),
+            "contact_forces" : jp.zeros(8),
         }
 
         self.curr_step = 0
@@ -438,13 +440,13 @@ class Exo(MjxEnv):
         obs = self._get_obs(data, action, state.info)
         reward_tuple = self.evaluate_reward(data0, data, cur_action, state.info)
 
-        self.record_state(state, {"contact_force": self._get_contact_force(data),
-                                  "3_foot_pos": {"foot_pos_L": data.site_xpos[self.foot_geom_idx][0],
-                                                 "foot_pos_R": data.site_xpos[self.foot_geom_idx][1]},
-                                  "3_foot_tgt": {"foot_tgt_L": state.info["foot_target"]["left"],
-                                                 "foot_tgt_R": state.info["foot_target"]["right"]},
-                                  "3_cop": {"cop": state.info["debug"]["cop"]},
-                                  })
+        # self.record_state(state, {"contact_force": self._get_contact_force(data),
+        #                           "3_foot_pos": {"foot_pos_L": data.site_xpos[self.foot_geom_idx][0],
+        #                                          "foot_pos_R": data.site_xpos[self.foot_geom_idx][1]},
+        #                           "3_foot_tgt": {"foot_tgt_L": state.info["foot_target"]["left"],
+        #                                          "foot_tgt_R": state.info["foot_target"]["right"]},
+        #                           "3_cop": {"cop": state.info["debug"]["cop"]},
+        #                           })
         # state management
         state.info["reward_tuple"] = reward_tuple
         state.info["last_action"] = cur_action
@@ -453,6 +455,12 @@ class Exo(MjxEnv):
             data.qpos[-self.model.nu :] - action
         )  # currently assuming motor_targets is the desired joint angles; TODO handle torque case
         state.info["com_pos"] = data.subtree_com[1]
+
+        ## AHAC ##
+        state.info["accelerations"] = data.efc_aref[self.efc_address]
+        state.info["contact_forces"] = self._get_contact_force(data) #[data.cfrc_ext[i] for i in self.foot_geom_idx]
+        #########
+
         # resetting logic if joint limits are reached or robot is falling
         # violate joint limit
         done = self.checkDone(data)
@@ -800,7 +808,7 @@ class Exo(MjxEnv):
         )
 
         cop = self._calculate_cop(data.contact.pos[stance_grf_idx], contact_force[stance_grf_idx]) # TODO: plot cops
-        state_info["debug"]["cop"] = cop
+        # state_info["debug"]["cop"] = cop
         sole_pos = data.site_xpos[self.foot_geom_idx[domain_idx]]
 
         desired_cop = sole_pos[0:2]
@@ -814,6 +822,7 @@ class Exo(MjxEnv):
 
     def _get_contact_force(self, data: mjx.Data) -> jax.Array: # TODO: check contact force; support for contact; plot
         # hacked version
+        # import ipdb; ipdb.set_trace()
         contact_force = data.efc_force[self.efc_address]
 
         # mu = data.contact.friction
@@ -971,9 +980,9 @@ class Exo(MjxEnv):
         return leftfootTarget, rightfootTarget
 
 
-    def record_state(self, state, quant_dict):
-        for key in quant_dict.keys():
-            state.info["debug"][key] = quant_dict[key]
+    # def record_state(self, state, quant_dict):
+    #     for key in quant_dict.keys():
+            # state.info["debug"][key] = quant_dict[key]
     
     from mpl_toolkits.mplot3d import Axes3D
 
