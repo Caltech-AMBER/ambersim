@@ -1,7 +1,8 @@
 channels:
-  - nvidia/label/cuda-11.8.0
+  - nvidia/label/cuda-12.4.0
   - conda-forge
 dependencies:
   - cuda
-  - python=3.11
+  - cudnn
+  - python=3.10
   - gxx_linux-64

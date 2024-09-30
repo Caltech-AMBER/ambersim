@@ -22,7 +22,7 @@ eval set -- "$OPTIONS"
 # defaults
 dev=false
 source=false
-apt_dependencies=true
+apt_dependencies=false
 
 # process inputs
 while true; do
@@ -99,12 +99,12 @@ fi
 # Install regular or development dependencies
 if [ "$dev" = true ] ; then
     echo "[NOTE] Installing development dependencies..."
-    pip install -e .[all] --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+    pip install -e .[all] --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu122
     pre-commit autoupdate
     pre-commit install
 else
     echo "[NOTE] Installing non-developer dependencies..."
-    pip install -e . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu118
+    pip install -e . --default-timeout=100 future --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html --find-links https://download.pytorch.org/whl/cu122
 fi
 
 # Checking whether to install mujoco from source

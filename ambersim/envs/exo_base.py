@@ -123,7 +123,8 @@ class Exo(MjxEnv):
         self.curr_step = 0
         self.obs_history_update_freq = 1
 
-        super().__init__(mj_model=self.model, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
+        super().__init__(mj_model=self.model)  ##, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
+        # super().__init__(mj_model=self.model, physics_steps_per_control_step=self.config.physics_steps_per_control_step)
 
         self.efc_address = jp.array([0, 4, 8, 12, 16, 20, 24, 28]) # TODO: check mjx sensor feature; grf value reasonable?
         self.left_grf_idx = jp.array([0, 1, 2, 3])
@@ -300,6 +301,9 @@ class Exo(MjxEnv):
             "accelerations" : jp.zeros(18),
             "contact_forces" : jp.zeros(8),
         }
+        """
+        "foot_target": jp.zeros(6),
+        """
 
         self.curr_step = 0
         obs = self._get_obs(data, jp.zeros(self.action_size), state_info)
@@ -877,6 +881,10 @@ class Exo(MjxEnv):
             state_info["obs_history"] = jp.roll(
                 state_info["obs_history"], (single_obs_size * self.obs_history_update_freq)
             )
+            # temporary
+            # state_info["obs_history"] = (
+            #     jp.array(state_info["obs_history"]).at[: (single_obs_size * self.obs_history_update_freq)].set(obs)
+            # )
             state_info["obs_history"] = (
                 jp.array(state_info["obs_history"]).at[: (single_obs_size * self.obs_history_update_freq)].set(obs)
             ) # TODO: confirm correctness 
