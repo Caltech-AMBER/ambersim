@@ -93,7 +93,7 @@ def progress(num_steps, metrics):
 env = envs.get_environment(env_name)
 eval_env = envs.get_environment(env_name)
 # make_inference_fn, params, _ = ppo_train_function(environment=env, progress_fn=progress, eval_env=eval_env)
-ahac_train_function(env)
+ahac_train_function()
 
 print(f"time to jit: {times[1] - times[0]}")
 print(f"time to train: {times[-1] - times[1]}")

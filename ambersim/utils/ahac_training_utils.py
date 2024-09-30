@@ -61,34 +61,14 @@ def train_fn(config: PPOConfig, env=None):
                 max_epochs=10,  # number of short rollouts to do (i.e. epochs)
                 train=True,  # if False, we only eval the policy
                 logdir="./ahac_logs",)
-    ahac.train()  
+    # ahac.train()  
     # import ipdb; ipdb.set_trace()
     # train(
     #     num_timesteps=config.num_timesteps,
     #     episode_length=config.episode_length,
     #     environment=env)
 
-    return functools.partial(
-        ppo.train, 
-        num_timesteps=config.num_timesteps,
-        num_evals=config.num_evals,
-        reward_scaling=config.reward_scaling,
-        episode_length=config.episode_length,
-        normalize_observations=config.normalize_observations,
-        action_repeat=config.action_repeat,
-        unroll_length=config.unroll_length,
-        num_minibatches=config.num_minibatches,
-        gae_lambda=config.gae_lambda,
-        num_updates_per_batch=config.num_updates_per_batch,
-        discounting=config.discounting,
-        learning_rate=config.learning_rate,
-        entropy_cost=config.entropy_cost,
-        num_envs=config.num_envs,
-        batch_size=config.batch_size,
-        network_factory=make_networks_factory(config),
-        num_resets_per_eval=config.num_resets_per_eval,
-        seed=config.seed,
-    )
+    return ahac.train
 
 
 def load_model(environment, network_factory, model_path):
