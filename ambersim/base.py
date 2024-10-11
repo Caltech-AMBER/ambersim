@@ -39,7 +39,7 @@ class MjxEnv(Env):
 
     def pipeline_step(self, data: mjx.Data, ctrl: jax.Array) -> mjx.Data:
         """Takes a physics step using the physics pipeline."""
-
+        
         def f(data, _):
             data = data.replace(ctrl=ctrl)
             return (

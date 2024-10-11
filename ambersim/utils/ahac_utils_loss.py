@@ -82,16 +82,17 @@ def compute_actor_loss(self, deterministic=False):
             # contact truncation
             # defaults to jacobian truncation if they are available, otherwise
             # uses contact forces since they are always available
-            cfs = torch.tensor(np.array(info["contact_forces"]))
-            cfs = torch.gradient(cfs)[0]
-            acc = torch.tensor(np.array(info["accelerations"])) # TODO: Check indices match contacts
+            # cfs = torch.tensor(np.array(info["contact_forces"]))
+            # import ipdb; ipdb.set_trace()
+            # acc = torch.tensor(np.array(info["accelerations"])) # TODO: Check indices match contacts
             
-            acc[acc >= 0] = torch.maximum(acc[acc>=0], torch.ones_like(acc[acc>=0]))
-            acc[acc < 0] = torch.maximum(acc[acc<0], torch.ones_like(acc[acc<0]))
-            # cfs_normalised = torch.where(acc != 0.0, cfs / acc, torch.zeros_like(cfs))
-            cfs_normalised = cfs / acc
-            # self.cfs[i] = torch.norm(cfs_normalised, dim=(1, 2))
-            self.cfs[i] = torch.norm(cfs_normalised, dim=(0))
+            # acc[acc >= 0] = torch.maximum(acc[acc>=0], torch.ones_like(acc[acc>=0]))
+            # acc[acc < 0] = torch.maximum(acc[acc<0], torch.ones_like(acc[acc<0]))
+            # # cfs_normalised = torch.where(acc != 0.0, cfs / acc, torch.zeros_like(cfs))
+            # cfs_normalised = cfs / acc
+            # # self.cfs[i] = torch.norm(cfs_normalised, dim=(1, 2))
+            # self.cfs[i] = torch.norm(cfs_normalised, dim=(0))
+            self.cfs[i] = torch.norm(torch.tensor(np.array(info["f_grad"])))
 
             if self.log_jacobians:
                 jac_norm = (

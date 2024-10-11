@@ -300,6 +300,7 @@ class Exo(MjxEnv):
             },
             "accelerations" : jp.zeros(18),
             "contact_forces" : jp.zeros(8),
+            "f_grad" : jp.zeros(self.config.history_size),
         }
         """
         "foot_target": jp.zeros(6),
@@ -423,6 +424,9 @@ class Exo(MjxEnv):
 
         return q_desire, state
 
+    def step_wrapper(self, state_vec: jp.ndarray, action: jp.ndarray):
+        return ...
+
     def step(self, state: State, action: jp.ndarray) -> State:
         """Runs one timestep of the environment's dynamics."""
         cur_action = action
@@ -442,6 +446,7 @@ class Exo(MjxEnv):
         self.curr_step += 1 # TODO: check curr_step getting updated; else insert into state_info
         # observation data
         obs = self._get_obs(data, action, state.info)
+        
         reward_tuple = self.evaluate_reward(data0, data, cur_action, state.info)
 
         # self.record_state(state, {"contact_force": self._get_contact_force(data),
@@ -452,6 +457,7 @@ class Exo(MjxEnv):
         #                           "3_cop": {"cop": state.info["debug"]["cop"]},
         #                           })
         # state management
+
         state.info["reward_tuple"] = reward_tuple
         state.info["last_action"] = cur_action
         state.info["blended_action"] = blended_action
@@ -470,6 +476,12 @@ class Exo(MjxEnv):
         done = self.checkDone(data)
         reward = jp.sum(jp.array(list(reward_tuple.values())))
         reward = reward + (1 - done) * self.config.reward.healthy_reward + done * self.config.reward.unhealthy_penalty
+        step_condense = lambda state_vec, action : reward
+        f_grad_vec = jax.grad(step_condense)(state.info["obs_history"],action)
+        obs_size=self.observation_size_single_step
+        f_grad = jp.array([jp.linalg.norm(f_grad_vec[i*obs_size:(i+1)*obs_size-1]) for i in range(self.config.history_size)])
+        state.info["f_grad"] = f_grad
+
         # Update metrics
         for k in state.info["reward_tuple"]:
             state.metrics[k] = state.info["reward_tuple"][k]
@@ -935,7 +947,7 @@ class Exo(MjxEnv):
             x = self._ncr(bez_deg, i)
             B = B + x * ((1 - tau) ** (bez_deg - i)) * (tau**i) * alpha[:, i]
 
-        return B  # B.astype(jnp.float32)
+        return B  # B.astype(jp.float32)
 
     def _forward_vel(self, t, t0, step_dur, alpha):
         dB = 0
@@ -947,7 +959,7 @@ class Exo(MjxEnv):
             ) * (tau**i)
         dtau = 1 / step_dur
         dB = dB * dtau
-        return dB  # dB.astype(jnp.float32)
+        return dB  # dB.astype(jp.float32)
 
     def _remap_coeff(self):
         # assuming the last num_output is the only relevant ones

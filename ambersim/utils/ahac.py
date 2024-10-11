@@ -197,7 +197,8 @@ class AHAC:
         print("AHAC init finished.")
 
     
-    def train(self):
+    def train(self): 
+        
         for epoch in range(self.max_epochs):
             print(f"Epoch {epoch} started.")
             time_start_epoch = time.time()

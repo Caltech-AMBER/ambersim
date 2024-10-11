@@ -91,6 +91,14 @@ def progress(num_steps, metrics):
 # Reset environments since internals may be overwritten by tracers from the
 # domain randomization function.
 env = envs.get_environment(env_name)
+if isinstance(env, envs.Env):
+    wrap_for_training = envs.training.wrap
+env = wrap_for_training(
+    env,
+    episode_length=ppo_config.episode_length,
+    action_repeat=ppo_config.action_repeat,
+    randomization_fn=None,
+)
 eval_env = envs.get_environment(env_name)
 # make_inference_fn, params, _ = ppo_train_function(environment=env, progress_fn=progress, eval_env=eval_env)
 ahac_train_function()
