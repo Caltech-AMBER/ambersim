@@ -298,14 +298,14 @@
              name="RightHenkeAnkleLink_actuator"/>
    </actuator>
    <sensor>
-      <touch name="opto1" site="opto1"/>
+      <!-- <touch name="opto1" site="opto1"/>
       <touch name="opto2" site="opto2"/>
       <touch name="opto3" site="opto3"/>
       <touch name="opto4" site="opto4"/>
       <touch name="opto5" site="opto5"/>
       <touch name="opto6" site="opto6"/>
       <touch name="opto7" site="opto7"/>
-      <touch name="opto8" site="opto8"/>
+      <touch name="opto8" site="opto8"/> -->
       <framequat name="pelvis-orientation" objname="pelvis_imu" objtype="site"/>
       <gyro name="pelvis-angular-velocity" noise="5e-4" site="pelvis_imu"/>
       <accelerometer name="pelvis-linear-acceleration" noise="1e-2" site="pelvis_imu"/>

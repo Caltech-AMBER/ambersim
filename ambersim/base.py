@@ -27,12 +27,12 @@ class MjxEnv(Env):
         """
         self.model = mj_model
         self.data = mujoco.MjData(mj_model)
-        self.sys = mjx.device_put(mj_model)
+        self.sys = mjx.put_model(mj_model)
         self._physics_steps_per_control_step = physics_steps_per_control_step
 
     def pipeline_init(self, qpos: jax.Array, qvel: jax.Array) -> mjx.Data:
         """Initializes the physics state."""
-        data = mjx.device_put(self.data)
+        data = mjx.put_data(self.model, self.data)
         data = data.replace(qpos=qpos, qvel=qvel, ctrl=jp.zeros(self.sys.nu))
         data = mjx.forward(self.sys, data)
         return data
