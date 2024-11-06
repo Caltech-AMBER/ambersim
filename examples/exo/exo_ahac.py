@@ -1,19 +1,17 @@
 import os
 from datetime import datetime
-import functools
 
 import jax
+import wandb
 import yaml
 from brax import envs
 from brax.io import model
 
-import wandb
 from ambersim.envs.exo_base import Exo
-from ambersim.utils import ppo_training_utils
-from ambersim.utils import ahac_training_utils
+from ambersim.utils import ahac_training_utils, ppo_training_utils
 
 # Set the GPU device to use (e.g., the first GPU)
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Disable memory preallocation
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["JAX_TRACEBACK_FILTERING"] = "off"
@@ -55,12 +53,14 @@ def struct_to_dict(struct_instance):
 env_name = "exo"
 envs.register_environment("exo", Exo)
 env = envs.get_environment(env_name)
-## home_dir = os.path.expanduser("~")
-home_dir = os.path.expanduser("/work/exo")
-training_config = read_config(os.path.join(home_dir, "ambersim/models/exo/limits.yaml"))
+
+current_directory = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print("Current Directory:", current_directory)
+
+training_config = read_config(os.path.join(current_directory, "models/exo/limits.yaml"))
 
 # Add appo configurations
-ppo_config = ppo_training_utils.PPOConfig()
+ppo_config = ahac_training_utils.PPOConfig()
 
 training_config = merge_configs(training_config, struct_to_dict(ppo_config))
 training_config = merge_configs(training_config, struct_to_dict(env.config))
@@ -70,9 +70,12 @@ training_config = merge_configs(training_config, struct_to_dict(env.config))
 # wandb.init(project="exo_ppo", entity="kli5", config=training_config)
 # wandb.init(project="exo_ppo", config=training_config)
 
-networks_factory = ppo_training_utils.make_networks_factory(ppo_config)
+networks_factory = ahac_training_utils.make_networks_factory(ppo_config)
 # ppo_train_function = ppo_training_utils.train_fn(ppo_config)
-ahac_train_function = ahac_training_utils.train_fn(ppo_config, env)
+
+ahac_config = ahac_training_utils.AHACConfig()
+
+ahac_train_function = ahac_training_utils.train_fn(ahac_config, env)
 
 times = [datetime.now()]
 
@@ -87,6 +90,7 @@ def progress(num_steps, metrics):
     # wandb_log_data["current_time"] = current_time
     # print("\n".join([f"{k:>50} {float(v)}" for (k,v) in metrics.items() if not "std" in k and v != 0 ]))
     # wandb.log(wandb_log_data, step=num_steps)
+
 
 # Reset environments since internals may be overwritten by tracers from the
 # domain randomization function.
@@ -106,7 +110,7 @@ ahac_train_function()
 print(f"time to jit: {times[1] - times[0]}")
 print(f"time to train: {times[-1] - times[1]}")
 
-base_dir = os.path.join(home_dir, "ambersim/policies")
+base_dir = os.path.join(current_directory, "policies")
 policy_name_prefix = "ppo"
 model_path = generate_policy_save_path(base_dir, env_name, policy_name_prefix)
 
