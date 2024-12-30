@@ -6,7 +6,7 @@
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
 import sys
-
+import jax
 
 # if there's overlap between args_list and commandline input, use commandline input
 def solve_argv_conflict(args_list):
@@ -102,3 +102,30 @@ def seeding(seed=0, torch_deterministic=False):
         torch.backends.cudnn.deterministic = False
 
     return seed
+
+import numpy as np
+
+def finite_diff_grad(f, x, eps=1e-5):
+    # Get the number of dimensions of x
+    r = len(x)
+    
+    # Initialize the gradient
+    grad = np.zeros(r)
+    
+    # Compute the gradient using central difference for each dimension
+    for i in range(r):
+        x_forward = x.copy()
+        x_backward = x.copy()
+        
+        # Perturb only the i-th element of x
+        # x_forward[i] a+= eps
+        # x_backward[i] -= eps
+        
+        # Evaluate the function at the perturbed points
+        y_forward = f(x_forward[i] + eps).reward
+        y_backward = f(x_backward[i] - eps).reward
+        
+        # Compute the gradient for this dimension
+        grad[i] = (y_forward - y_backward) / (2.0 * eps)
+    
+    return grad

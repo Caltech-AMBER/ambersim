@@ -10,7 +10,8 @@ from ambersim.utils.ahac_utils_loss import *
 from ambersim.utils.ahac_utils_dataset import CriticDataset
 from ambersim.utils.ahac_utils_model import *
 from ambersim.utils.ahac_utils_average_meter import AverageMeter
-
+import jax
+import matplotlib.pyplot as plt
 
 class AHAC:
     def __init__(
@@ -26,7 +27,7 @@ class AHAC:
         logdir: str,
         grad_norm: Optional[float] = None,  # clip actor and ciritc grad norms
         critic_grad_norm: Optional[float] = None,
-        contact_threshold: float = 500,  # for cutting horizons
+        contact_threshold: float = 100,  # for cutting horizons
         accumulate_jacobians: bool = False,  # if true clip gradients by accumulation
         actor_lr: float = 2e-3,
         critic_lr: float = 2e-3,
@@ -39,7 +40,7 @@ class AHAC:
         critic_iterations: Optional[int] = None,  # if None, we do early stop
         critic_batches: int = 4,
         critic_method: str = "one-step",
-        save_interval: int = 500,  # how often to save policy
+        save_interval: int = 100,  # how often to save policy
         score_keys: List[str] = [],
         eval_runs: int = 12,
         log_jacobians: bool = False,  # expensive and messes up wandb
@@ -62,18 +63,20 @@ class AHAC:
         # print("num_envs = ", self.env.num_envs)
         # print("num_actions = ", self.env.num_actions)
         # print("num_obs = ", self.env.num_obs)
+        self.jit_env_step = jax.jit(self.env.step)
+        self.jit_env_reset = jax.jit(self.env.reset)
 
         self.num_envs = num_envs
         self.num_obs = num_obs
         self.num_actions = num_actions
         self.max_episode_length = episode_length
-        # self.device = torch.device(device)
-        self.device="cpu"
+        self.device = torch.device(device)
+        # self.device="cpu"
 
         self.steps_min = steps_min
         self.steps_max = steps_max
-        self.H = torch.tensor(steps_min, dtype=torch.float32)
-        self.lambd = torch.tensor([0.0]*steps_min, dtype=torch.float32)
+        self.H = torch.tensor(steps_min, dtype=torch.float32, device=self.device)
+        self.lambd = torch.tensor([0.0]*steps_min, dtype=torch.float32, device=self.device)
         self.C = contact_threshold
         self.max_epochs = max_epochs
         self.actor_lr = actor_lr
@@ -193,6 +196,8 @@ class AHAC:
             key + "_final": AverageMeter(1, 100).to(self.device)
             for key in self.score_keys
         }
+        self.value_loss_lst = []
+        self.actor_loss_lst = []
 
         print("AHAC init finished.")
 
@@ -200,7 +205,7 @@ class AHAC:
     def train(self): 
         
         for epoch in range(self.max_epochs):
-            print(f"Epoch {epoch} started.")
+            print(f"Epoch {epoch}:")
             time_start_epoch = time.time()
 
             lr = self.actor_lr
@@ -265,17 +270,18 @@ class AHAC:
                 #### END ############
 
                 self.value_loss = total_critic_loss
-                print("value iter {}/{}, loss = {:7.6f}".format(j + 1, iterations, self.value_loss), end="\r",)
+                # print("value iter {}/{}, loss = {:7.6f}".format(j + 1, iterations, self.value_loss), end="\r",)
 
             # self.time_report.end_timer("critic training")
 
             last_steps = self.steps_num
 
             # Train horizon
-            self.lambd -= lambd_lr * (self.C - self.cfs.mean(-1))
+            # import ipdb; ipdb.set_trace()
+            self.lambd -= lambd_lr * (self.C - self.cfs.mean(-1).to(self.device)*self.reward_const)
             self.H += lambd_lr * self.lambd.sum()
             self.H = torch.clip(self.H, self.steps_min, self.steps_max)
-            print(f"H={self.H.item():.2f}, lambda={self.lambd.mean().item():.2f}")
+            print(f"H={self.H.item():.2f}, lambda={lambd_lr * self.lambd.sum()}")
 
             # reset buffers correctly for next iteration
             self.init_buffers()
@@ -301,9 +307,35 @@ class AHAC:
                 mean_policy_loss = torch.inf
                 mean_policy_discounted_loss = torch.inf
                 mean_episode_length = 0
-            print(f"Epoch {epoch} finished.")
+            # print(f"Epoch {epoch} finished.")
             if self.save_interval > 0 and (self.iter_count % self.save_interval == 0):
                 self.save(self.name + "policy_iter{}_reward{:.3f}".format(self.iter_count, -mean_policy_loss))
+            self.value_loss_lst.append(self.value_loss)
+            self.actor_loss_lst.append(self.actor_loss)
+            self.plot_losses(self.value_loss_lst,"value_loss")
+            self.plot_losses(self.actor_loss_lst,"actor_loss")
+            
+    def plot_losses(self,numbers,name):
+        # Your list of numbers
+        # The x-coordinates for the list of numbers
+        # Here, we're just using the index of each number in the list
+        numbers = torch.tensor(numbers).cpu().numpy()
+        x_coords = list(range(len(numbers)))
+
+        # Create a figure and an axes.
+        fig, ax = plt.subplots()
+
+        # Plot the list of numbers
+        ax.plot(x_coords, numbers)  
+
+        # Add title and labels
+        ax.set_title('Plot of a List of Numbers')
+        ax.set_xlabel('Index')
+        ax.set_ylabel('Value')
+
+        # Show the plot
+        fig.savefig(f'{self.log_dir}/{name}.png')
+        plt.close()
     
     def init_buffers(self):
             self.obs_buf = torch.zeros(
@@ -334,6 +366,7 @@ class AHAC:
     def save(self, filename=None):
         if filename is None:
             filename = "best_policy"
+        print(self.log_dir)
         torch.save(
             [self.actor, self.critic, self.obs_rms, self.ret_rms],
             os.path.join(self.log_dir, "{}.pt".format(filename)),
@@ -345,12 +378,12 @@ class AHAC:
         if actor:
             self.actor = checkpoint[0].to(self.device)
         self.critic = checkpoint[1].to(self.device)
-        self.obs_rms = checkpoint[2].to(self.device)
-        self.ret_rms = (
-            checkpoint[3].to(self.device)
-            if checkpoint[3] is not None
-            else checkpoint[3]
-        )
+        # self.obs_rms = checkpoint[2].to(self.device)
+        # self.ret_rms = (
+        #     checkpoint[3].to(self.device)
+        #     if checkpoint[3] is not None
+        #     else checkpoint[3]
+        # )
 
     def log_scalar(self, scalar, value):
         """Helper method for consistent logging"""

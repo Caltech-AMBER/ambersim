@@ -1,0 +1,18 @@
+method: bayes  # Choose from: grid, random, bayes
+name: ahac-sweep   # Name of the sweep
+metric:
+  name: actor_loss
+  goal: minimize  # Other option: 'minimize'
+parameters:
+  actor_lr: 
+    min: 1e-6
+    max: 1e-2
+  critic_lr:
+    min: 1e-6
+    max: 1e-2
+  lambd_lr: 
+    min: 1e-6
+    max: 1e-2
+  C_thresh:
+    min: 1e-2
+    max: 1e2

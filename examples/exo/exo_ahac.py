@@ -1,3 +1,5 @@
+import torch
+torch.cuda.init()
 import os
 from datetime import datetime
 
@@ -104,16 +106,15 @@ env = wrap_for_training(
     randomization_fn=None,
 )
 eval_env = envs.get_environment(env_name)
-# make_inference_fn, params, _ = ppo_train_function(environment=env, progress_fn=progress, eval_env=eval_env)
+# make_inference_fn, params, _ = ahac_train_function(environment=env, progress_fn=progress, eval_env=eval_env)
 ahac_train_function()
 
-print(f"time to jit: {times[1] - times[0]}")
-print(f"time to train: {times[-1] - times[1]}")
+# print(f"time to jit: {times[1] - times[0]}")
+# print(f"time to train: {times[-1] - times[1]}")
 
-base_dir = os.path.join(current_directory, "policies")
-policy_name_prefix = "ppo"
-model_path = generate_policy_save_path(base_dir, env_name, policy_name_prefix)
+# base_dir = os.path.join(home_dir, "ambersim_cut/policies")
+# policy_name_prefix = "ahac"
+# model_path = generate_policy_save_path(base_dir, env_name, policy_name_prefix)
 
 # Save the model parameters
-# model.save_params(model_path, params)
-# print(f"Model saved at: {model_path}")
+# model.save_paramsqed at: {model_path}")

@@ -7,6 +7,7 @@ import ambersim.utils.ahac_utils_torch_utils as tu
 from ambersim.utils.ahac_utils_common import *
 from ambersim.utils.ahac_utils_loss import *
 import jax
+import functools
 
 def compute_actor_loss(self, deterministic=False):
         rew_acc = torch.zeros(
@@ -27,7 +28,7 @@ def compute_actor_loss(self, deterministic=False):
                 ret_var = self.ret_rms.var.clone()
 
         # initialize trajectory to cut off gradients between episodes.
-        obs = self.env.reset(rng=jax.random.PRNGKey(0))
+        obs = self.jit_env_reset(rng=jax.random.PRNGKey(0))
         if self.obs_rms is not None:
             # update obs rms
             with torch.no_grad():
@@ -45,10 +46,13 @@ def compute_actor_loss(self, deterministic=False):
                 self.obs_buf[i] = obs_tensor
 
             # act in environment
-            actions = self.actor(obs_tensor, deterministic=deterministic)
+            actions = self.actor(obs_tensor.to(self.device), deterministic=deterministic)
             # import ipdb; ipdb.set_trace()
-
-            state = self.env.step(state=obs, action=jnp.tanh(actions.detach().numpy()))
+            step = functools.partial(self.jit_env_step, obs)
+            np_action = jnp.tanh(actions.detach().cpu().numpy())
+            # jnp.linalg.norm(jax.grad(step(jnp.tanh(actions.detach().cpu().numpy()))))
+            state = self.jit_env_step(state=obs, action=np_action)
+            f_grad = finite_diff_grad(step, np_action)
             obs=state
             rew=torch.tensor(np.array(state.reward))
             info=state.info
@@ -92,7 +96,8 @@ def compute_actor_loss(self, deterministic=False):
             # cfs_normalised = cfs / acc
             # # self.cfs[i] = torch.norm(cfs_normalised, dim=(1, 2))
             # self.cfs[i] = torch.norm(cfs_normalised, dim=(0))
-            self.cfs[i] = torch.norm(torch.tensor(np.array(info["f_grad"])))
+
+            self.cfs[i] = torch.tensor(np.linalg.norm(f_grad))
 
             if self.log_jacobians:
                 jac_norm = (
@@ -101,10 +106,10 @@ def compute_actor_loss(self, deterministic=False):
                 k = self.step_count + int(torch.sum(rollout_len).item())
                 if jac_norm:
                     self.writer.add_scalar("jacobian", jac_norm, k)
-                self.writer.add_scalar("contact_forces", cfs_normalised, k)
+                # self.writer.add_scalar("contact_forces", cfs_normalised, k)
 
             # real_obs = info["obs_before_reset"]
-            real_obs = obs_tensor
+            real_obs = obs_tensor.to(self.device)
             # sanity check
             if (~torch.isfinite(real_obs)).sum() > 0:
                 print("Got inf obs")
@@ -246,5 +251,5 @@ def compute_critic_loss(self, batch_sample):
     predicted_values = self.critic.predict(batch_sample["obs"]).squeeze(-2)
     target_values = batch_sample["target_values"]
     critic_loss = ((predicted_values - target_values) ** 2).mean()
-    print("Critic loss computed.")
+    # print("Critic loss computed.")
     return critic_loss

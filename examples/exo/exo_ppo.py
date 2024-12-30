@@ -73,7 +73,6 @@ ppo_train_function = ppo_training_utils.train_fn(ppo_config)
 
 times = [datetime.now()]
 
-
 def progress(num_steps, metrics):
     """Logs progress during RL."""
     print(f"  Steps: {num_steps}, Reward: {metrics['eval/episode_reward']}")

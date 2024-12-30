@@ -426,6 +426,25 @@ class Exo(MjxEnv):
 
     def step_wrapper(self, state_vec: jp.ndarray, action: jp.ndarray):
         return ...
+    
+    def finite_diff_grad(f, x, eps=1e-5):
+        r = len(x)
+        grad = np.zeros(r)
+        # iterate over all dimensions
+        for i in range(r):
+            # compute finite difference in forward and backward directions
+            dx_forward = np.zeros(r)
+            dx_backward = np.zeros(r)
+            dx_forward[i] = eps
+            dx_backward[i] = -eps
+            
+            # evaluate function at x + dx and x - dx
+            y_forward = f(x + dx_forward)
+            y_backward = f(x - dx_backward)
+            
+            # compute gradient
+            grad[i] = (y_forward - y_backward) / (2.0 * eps)
+        return grad
 
     def step(self, state: State, action: jp.ndarray) -> State:
         """Runs one timestep of the environment's dynamics."""
@@ -477,10 +496,11 @@ class Exo(MjxEnv):
         reward = jp.sum(jp.array(list(reward_tuple.values())))
         reward = reward + (1 - done) * self.config.reward.healthy_reward + done * self.config.reward.unhealthy_penalty
         step_condense = lambda state_vec, action : reward
-        f_grad_vec = jax.grad(step_condense)(state.info["obs_history"],action)
-        obs_size=self.observation_size_single_step
-        f_grad = jp.array([jp.linalg.norm(f_grad_vec[i*obs_size:(i+1)*obs_size-1]) for i in range(self.config.history_size)])
-        state.info["f_grad"] = f_grad
+        # f_grad_vec = self.finite_diff_grad(f=jax.jit(step_condense), x=action)
+        # # f_grad_vec = jax.grad(step_condense)(state.info["obs_history"],action)
+        # obs_size=self.observation_size_single_step
+        # f_grad = jp.array([jp.linalg.norm(f_grad_vec[i*obs_size:(i+1)*obs_size-1]) for i in range(self.config.history_size)])
+        # state.info["f_grad"] = f_grad
 
         # Update metrics
         for k in state.info["reward_tuple"]:
